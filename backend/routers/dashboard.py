@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
 from database import get_db
-from models import Student, Tag, GradeRecord, WarningRecord, student_tags, ClassModel, Major
+from models import Student, Tag, GradeRecord, WarningRecord, student_tags, ClassModel, Major, Activity, PartyProgress
+from datetime import datetime, timedelta
 
 router = APIRouter(prefix='/api/dashboard', tags=['驾驶舱'])
 
@@ -101,10 +102,50 @@ def get_dashboard(
         for s in recent_query.all()
     ]
 
+    # 党员/发展对象数（去重学生 id，取过党团发展阶段的学生）
+    party_query = db.query(func.count(func.distinct(PartyProgress.student_id)))
+    if student_ids:
+        party_query = party_query.filter(PartyProgress.student_id.in_(student_ids))
+    party_count = party_query.scalar() or 0
+
+    # 本月活动数（按 activity_date 字符串 YYYY-MM 前缀匹配当月）
+    now = datetime.now()
+    month_prefix = now.strftime('%Y-%m')
+    month_activities = db.query(Activity).filter(Activity.activity_date.like(f'{month_prefix}%')).count()
+
+    # 预警清单 TOP 20（含学生姓名/班级）
+    warn_q = db.query(WarningRecord).join(Student, WarningRecord.student_id == Student.id).order_by(WarningRecord.created_at.desc())
+    if student_ids:
+        warn_q = warn_q.filter(WarningRecord.student_id.in_(student_ids))
+    warnings_list = []
+    for w in warn_q.limit(20).all():
+        s = w.student
+        warnings_list.append({
+            'id': w.id,
+            'student_id': s.id if s else None,
+            'name': s.name if s else '',
+            'student_no': s.student_no if s else '',
+            'class_name': s.class_obj.class_name if s and s.class_obj else '',
+            'warning_type': w.warning_type,
+            'description': w.description or '',
+            'semester': w.semester or '',
+        })
+
+    # 近期活动 TOP 5（按 activity_date 倒序）
+    recent_act_list = [
+        {
+            'id': a.id, 'title': a.title, 'activity_date': a.activity_date,
+            'location': a.location, 'activity_type': a.activity_type, 'status': a.status,
+        }
+        for a in db.query(Activity).order_by(Activity.activity_date.desc()).limit(5).all()
+    ]
+
     return {
         'total_students': total_students,
         'total_classes': total_classes,
         'total_majors': total_majors,
+        'party_count': party_count,
+        'month_activities': month_activities,
         'red_count': red_count,
         'yellow_count': yellow_count,
         'normal_count': total_students - red_count - yellow_count,
@@ -112,4 +153,6 @@ def get_dashboard(
         'major_distribution': major_distribution,
         'tag_distribution': tag_distribution,
         'recent_students': recent_students,
+        'warnings': warnings_list,
+        'recent_activities': recent_act_list,
     }
