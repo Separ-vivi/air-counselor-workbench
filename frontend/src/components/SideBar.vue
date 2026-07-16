@@ -64,42 +64,26 @@
 </script>
 
 <style scoped>
-/* V3-G 侧边栏时尚化：毛玻璃 + 马卡龙渐变叠底 + 雾紫深字 */
+/* V3-G 侧边栏（淡色版）：浅蓝→浅薄荷柔和过渡 + 毛玻璃 */
 .sidebar-root {
   width: 220px;
   height: 100vh;
-  background:
-    linear-gradient(180deg,
-      rgba(255, 225, 235, 0.72) 0%,
-      rgba(230, 225, 250, 0.72) 45%,
-      rgba(220, 240, 235, 0.78) 100%);
-  backdrop-filter: blur(20px) saturate(1.3);
-  -webkit-backdrop-filter: blur(20px) saturate(1.3);
-  color: #5B5273;
+  background: linear-gradient(180deg,
+    rgba(220, 235, 250, 0.72) 0%,
+    rgba(225, 245, 240, 0.75) 100%);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  color: #3A5A6E;
   border-right: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 2px 0 18px rgba(139, 126, 199, 0.08);
+  box-shadow: 2px 0 14px rgba(93, 143, 160, 0.06);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  position: relative;
 }
-/* 顶部再叠一层柔和光斑，模拟 iOS 磨砂玻璃 */
-.sidebar-root::before {
-  content: '';
-  position: absolute;
-  top: -60px;
-  left: -40px;
-  width: 260px;
-  height: 260px;
-  background: radial-gradient(circle, rgba(255, 182, 193, 0.35) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-.sidebar-root > * { position: relative; z-index: 1; }
 
 .brand {
   padding: 20px 20px 14px;
-  border-bottom: 1px solid rgba(139, 126, 199, 0.15);
+  border-bottom: 1px solid rgba(122, 168, 184, 0.18);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -108,12 +92,12 @@
 .brand-text {
   font-weight: 600;
   font-size: 15px;
-  color: #4A3F6B;
+  color: #2E4A5E;
   letter-spacing: 0.3px;
 }
 .brand-ver {
-  background: rgba(139, 126, 199, 0.18);
-  color: #6B5EB0;
+  background: rgba(122, 168, 184, 0.18);
+  color: #3B6A7C;
   padding: 2px 8px;
   border-radius: 8px;
   font-size: 11px;
@@ -128,7 +112,7 @@
 }
 :deep(.el-menu-item),
 :deep(.el-sub-menu__title) {
-  color: #5B5273 !important;
+  color: #3A5A6E !important;
   border-radius: 10px !important;
   margin: 3px 10px !important;
   transition: all .2s ease;
@@ -136,27 +120,25 @@
 }
 :deep(.el-menu-item:hover),
 :deep(.el-sub-menu__title:hover) {
-  background: rgba(139, 126, 199, 0.14) !important;
-  color: #4A3F6B !important;
+  background: rgba(122, 168, 184, 0.14) !important;
+  color: #2E4A5E !important;
 }
 :deep(.el-menu-item.is-active) {
-  background: linear-gradient(135deg,
-    rgba(179, 168, 224, 0.32) 0%,
-    rgba(200, 190, 235, 0.28) 100%) !important;
-  color: #4A3F6B !important;
+  background: rgba(122, 168, 184, 0.22) !important;
+  color: #2E4A5E !important;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(139, 126, 199, 0.14);
+  box-shadow: 0 2px 6px rgba(93, 143, 160, 0.12);
   position: relative;
 }
 :deep(.el-menu-item.is-active)::before {
   content: '';
   position: absolute;
   left: -10px;
-  top: 20%;
-  bottom: 20%;
+  top: 22%;
+  bottom: 22%;
   width: 3px;
   border-radius: 2px;
-  background: linear-gradient(180deg, #B5A8E0 0%, #8B7EC7 100%);
+  background: linear-gradient(180deg, #7AA8B8 0%, #5D8FA0 100%);
 }
 :deep(.el-sub-menu .el-menu-item) {
   min-width: unset !important;
@@ -164,13 +146,13 @@
   font-size: 13.5px;
 }
 :deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
-  color: #6B5EB0 !important;
+  color: #3B6A7C !important;
 }
 .footer-hint {
   padding: 12px 20px;
   font-size: 12px;
-  color: rgba(91, 82, 115, 0.75);
-  border-top: 1px solid rgba(139, 126, 199, 0.15);
+  color: rgba(58, 90, 110, 0.7);
+  border-top: 1px solid rgba(122, 168, 184, 0.18);
 }
-.footer-hint .text-muted { color: rgba(91, 82, 115, 0.5); }
+.footer-hint .text-muted { color: rgba(58, 90, 110, 0.5); }
 </style>
