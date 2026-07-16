@@ -236,21 +236,21 @@ def seed_large_dataset():
 
         # 班主任
         teacher_pool = [
-            ('陈教授','T2019001','计算机学院','人工智能'),
-            ('周副教授','T2020002','软件工程系','软件工程'),
-            ('林副教授','T2018003','网络空间安全学院','网络安全'),
-            ('刘讲师','T2021004','计算机学院','分布式系统'),
-            ('张教授','T2015005','人工智能学院','机器学习'),
-            ('李副教授','T2017006','计算机学院','数据库'),
-            ('王副教授','T2019007','软件工程系','软件测试'),
-            ('赵讲师','T2022008','网络空间安全学院','密码学'),
+            ('陈教授','T2019001','机械工程学院','机械设计'),
+            ('周副教授','T2020002','机械工程学院','车辆动力学'),
+            ('林副教授','T2018003','机械工程学院','机器人控制'),
+            ('刘讲师','T2021004','机械工程学院','数控加工'),
+            ('张教授','T2015005','机械工程学院','材料成型'),
+            ('李副教授','T2017006','机械工程学院','液压传动'),
+            ('王副教授','T2019007','机械工程学院','先进制造'),
+            ('赵讲师','T2022008','机械工程学院','工程仿真'),
         ]
         stats['class_teachers'] = 0
         for cobj in classes:
             tp = next((x for x in teacher_pool if x[0] == cobj.class_teacher), teacher_pool[0])
             db.add(ClassTeacher(
                 class_id=cobj.id, name=tp[0], staff_no=tp[1], department=tp[2],
-                phone=gen_phone(), office=f'信息楼{random.randint(3,6)}0{random.randint(1,9)}',
+                phone=gen_phone(), office=f'机械楼{random.randint(3,6)}0{random.randint(1,9)}',
                 research_direction=tp[3],
             ))
             stats['class_teachers'] += 1
@@ -345,18 +345,25 @@ def seed_large_dataset():
                 stats['family'] += 1
         db.commit()
 
-        # 活动 + 报名
+        # 活动 + 报名（含机械学院常见比赛）
         activity_defs = [
             ('2024 春季运动会','2024-04-15','体育场','校春季田径运动会','体育'),
-            ('AI 前沿技术讲座','2024-03-20','报告厅A','人工智能前沿','学术'),
-            ('宿舍文化节','2024-05-10','东区广场','宿舍装饰评比','文体'),
-            ('毕业生就业双选会','2024-11-08','体育馆','校招双选','就业'),
+            ('机械创新设计大赛校赛','2024-03-25','机械楼报告厅','全国大学生机械创新设计大赛校内选拔','学科竞赛'),
+            ('全国大学生数学建模竞赛','2024-09-05','数学建模基地','三天两夜校外赛','学科竞赛'),
+            ('大学生机器人大赛（RoboMaster）','2024-05-20','工训中心','机器人对抗赛校队选拔','学科竞赛'),
+            ('中国大学生方程式汽车大赛（FSC）','2024-04-08','汽车实验室','赛车设计与制造','学科竞赛'),
+            ('全国大学生工程训练综合能力竞赛','2024-06-15','工训中心','工训赛校内选拔','学科竞赛'),
+            ('"互联网+"大学生创新创业大赛','2024-05-15','创业孵化中心','创新创业项目路演','创新创业'),
+            ('"挑战杯"课外学术科技作品竞赛','2024-04-20','大学生活动中心','学术科技作品竞赛','创新创业'),
+            ('大学生节能减排社会实践与科技竞赛','2024-07-10','节能减排研究所','低碳环保设计','学科竞赛'),
+            ('全国大学生先进成图技术大赛','2024-05-05','工程图学实验室','CAD 建模竞赛','学科竞赛'),
+            ('3D 打印创新设计大赛','2024-06-01','增材制造实验室','3D 打印方案设计','学科竞赛'),
             ('迎新晚会','2024-09-20','大剧场','迎接新生','文体'),
             ('党史学习月','2024-06-01','党建活动室','党史教育','党建'),
-            ('数学建模培训','2024-07-01','实验楼','建模选拔','学科'),
             ('心理健康周','2024-10-10','心理咨询中心','心理疏导','心理'),
             ('志愿服务日','2024-12-05','社区','敬老院服务','志愿'),
-            ('程序设计大赛','2024-11-20','机房','ACM 选拔','学科'),
+            ('宿舍文化节','2024-05-10','东区广场','宿舍装饰评比','文体'),
+            ('毕业生就业双选会','2024-11-08','体育馆','校招双选','就业'),
         ]
         activities = []
         for title, adate, loc, desc, atype in activity_defs:
@@ -383,9 +390,9 @@ def seed_large_dataset():
                 status = {'考研':'备考中','就业':random.choice(['求职中','已签约','实习中']),'考公':'备考中','留学':'申请中','创业':'启动中','待定':'规划中'}[it]
                 db.add(EmploymentRecord(
                     student_id=stu.id, intention_type=it,
-                    target_industry=random.choice(['互联网','金融','制造','教育','公务员','事业单位']),
-                    target_position=random.choice(['软件工程师','算法工程师','产品经理','数据分析师','运维工程师','研究生']),
-                    internship_company=random.choice(['','某科技公司','某金融公司','某互联网大厂']),
+                    target_industry=random.choice(['汽车制造','机械装备','轨道交通','航空航天','能源电力','智能制造','公务员','事业单位']),
+                    target_position=random.choice(['机械工程师','结构工程师','工艺工程师','车辆研发','机器人算法工程师','CAE 仿真工程师','研究生','公务员']),
+                    internship_company=random.choice(['','某汽车主机厂','某机械装备公司','某轨道交通企业','某航空制造企业']),
                     status=status, offer_date='2024-05-15' if status=='已签约' else '',
                     salary_range=random.choice(['','8-12K','12-18K','15-25K','20-30K']),
                     notes='',
@@ -410,9 +417,34 @@ def seed_large_dataset():
         for stu in random.sample(all_students, k=int(len(all_students)*0.1)):
             db.add(StudentWorkStudy(student_id=stu.id, position=random.choice(['图书馆助管','实验室助理','食堂值日','教学秘书']), hours=random.choice([6,8,10,12]), compensation=random.choice([300,400,500,600]), academic_year='2024-2025', notes=''))
             stats['workstudy'] += 1
+        # 综合荣誉（30% 学生）
         for stu in random.sample(all_students, k=int(len(all_students)*0.3)):
             for _ in range(random.randint(1,2)):
                 db.add(StudentHonor(student_id=stu.id, honor_name=random.choice(['三好学生','优秀学生干部','校园之星','优秀共青团员','优秀志愿者']), academic_year='2024-2025', level=random.choice(['院级','校级','省级']), notes=''))
+                stats['honors'] += 1
+        # 学科竞赛获奖（额外 25% 学生，机械学院场景）
+        competition_awards = [
+            '全国大学生机械创新设计大赛',
+            '全国大学生数学建模竞赛',
+            '中国大学生方程式汽车大赛（FSC）',
+            '全国大学生机器人大赛（RoboMaster）',
+            '全国大学生工程训练综合能力竞赛',
+            '"互联网+"大学生创新创业大赛',
+            '"挑战杯"课外学术科技作品竞赛',
+            '全国大学生节能减排社会实践与科技竞赛',
+            '全国大学生先进成图技术大赛',
+            '3D 打印创新设计大赛',
+        ]
+        award_levels = [
+            ('国家级','特等奖'), ('国家级','一等奖'), ('国家级','二等奖'), ('国家级','三等奖'),
+            ('省级','一等奖'), ('省级','二等奖'), ('省级','三等奖'),
+            ('校级','一等奖'), ('校级','二等奖'), ('校级','三等奖'),
+        ]
+        for stu in random.sample(all_students, k=int(len(all_students)*0.25)):
+            for _ in range(random.randint(1,2)):
+                lvl, rank = random.choice(award_levels)
+                comp = random.choice(competition_awards)
+                db.add(StudentHonor(student_id=stu.id, honor_name=f'{comp} {rank}', academic_year='2024-2025', level=lvl, notes='学科竞赛'))
                 stats['honors'] += 1
         db.commit()
 
