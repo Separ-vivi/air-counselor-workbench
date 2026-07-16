@@ -3,6 +3,13 @@
     <div class="page-header">
       <h2>📋 学生管理</h2>
       <div class="header-actions">
+        <el-button
+          :type="showAllIdCards ? 'warning' : 'default'"
+          @click="showAllIdCards = !showAllIdCards"
+          :title="showAllIdCards ? '当前显示明文，点击切换为脱敏' : '当前脱敏，点击显示明文（含身份证号）'"
+        >
+          {{ showAllIdCards ? '🔓 明文' : '🔒 脱敏' }}
+        </el-button>
         <el-button type="primary" :icon="Plus" @click="openCreate">新增学生</el-button>
         <el-button :icon="Upload" @click="$router.push('/smart-import')">批量导入</el-button>
         <el-button :icon="Download" @click="exportAll">导出</el-button>
@@ -76,13 +83,10 @@
         <el-table-column label="专业" prop="major" min-width="140" show-overflow-tooltip sortable="custom" />
         <el-table-column label="政治面貌" prop="political_status" width="110" sortable="custom" />
         <el-table-column label="生源地" prop="birth_source" width="140" show-overflow-tooltip sortable="custom" />
-        <el-table-column label="身份证号" prop="id_card" min-width="230" sortable="custom">
+        <el-table-column label="身份证号" prop="id_card" min-width="180" sortable="custom">
           <template #default="{ row }">
-            <span v-if="row.id_card && row.id_card.length >= 10" class="id-cell">
-              <span class="id-txt">{{ revealedIds.includes(row.id) ? row.id_card : (row.id_card.slice(0,6) + '********' + row.id_card.slice(-4)) }}</span>
-              <el-button link type="primary" size="small" @click="toggleReveal(row.id)">
-                {{ revealedIds.includes(row.id) ? '隐藏' : '查看' }}
-              </el-button>
+            <span v-if="row.id_card && row.id_card.length >= 10" style="font-family: monospace">
+              {{ showAllIdCards ? row.id_card : (row.id_card.slice(0,6) + '********' + row.id_card.slice(-4)) }}
             </span>
             <span v-else style="color:#c0c4cc">—</span>
           </template>
@@ -258,12 +262,7 @@ const page = ref(1)
 const pageSize = ref(20)
 const loading = ref(false)
 
-const revealedIds = ref([])
-const toggleReveal = (id) => {
-  const i = revealedIds.value.indexOf(id)
-  if (i >= 0) revealedIds.value.splice(i, 1)
-  else revealedIds.value.push(id)
-}
+const showAllIdCards = ref(false)
 
 const filters = reactive({
   search: '',
