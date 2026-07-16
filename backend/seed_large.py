@@ -157,7 +157,7 @@ def seed_large_dataset():
         for cobj in classes:
             mobj = db.query(Major).get(cobj.major_id)
             gobj = db.query(Grade).get(mobj.grade_id)
-            grade_year = year_prefix[gobj.name]
+            grade_year = year_prefix[gobj.grade_name]
             n_students = random.randint(7, 8)
             for si in range(n_students):
                 sno = f'{grade_year}{cobj.id:03d}{si+1:02d}'
@@ -238,7 +238,7 @@ def seed_large_dataset():
             cls = db.query(ClassModel).get(stu.class_id)
             mj = db.query(Major).get(cls.major_id)
             gr = db.query(Grade).get(mj.grade_id)
-            year = year_prefix[gr.name]
+            year = year_prefix[gr.grade_name]
             n_sem = min(len(semesters), 2026 - year)
             student_semesters = semesters[:max(1, n_sem)]
             fail_courses = 0
@@ -351,7 +351,7 @@ def seed_large_dataset():
             cls = db.query(ClassModel).get(stu.class_id)
             mj = db.query(Major).get(cls.major_id)
             gr = db.query(Grade).get(mj.grade_id)
-            year = year_prefix[gr.name]
+            year = year_prefix[gr.grade_name]
             if year <= 2023 and random.random() < 0.7:
                 it = random.choice(['考研','就业','考公','留学','创业','待定'])
                 status = {'考研':'备考中','就业':random.choice(['求职中','已签约','实习中']),'考公':'备考中','留学':'申请中','创业':'启动中','待定':'规划中'}[it]
@@ -474,7 +474,7 @@ def seed_large_dataset():
         if db.query(Project).count() < 1:
             proj = Project(name='2024 毕业生就业帮扶专项', start_date='2024-03-01', end_date='2024-07-15', status='active', progress=60, description='精准对接就业困难学生')
             db.add(proj); db.flush()
-            grad_2022 = [s for s in all_students if year_prefix[db.query(Grade).get(db.query(Major).get(db.query(ClassModel).get(s.class_id).major_id).grade_id).name] == 2022]
+            grad_2022 = [s for s in all_students if year_prefix[db.query(Grade).get(db.query(Major).get(db.query(ClassModel).get(s.class_id).major_id).grade_id).grade_name] == 2022]
             for stu in random.sample(grad_2022, k=min(20, len(grad_2022))):
                 db.add(ProjectStudent(project_id=proj.id, student_id=stu.id, notes=''))
             db.commit()
