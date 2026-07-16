@@ -106,8 +106,10 @@ def seed_large_dataset():
     db = SessionLocal()
     stats = {}
     try:
-        if db.query(Student).count() >= 200:
-            return {'skipped': True, 'reason': 'Student 数量>=200，跳过大 seed'}
+        if db.query(Student).count() >= 300:
+            return {'skipped': True, 'reason': 'Student 数量>=300，跳过大 seed'}
+        # 收集已有学号，避免 UNIQUE constraint 撞车（幂等）
+        existing_snos = {row[0] for row in db.query(Student.student_no).all()}
 
         # 年级
         year_names = ['2022 级', '2023 级', '2024 级', '2025 级']
@@ -161,6 +163,9 @@ def seed_large_dataset():
             n_students = random.randint(7, 8)
             for si in range(n_students):
                 sno = f'{grade_year}{cobj.id:03d}{si+1:02d}'
+                if sno in existing_snos:
+                    continue  # 幂等：跳过已存在的学号
+                existing_snos.add(sno)
                 name = gen_chinese_name()
                 gender = random.choices(['男','女'], weights=[55,45])[0]
                 birth_year = grade_year - 18 - random.randint(0, 1)

@@ -95,10 +95,19 @@ def ensure_schema_up_to_date(engine, base):
 
 
 def hard_reset(engine, base):
-    """Drop 全部业务表 → 重建 → 由调用方决定是否 seed。"""
-    logger.warning('[schema] hard_reset: drop_all + create_all')
+    """Drop 全部业务表 → 重建 → 由调用方决定是否 seed。
+    加强版：先按依赖倒序 DELETE，再 drop_all + create_all，避免 SQLite drop_all 因 FK 静默失败导致"部分清空"。
+    """
+    logger.warning('[schema] hard_reset: DELETE(reversed) + drop_all + create_all')
+    with engine.begin() as conn:
+        for tbl in reversed(base.metadata.sorted_tables):
+            try:
+                conn.execute(text(f'DELETE FROM "{tbl.name}"'))
+            except OperationalError as e:
+                logger.warning(f'[schema] hard_reset DELETE {tbl.name} 失败: {e}')
     base.metadata.drop_all(bind=engine)
     base.metadata.create_all(bind=engine)
+    logger.info('[schema] hard_reset 完成，全表已清空重建')
     return True
 
 

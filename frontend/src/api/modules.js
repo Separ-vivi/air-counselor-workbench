@@ -121,7 +121,7 @@ export const tags = {
 export const system = {
   health: () => http.get('/system/health'),
   reinit: () => http.post('/system/reinit'),
-  seedLarge: () => http.post('/system/seed-large'),
+  seedLarge: (force = false) => http.post('/system/seed-large', null, { params: { force } }),
   backupUrl: () => '/api/system/backup',
   restore: (formData) => http.post('/system/restore', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }

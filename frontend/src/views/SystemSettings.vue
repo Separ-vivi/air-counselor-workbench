@@ -164,6 +164,23 @@ async function onSeedLarge() {
   loadingSeed.value = true
   try {
     const res = await system.seedLarge()
+    // 后端识别到已有学生数据 → 引导 air 走"重建数据库"或强制追加
+    if (res?.need_confirm) {
+      loadingSeed.value = false
+      try {
+        await ElMessageBox.confirm(
+          res.message || `数据库已有 ${res.student_count} 名学生。追加会补齐到 300+，不会清空组织架构。要完全清空重建请点"重建数据库"。`,
+          '已有数据',
+          { type: 'warning', confirmButtonText: '继续追加', cancelButtonText: '取消（改用重建）' }
+        )
+      } catch { return }
+      loadingSeed.value = true
+      const res2 = await system.seedLarge(true)
+      const added2 = res2?.stats?.students || res2?.stats?.count || 0
+      ElMessage.success(`✅ 追加完成 · 新增 ${added2} 学生`)
+      await loadHealth()
+      return
+    }
     const added = res?.stats?.students || res?.stats?.count || 0
     ElMessage.success(`✅ 生成完成 · 新增 ${added} 学生`)
     await loadHealth()

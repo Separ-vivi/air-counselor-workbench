@@ -100,8 +100,24 @@ def system_reinit(seed_size: str = 'large'):
 
 
 @router.post('/seed-large')
-def seed_large_endpoint():
-    """在已有数据库上追加大 seed（不 drop）"""
+def seed_large_endpoint(force: bool = False):
+    """在已有数据库上追加大 seed。已幂等：撞学号自动跳过。
+    如果已有学生数据且 force=False，返回提示让用户改用 /reinit 彻底重建。
+    """
+    from database import SessionLocal
+    from models import Student
+    db2 = SessionLocal()
+    try:
+        student_cnt = db2.query(Student).count()
+    finally:
+        db2.close()
+    if student_cnt > 0 and not force:
+        return {
+            'ok': False,
+            'need_confirm': True,
+            'student_count': student_cnt,
+            'message': f'数据库已有 {student_cnt} 名学生。追加模式只会补齐到 300+，不会清空。如需完全重建请改用"重新初始化数据库"。要继续追加请重新点击。',
+        }
     try:
         from seed_large import seed_large_dataset
         stats = seed_large_dataset()
