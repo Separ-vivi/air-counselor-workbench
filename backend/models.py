@@ -589,3 +589,38 @@ class GeneratedDocument(Base):
     created_at = Column(DateTime, default=datetime.now)
     student = relationship('Student')
     template = relationship('DocumentTemplate')
+
+
+# ===== V3-B 效率中心 =====
+
+class Note(Base):
+    """记事本 · 待办 & 备忘 · 想法"""
+    __tablename__ = 'notes'
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False, default='')
+    content = Column(Text, default='')
+    category = Column(String(20), default='memo', index=True)  # memo/todo/idea
+    status = Column(String(20), default='active', index=True)  # active/done/archived
+    priority = Column(Integer, default=0)  # 0-低 1-中 2-高
+    due_date = Column(String(20), default='')  # YYYY-MM-DD (todo 用)
+    tags = Column(String(200), default='')  # 逗号分隔
+    pinned = Column(Boolean, default=False)
+    color = Column(String(20), default='yellow')  # 便签色 yellow/pink/blue/green/purple/orange
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='SET NULL'), nullable=True)
+    class_id = Column(Integer, ForeignKey('classes.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class Countdown(Base):
+    """倒计时 · 校历事件"""
+    __tablename__ = 'countdowns'
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False, default='')
+    target_date = Column(String(20), nullable=False, default='')  # YYYY-MM-DD
+    category = Column(String(30), default='general', index=True)  # exam/deadline/event/holiday/general
+    color = Column(String(20), default='blue')  # 马卡龙色
+    description = Column(Text, default='')
+    pinned = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)

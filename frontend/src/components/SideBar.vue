@@ -34,6 +34,14 @@
         <el-menu-item index="/module/teachers">🧑‍🏫 班主任</el-menu-item>
       </el-sub-menu>
 
+      <el-sub-menu index="productivity">
+        <template #title><el-icon><Compass /></el-icon><span>效率中心</span></template>
+        <el-menu-item index="/notes">📝 记事本</el-menu-item>
+        <el-menu-item index="/calendar">📅 校历倒计时</el-menu-item>
+        <el-menu-item index="/projects">📌 项目追踪</el-menu-item>
+        <el-menu-item index="/summary">📊 周汇总</el-menu-item>
+      </el-sub-menu>
+
       <el-menu-item index="/system"><el-icon><Setting /></el-icon><span>系统设置</span></el-menu-item>
     </el-menu>
 

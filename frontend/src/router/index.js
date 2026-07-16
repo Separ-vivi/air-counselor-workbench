@@ -27,6 +27,11 @@ const routes = [
   { path: '/module/meetings',   name: 'mMeetings',   component: () => import('@/views/modules/MeetingsModule.vue'),   meta: { title: '班会管理' } },
   { path: '/module/teachers',   name: 'mTeachers',   component: () => import('@/views/modules/TeachersModule.vue'),   meta: { title: '班主任' } },
 
+  // V3-B 效率中心
+  { path: '/notes',            name: 'notes',            component: () => import('@/views/Notes.vue'),             meta: { title: '记事本' } },
+  { path: '/calendar',         name: 'calendar',         component: () => import('@/views/Calendar.vue'),          meta: { title: '校历 · 倒计时' } },
+  { path: '/projects',         name: 'projects',         component: () => import('@/views/Projects.vue'),          meta: { title: '项目追踪' } },
+  { path: '/summary',          name: 'summary',          component: () => import('@/views/WeeklySummary.vue'),     meta: { title: '周汇总' } },
   // 系统设置
   { path: '/system',           name: 'system',           component: () => import('@/views/SystemSettings.vue'),     meta: { title: '系统设置' } },
 

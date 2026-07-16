@@ -114,6 +114,7 @@ from routers.student360 import router as student360_router
 from routers.class360 import router as class360_router
 from routers.organization import router as organization_router
 from routers.system import router as system_router
+from routers.productivity import router as productivity_router
 
 app.include_router(students_router)
 app.include_router(tags_router)
@@ -129,6 +130,7 @@ app.include_router(student360_router)
 app.include_router(class360_router)
 app.include_router(organization_router)
 app.include_router(system_router)
+app.include_router(productivity_router)
 
 
 @app.on_event('startup')

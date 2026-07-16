@@ -55,7 +55,15 @@ const router = useRouter()
 // 判断当前是不是深入页（学生 360 / 班级 360 等），有 :id 参数即认为需要返回按钮
 const showBack = computed(() => {
   const p = route.path || ''
-  return /^\/students\/\w+$/.test(p) || /^\/classes\/\w+$/.test(p)
+  // 顶级主菜单页不显示返回；其他所有深入页都显示
+  const topLevel = new Set([
+    '/', '/dashboard', '/students', '/classes', '/org', '/smart-import',
+    '/system', '/notes', '/calendar', '/projects', '/summary',
+  ])
+  if (topLevel.has(p)) return false
+  // /module/xxx 顶级模块页也不显示
+  if (/^\/module\/[^/]+$/.test(p)) return false
+  return true
 })
 
 function goBack() {
@@ -121,7 +129,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #F5EFE3;
+  background: #EDF1F4;
   border: 1px solid var(--color-card-border);
   padding: 8px 14px;
   border-radius: 12px;
@@ -130,7 +138,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   transition: all .18s;
 }
 .search-trigger:hover {
-  background: #EEE3D0;
+  background: #DDE4EA;
   border-color: var(--color-macaron-blue);
 }
 .search-trigger .hint-text {
