@@ -1,0 +1,117 @@
+/**
+ * 10 个业务模块列表页 API 封装
+ * - 每个模块都提供 list / create / update / remove 四个方法
+ * - 严格对齐 openapi.json 中的路径与参数
+ */
+import http from './index.js'
+
+/** 成绩 & 预警 */
+export const grades = {
+  studentGrades: (sid) => http.get(`/grades/student/${sid}`),
+  warnings: (params = {}) => http.get('/grades/warnings', { params }),
+  exportWarnings: () => http.get('/grades/warnings/export', { responseType: 'blob' }),
+  semesters: () => http.get('/grades/semesters'),
+  recalculateWarnings: () => http.post('/grades/recalculate'),
+  exportAll: () => http.get('/grades/export', { responseType: 'blob' })
+}
+
+/** 党团发展进程 */
+export const party = {
+  list: (params = {}) => http.get('/party-progress', { params }),
+  create: (data) => http.post('/party-progress', data),
+  update: (pid, data) => http.put(`/party-progress/${pid}`, data),
+  remove: (pid) => http.delete(`/party-progress/${pid}`),
+  overview: () => http.get('/party-progress/overview'),
+  detail: (sid) => http.get(`/party-progress/detail/${sid}`),
+  exportExcel: () => http.get('/party-progress/export', { responseType: 'blob' })
+}
+
+/** 党团学习记录 */
+export const partyStudy = {
+  list: () => http.get('/party-study'),
+  create: (data) => http.post('/party-study', data),
+  update: (pid, data) => http.put(`/party-study/${pid}`, data),
+  remove: (pid) => http.delete(`/party-study/${pid}`)
+}
+
+/** 心理关怀 */
+export const psychology = {
+  list: (params = {}) => http.get('/psychology', { params }),
+  create: (data) => http.post('/psychology', data),
+  update: (rid, data) => http.put(`/psychology/${rid}`, data),
+  remove: (rid) => http.delete(`/psychology/${rid}`),
+  reminders: () => http.get('/psychology/reminders')
+}
+
+/** 家庭联络 */
+export const family = {
+  list: (params = {}) => http.get('/family-contacts', { params }),
+  create: (data) => http.post('/family-contacts', data),
+  update: (cid, data) => http.put(`/family-contacts/${cid}`, data),
+  remove: (cid) => http.delete(`/family-contacts/${cid}`)
+}
+
+/** 学生干部 */
+export const cadres = {
+  list: (params = {}) => http.get('/cadres', { params }),
+  directory: () => http.get('/cadres/directory'),
+  create: (data) => http.post('/cadres', data),
+  update: (cid, data) => http.put(`/cadres/${cid}`, data),
+  remove: (cid) => http.delete(`/cadres/${cid}`)
+}
+
+/** 活动 */
+export const activities = {
+  list: () => http.get('/activities'),
+  create: (data) => http.post('/activities', data),
+  update: (aid, data) => http.put(`/activities/${aid}`, data),
+  remove: (aid) => http.delete(`/activities/${aid}`),
+  listSignups: (aid) => http.get(`/activities/${aid}/signups`),
+  createSignup: (aid, data) => http.post(`/activities/${aid}/signups`, data),
+  updateSignup: (aid, sid, data) => http.put(`/activities/${aid}/signups/${sid}`, data)
+}
+
+/** 就业信息 */
+export const employment = {
+  list: () => http.get('/employment'),
+  create: (data) => http.post('/employment', data),
+  update: (eid, data) => http.put(`/employment/${eid}`, data),
+  remove: (eid) => http.delete(`/employment/${eid}`)
+}
+
+/** 班会 */
+export const classMeetings = {
+  list: (params = {}) => http.get('/class-meetings', { params }),
+  create: (data) => http.post('/class-meetings', data),
+  update: (mid, data) => http.put(`/class-meetings/${mid}`, data),
+  remove: (mid) => http.delete(`/class-meetings/${mid}`)
+}
+
+/** 班主任 */
+export const classTeachers = {
+  list: () => http.get('/class-teachers'),
+  create: (data) => http.post('/class-teachers', data),
+  update: (tid, data) => http.put(`/class-teachers/${tid}`, data),
+  remove: (tid) => http.delete(`/class-teachers/${tid}`)
+}
+
+/** 驾驶舱 */
+export const dashboard = () => http.get('/dashboard')
+
+/** 全局设置 */
+export const settings = {
+  get: () => http.get('/settings'),
+  update: (data) => http.put('/settings', data),
+  reset: () => http.delete('/settings/reset')
+}
+
+/** 标签 */
+export const tags = {
+  list: () => http.get('/tags'),
+  groups: () => http.get('/tags/groups'),
+  create: (data) => http.post('/tags', data),
+  update: (id, data) => http.put(`/tags/${id}`, data),
+  remove: (id) => http.delete(`/tags/${id}`),
+  addToStudent: (tagId, sid) => http.post(`/tags/${tagId}/students/${sid}`),
+  removeFromStudent: (tagId, sid) => http.delete(`/tags/${tagId}/students/${sid}`)
+}

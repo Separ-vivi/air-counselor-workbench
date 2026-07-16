@@ -1,0 +1,274 @@
+<template>
+  <div class="module-page">
+    <div class="page-header">
+      <h2>🎨 活动管理</h2>
+      <el-button type="primary" :icon="Plus" @click="openCreate(null)">新增活动</el-button>
+    </div>
+
+    <el-row :gutter="16">
+      <el-col :span="10">
+        <el-card shadow="never">
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center">
+              <span>活动列表 · 共 {{ list.length }} 条</span>
+              <el-input v-model="filterKw" placeholder="搜索活动名" clearable size="small" style="width: 160px" />
+            </div>
+          </template>
+          <el-table
+            :data="filteredList"
+            v-loading="loading"
+            stripe
+            border
+            highlight-current-row
+            max-height="600"
+            @row-click="selectActivity"
+          >
+            <el-table-column label="活动名称" prop="activity_name" min-width="180" show-overflow-tooltip />
+            <el-table-column label="类型" prop="activity_type" width="120">
+              <template #default="{ row }">
+                <el-tag size="small" :type="typeTag(row.activity_type)">{{ row.activity_type }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="日期" prop="activity_date" width="120" />
+            <el-table-column label="操作" width="140" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" size="small" @click.stop="openCreate(row)">编辑</el-button>
+                <el-popconfirm title="确认删除？" @confirm="onDelete(row)">
+                  <template #reference>
+                    <el-button link type="danger" size="small" @click.stop>删除</el-button>
+                  </template>
+                </el-popconfirm>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-col>
+
+      <el-col :span="14">
+        <el-card shadow="never">
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center">
+              <span>
+                <template v-if="selected">🎯 {{ selected.activity_name }} · 报名/参与</template>
+                <template v-else>请选择左侧活动查看报名情况</template>
+              </span>
+              <el-button v-if="selected" type="primary" size="small" :icon="Plus" @click="openSignup">添加报名</el-button>
+            </div>
+          </template>
+          <el-empty v-if="!selected" description="点击左侧任一活动" :image-size="80" />
+          <el-table v-else :data="signups" v-loading="signupsLoading" stripe border max-height="530">
+            <el-table-column label="学生" prop="student_name" width="120">
+              <template #default="{ row }">
+                <el-link type="primary" @click="$router.push(`/students/${row.student_id}`)">{{ row.student_name }}</el-link>
+              </template>
+            </el-table-column>
+            <el-table-column label="学号" prop="student_no" width="140" />
+            <el-table-column label="角色" prop="role" width="120" />
+            <el-table-column label="状态" prop="status" width="110">
+              <template #default="{ row }">
+                <el-tag :type="row.status === '已参加' ? 'success' : 'info'" size="small">{{ row.status || '-' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="备注" prop="notes" show-overflow-tooltip />
+            <el-table-column label="操作" width="120">
+              <template #default="{ row }">
+                <el-button link type="primary" size="small" @click="editSignup(row)">编辑</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 活动编辑 -->
+    <el-dialog v-model="dlg" :title="editing?.id ? '编辑活动' : '新增活动'" width="560px">
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="110px">
+        <el-form-item label="活动名称" prop="activity_name">
+          <el-input v-model="form.activity_name" />
+        </el-form-item>
+        <el-form-item label="活动类型">
+          <el-select v-model="form.activity_type" style="width: 100%" clearable>
+            <el-option v-for="t in types" :key="t" :label="t" :value="t" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="活动日期">
+          <el-date-picker v-model="form.activity_date" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="组织者">
+          <el-input v-model="form.organizer" />
+        </el-form-item>
+        <el-form-item label="地点">
+          <el-input v-model="form.location" />
+        </el-form-item>
+        <el-form-item label="活动说明">
+          <el-input v-model="form.description" type="textarea" :rows="3" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dlg = false">取消</el-button>
+        <el-button type="primary" @click="onSave" :loading="saving">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 报名编辑 -->
+    <el-dialog v-model="signupDlg" :title="signupEditing?.id ? '编辑报名' : '添加报名'" width="480px">
+      <el-form :model="signupForm" :rules="signupRules" ref="signupFormRef" label-width="90px">
+        <el-form-item label="学生" prop="student_id">
+          <StudentSelect v-model="signupForm.student_id" />
+        </el-form-item>
+        <el-form-item label="角色">
+          <el-select v-model="signupForm.role" style="width: 100%" clearable>
+            <el-option v-for="r in roles" :key="r" :label="r" :value="r" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="signupForm.status" style="width: 100%" clearable>
+            <el-option label="已报名" value="已报名" />
+            <el-option label="已参加" value="已参加" />
+            <el-option label="缺席" value="缺席" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="signupForm.notes" type="textarea" :rows="2" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="signupDlg = false">取消</el-button>
+        <el-button type="primary" @click="saveSignup" :loading="signupSaving">保存</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ElMessage } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
+import { activities as actApi } from '@/api/modules'
+import { useStudentStore } from '@/stores/student'
+import StudentSelect from '@/components/StudentSelect.vue'
+
+const studentStore = useStudentStore()
+const types = ['学术科技', '文体艺术', '志愿公益', '思政教育', '实践创新', '其他']
+const roles = ['参与者', '组织者', '负责人', '志愿者', '嘉宾']
+
+const list = ref([])
+const filterKw = ref('')
+const loading = ref(false)
+const selected = ref(null)
+const signups = ref([])
+const signupsLoading = ref(false)
+
+const filteredList = computed(() => {
+  if (!filterKw.value) return list.value
+  const k = filterKw.value
+  return list.value.filter((r) => (r.activity_name || '').includes(k) || (r.activity_type || '').includes(k))
+})
+
+const typeTag = (t) => {
+  if (!t) return ''
+  if (t.includes('学术') || t.includes('科技')) return 'success'
+  if (t.includes('文体')) return 'warning'
+  if (t.includes('志愿')) return ''
+  return 'info'
+}
+
+const reload = async () => {
+  loading.value = true
+  try {
+    const res = await actApi.list()
+    list.value = Array.isArray(res) ? res : (res?.items || [])
+  } finally { loading.value = false }
+}
+
+const selectActivity = async (row) => {
+  selected.value = row
+  signupsLoading.value = true
+  try {
+    const res = await actApi.listSignups(row.id)
+    signups.value = Array.isArray(res) ? res : (res?.items || [])
+  } finally { signupsLoading.value = false }
+}
+
+const dlg = ref(false)
+const editing = ref(null)
+const saving = ref(false)
+const formRef = ref(null)
+const defaultForm = () => ({ activity_name: '', activity_type: '', activity_date: '', organizer: '', location: '', description: '' })
+const form = reactive(defaultForm())
+const rules = {
+  activity_name: [{ required: true, message: '请填写活动名', trigger: 'blur' }]
+}
+const openCreate = (row) => {
+  editing.value = row
+  Object.assign(form, defaultForm(), row || {})
+  dlg.value = true
+}
+const onSave = async () => {
+  await formRef.value?.validate()
+  saving.value = true
+  try {
+    if (editing.value?.id) {
+      await actApi.update(editing.value.id, form)
+      ElMessage.success('已更新')
+    } else {
+      await actApi.create(form)
+      ElMessage.success('已创建')
+    }
+    dlg.value = false
+    reload()
+  } finally { saving.value = false }
+}
+const onDelete = async (row) => {
+  await actApi.remove(row.id)
+  ElMessage.success('已删除')
+  if (selected.value?.id === row.id) { selected.value = null; signups.value = [] }
+  reload()
+}
+
+// signup
+const signupDlg = ref(false)
+const signupEditing = ref(null)
+const signupSaving = ref(false)
+const signupFormRef = ref(null)
+const signupDefault = () => ({ student_id: null, role: '参与者', status: '已报名', notes: '' })
+const signupForm = reactive(signupDefault())
+const signupRules = { student_id: [{ required: true, message: '请选择学生', trigger: 'change' }] }
+const openSignup = () => {
+  signupEditing.value = null
+  Object.assign(signupForm, signupDefault())
+  signupDlg.value = true
+}
+const editSignup = (row) => {
+  signupEditing.value = row
+  Object.assign(signupForm, signupDefault(), row)
+  signupDlg.value = true
+}
+const saveSignup = async () => {
+  await signupFormRef.value?.validate()
+  signupSaving.value = true
+  try {
+    if (signupEditing.value?.id) {
+      await actApi.updateSignup(selected.value.id, signupEditing.value.id, signupForm)
+    } else {
+      await actApi.createSignup(selected.value.id, signupForm)
+    }
+    ElMessage.success('已保存')
+    signupDlg.value = false
+    studentStore.bumpRefresh()
+    selectActivity(selected.value)
+  } finally { signupSaving.value = false }
+}
+
+watch(() => studentStore.refreshBumper, () => {
+  reload()
+  if (selected.value) selectActivity(selected.value)
+})
+onMounted(reload)
+</script>
+
+<style scoped>
+.module-page { padding: 4px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.page-header h2 { margin: 0; font-size: 22px; color: #303133; }
+</style>

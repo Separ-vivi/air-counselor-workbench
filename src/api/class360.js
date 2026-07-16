@@ -1,0 +1,14 @@
+/**
+ * 班级 360 · 8 条只读路由 API
+ * /api/class360/{cid}/{summary|students|activities|daily|funding|grades|party|psychology}
+ */
+import http from './index.js'
+
+export const getClassSummary    = (cid) => http.get(`/class360/${cid}/summary`)
+export const getClassStudents   = (cid) => http.get(`/class360/${cid}/students`)
+export const getClassGrades     = (cid) => http.get(`/class360/${cid}/grades`)
+export const getClassParty      = (cid) => http.get(`/class360/${cid}/party`)
+export const getClassPsychology = (cid) => http.get(`/class360/${cid}/psychology`)
+export const getClassFunding    = (cid) => http.get(`/class360/${cid}/funding`)
+export const getClassActivities = (cid) => http.get(`/class360/${cid}/activities`)
+export const getClassDaily      = (cid) => http.get(`/class360/${cid}/daily`)
