@@ -329,6 +329,22 @@ async def confirm_import(req: ConfirmRequest):
             else:
                 col_map[m['db_column']] = m['file_column']
 
+    # 成绩单智能兜底：未映射且是数值型的列，自动当作课程列（宽表→长表 melt）
+    if data_type == 'grades':
+        import pandas as pd
+        mapped_file_cols = {m['file_column'] for m in mapping if m.get('db_column')}
+        for col in df.columns:
+            if col in mapped_file_cols:
+                continue
+            # 判断是否为数值列（至少 3 个数值样本）
+            try:
+                vals = pd.to_numeric(df[col], errors='coerce')
+                if vals.notna().sum() >= 3:
+                    course_columns.append((col, str(col).strip()))
+                    logger.info(f'[导入] 自动识别课程列: {col}')
+            except Exception:
+                pass
+
     db = SessionLocal()
     created = 0
     skipped = 0
@@ -525,3 +541,52 @@ async def confirm_import(req: ConfirmRequest):
         'fail_count': skipped,
         'errors': [],
     }
+
+@router.get('/template')
+def download_template(type: str = 'students'):
+    """下载导入模板 xlsx"""
+    import io
+    import pandas as pd
+    from fastapi.responses import Response
+    from urllib.parse import quote
+    templates = {
+        'students': {
+            'sheet': '学生花名册模板',
+            'columns': ['学号','姓名','性别','班级','专业','年级','出生日期','政治面貌',
+                        '手机','邮箱','家长手机','生源地','身份证号','校区','宿舍楼',
+                        '房间号','是否外宿','外宿地址','备注'],
+            'example': ['20240101001','张三','男','计科2401','计算机科学与技术','2024 级',
+                        '2005-03-01','共青团员','13800000000','zhangsan@qq.com','13900000000',
+                        '福建省·福州市·鼓楼区','350102200503010001','铜盘校区','1号楼',
+                        '101','否','','示例行，请删除'],
+        },
+        'grades': {
+            'sheet': '成绩单模板（长表）',
+            'columns': ['学号','姓名','学期','课程名','分数','学分'],
+            'example': ['20240101001','张三','2024-2025-1','高等数学A','85','4'],
+        },
+        'grades_wide': {
+            'sheet': '成绩单模板（宽表-推荐）',
+            'columns': ['学号','姓名','学期','高等数学A','大学英语I','程序设计基础','线性代数'],
+            'example': ['20240101001','张三','2024-2025-1','85','78','92','88'],
+        },
+        'party': {
+            'sheet': '党团发展模板',
+            'columns': ['学号','姓名','阶段','阶段日期','联系人','备注'],
+            'example': ['20240101001','张三','积极分子','2024-09-01','李老师','已递交入党申请书'],
+        },
+    }
+    if type not in templates:
+        raise HTTPException(400, f'type 必须为: {list(templates.keys())}')
+    tpl = templates[type]
+    df = pd.DataFrame([tpl['example']], columns=tpl['columns'])
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as w:
+        df.to_excel(w, index=False, sheet_name=tpl['sheet'])
+    output.seek(0)
+    filename = f"{tpl['sheet']}.xlsx"
+    return Response(
+        content=output.getvalue(),
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f"attachment; filename*=UTF-8''{quote(filename)}"}
+    )

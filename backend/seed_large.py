@@ -114,9 +114,9 @@ def seed_large_dataset():
         year_prefix = {'2022 级':2022, '2023 级':2023, '2024 级':2024, '2025 级':2025}
         grades = {}
         for yn in year_names:
-            g = db.query(Grade).filter(Grade.name == yn).first()
+            g = db.query(Grade).filter(Grade.grade_name == yn).first()
             if not g:
-                g = Grade(name=yn); db.add(g); db.flush()
+                g = Grade(grade_name=yn, start_year=year_prefix[yn]); db.add(g); db.flush()
             grades[yn] = g
         stats['grades'] = len(grades)
 
@@ -126,9 +126,9 @@ def seed_large_dataset():
         for gn, gobj in grades.items():
             year_short = gn[:4]
             for mn, mcode in major_defs:
-                m = db.query(Major).filter(Major.name == mn, Major.grade_id == gobj.id).first()
+                m = db.query(Major).filter(Major.major_name == mn, Major.grade_id == gobj.id).first()
                 if not m:
-                    m = Major(name=mn, code=f'{mcode}-{year_short}', grade_id=gobj.id)
+                    m = Major(major_name=mn, grade_id=gobj.id)
                     db.add(m); db.flush()
                 majors[(gn, mn)] = m
         stats['majors'] = len(majors)
@@ -376,13 +376,13 @@ def seed_large_dataset():
                 db.add(StudentGrant(student_id=stu.id, grant_type=random.choice(['国家助学金','校级助学金','企业资助']), amount=random.choice([3000,4000,5000,6000]), academic_year='2024-2025', notes=''))
                 stats['grants'] += 1
             if random.random() < 0.5:
-                db.add(StudentLoan(student_id=stu.id, loan_type=random.choice(['生源地信用助学贷款','校园地助学贷款']), amount=random.choice([8000,12000]), academic_year='2024-2025', notes=''))
+                db.add(StudentLoan(student_id=stu.id, loan_type=random.choice(['生源地信用助学贷款','校园地助学贷款']), amount=random.choice([8000,12000]), duration='2024-2025', status='还款中', notes=''))
                 stats['loans'] += 1
         for stu in random.sample(all_students, k=int(len(all_students)*0.25)):
             db.add(StudentScholarship(student_id=stu.id, scholarship_type=random.choice(['国家奖学金','国家励志奖学金','校一等奖学金','校二等奖学金','校三等奖学金']), amount=random.choice([8000,5000,3000,2000,1000]), academic_year='2024-2025', notes=''))
             stats['scholarships'] += 1
         for stu in random.sample(all_students, k=int(len(all_students)*0.1)):
-            db.add(StudentWorkStudy(student_id=stu.id, position=random.choice(['图书馆助管','实验室助理','食堂值日','教学秘书']), hours_per_week=random.choice([6,8,10,12]), salary_per_month=random.choice([300,400,500,600]), academic_year='2024-2025', notes=''))
+            db.add(StudentWorkStudy(student_id=stu.id, position=random.choice(['图书馆助管','实验室助理','食堂值日','教学秘书']), hours=random.choice([6,8,10,12]), compensation=random.choice([300,400,500,600]), academic_year='2024-2025', notes=''))
             stats['workstudy'] += 1
         for stu in random.sample(all_students, k=int(len(all_students)*0.3)):
             for _ in range(random.randint(1,2)):
@@ -465,8 +465,8 @@ def seed_large_dataset():
             ])
         if db.query(DocumentTemplate).count() < 2:
             db.add_all([
-                DocumentTemplate(name='学生评语模板', category='评语', content='{{name}}同学在本学期...'),
-                DocumentTemplate(name='家长告知书模板', category='家校', content='尊敬的{{parent_name}}...'),
+                DocumentTemplate(name='学生评语模板', template_type='评语', content='{{name}}同学在本学期...'),
+                DocumentTemplate(name='家长告知书模板', template_type='家校', content='尊敬的{{parent_name}}...'),
             ])
         db.commit()
 

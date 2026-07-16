@@ -112,26 +112,57 @@ async def system_restore(file: UploadFile = File(...)):
 
 @router.delete('/clear-business')
 def clear_business_data():
-    """清空业务数据（保留 schema + settings）"""
+    """清空业务数据（保留 组织架构/系统配置/知识库）"""
     from models import (
         Student, GradeRecord, WarningRecord, PartyProgress, PsychologyRecord,
         FamilyContact, StudentCadreRecord, ClassTeacher, EmploymentRecord,
-        Activity, ActivitySignup, PartyStudy, ClassMeeting, KnowledgeDoc,
-        FAQ, WeeklySummary, GeneratedDocument, Tag,
+        Activity, ActivitySignup, PartyStudy, ClassMeeting, WeeklySummary,
+        GeneratedDocument, Tag,
+        StudentHardship, StudentGrant, StudentScholarship, StudentLoan,
+        StudentWorkStudy, StudentHonor, StudentDormVisit, StudentLeave,
+        StudentDiscipline, StudentDormChat, StudentAttendanceException,
+        StudentStatusChange, Project, ProjectStudent,
     )
     from sqlalchemy import text as sql_text
+    deleted = {}
+    errors = []
+    # 关联表先删（无 model 类）
     db = SessionLocal()
     try:
-        # 关联表先删
-        db.execute(sql_text("DELETE FROM student_tags"))
-        for m in [
-            GeneratedDocument, ActivitySignup, PartyProgress, PsychologyRecord,
-            FamilyContact, StudentCadreRecord, ClassTeacher, EmploymentRecord,
-            Activity, PartyStudy, ClassMeeting, KnowledgeDoc, FAQ, WeeklySummary,
-            WarningRecord, GradeRecord, Student, Tag,
-        ]:
-            db.query(m).delete()
+        db.execute(sql_text('DELETE FROM student_tags'))
         db.commit()
-        return {'ok': True, 'note': '业务数据已清空'}
-    finally:
-        db.close()
+    except Exception as e:
+        errors.append(f'student_tags: {e}')
+        db.rollback()
+    db.close()
+
+    # 按依赖顺序删（子表→Student→组织表）
+    clear_order = [
+        GeneratedDocument, ActivitySignup, ProjectStudent, Project,
+        StudentHardship, StudentGrant, StudentScholarship, StudentLoan,
+        StudentWorkStudy, StudentHonor, StudentDormVisit, StudentLeave,
+        StudentDiscipline, StudentDormChat, StudentAttendanceException,
+        StudentStatusChange,
+        PartyProgress, PsychologyRecord, FamilyContact,
+        StudentCadreRecord, EmploymentRecord, WarningRecord, GradeRecord,
+        Activity, PartyStudy, ClassMeeting, WeeklySummary,
+        ClassTeacher, Student, Tag,
+    ]
+    for m in clear_order:
+        db = SessionLocal()
+        try:
+            n = db.query(m).delete(synchronize_session=False)
+            db.commit()
+            deleted[m.__name__] = n
+        except Exception as e:
+            errors.append(f'{m.__name__}: {e}')
+            db.rollback()
+        finally:
+            db.close()
+
+    return {
+        'ok': True,
+        'deleted': deleted,
+        'errors': errors,
+        'note': '业务数据已清空（保留 年级/专业/班级/设置/知识库/FAQ/模板）'
+    }

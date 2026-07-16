@@ -1,9 +1,25 @@
 <template>
   <div class="smart-import">
+    <div class="inline-back-bar">
+      <el-button link @click="goBack">
+        <el-icon><ArrowLeft /></el-icon>
+        <span style="margin-left:4px;font-weight:500">返回</span>
+      </el-button>
+    </div>
     <div class="page-header">
       <h2>📥 智能导入</h2>
       <p class="sub">支持 6 种台账类型 · 3 步走完成 · 自动字段映射 + 冲突策略</p>
     </div>
+
+    <el-alert type="info" :closable="false" style="margin-bottom:16px">
+      <template #title>
+        <span style="margin-right:12px">📎 需要模板？</span>
+        <el-button size="small" type="primary" plain @click="downloadTemplate('students')">花名册模板</el-button>
+        <el-button size="small" type="primary" plain @click="downloadTemplate('grades_wide')">成绩单模板(宽表·推荐)</el-button>
+        <el-button size="small" type="primary" plain @click="downloadTemplate('grades')">成绩单模板(长表)</el-button>
+        <el-button size="small" type="primary" plain @click="downloadTemplate('party')">党团发展模板</el-button>
+      </template>
+    </el-alert>
 
     <el-card shadow="never">
       <el-steps :active="step" simple finish-status="success" style="margin-bottom: 24px">
@@ -33,17 +49,19 @@
               drag
               :auto-upload="false"
               :on-change="onFileChange"
+              :on-remove="onFileRemove"
               :file-list="fileList"
               :limit="1"
               accept=".xlsx,.xls,.csv"
-              :on-exceed="() => ElMessage.warning('每次仅可上传 1 个文件')"
+              :on-exceed="() => ElMessage.warning('每次仅可上传 1 个文件；如需换文件请先点清除已上传')"
             >
               <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
               <div class="el-upload__text">拖拽文件到此处，或 <em>点击选择</em></div>
               <template #tip>
-                <div class="el-upload__tip">支持 .xlsx / .xls / .csv；建议先下载模板</div>
+                <div class="el-upload__tip">支持 .xlsx / .xls / .csv；宽表(每列一门课)和长表都能识别</div>
               </template>
             </el-upload>
+            <el-button v-if="file" size="small" style="margin-top:8px" @click="clearFileBtn">🗑 清除已上传文件</el-button>
           </el-form-item>
           <el-form-item>
             <el-button type="primary" :loading="detecting" :disabled="!file || !dataType" @click="doDetect">下一步 · 智能识别</el-button>
@@ -129,9 +147,24 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { UploadFilled } from '@element-plus/icons-vue'
+import { UploadFilled, ArrowLeft } from '@element-plus/icons-vue'
 import { detectFile, confirmImport } from '@/api/smartImport'
+
+const router = useRouter()
+const goBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
+const downloadTemplate = (type) => {
+  const url = `/api/import/template?type=${type}`
+  window.open(url, '_blank')
+}
+const onFileRemove = () => { file.value = null; fileList.value = [] }
+const clearFileBtn = () => {
+  file.value = null
+  fileList.value = []
+  uploadRef.value && uploadRef.value.clearFiles && uploadRef.value.clearFiles()
+  ElMessage.success('已清除，可重新选择文件')
+}
 
 const uploadRef = ref(null)
 const step = ref(0)
@@ -305,6 +338,7 @@ const reset = () => {
 
 <style scoped>
 .smart-import { padding: 4px; }
+.inline-back-bar { margin-bottom: 8px; padding: 4px 0; }
 .page-header { margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
 .page-header .sub { color: #909399; margin: 4px 0 0; font-size: 13px; }
