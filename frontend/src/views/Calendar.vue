@@ -257,7 +257,7 @@ async function onSeedHolidays() {
   }
 }
 
-function onSaveCd() {
+async function onSaveCd() {
   if (!cdForm.value.title || !cdForm.value.target_date) {
     ElMessage.warning('标题和目标日期不能为空')
     return
