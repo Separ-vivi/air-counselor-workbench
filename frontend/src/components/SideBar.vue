@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">V3-A · 地基版</div>
+        <div class="brand-ver">v3j · 数据联通</div>
       </div>
     </div>
 

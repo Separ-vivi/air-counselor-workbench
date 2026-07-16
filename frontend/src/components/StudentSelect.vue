@@ -1,10 +1,11 @@
 <template>
   <!--
-    学生远程搜索选择器 · V3-A 硬要求 § 6.3.1
+    学生远程搜索选择器 · V3-A 硬要求 § 6.3.1 + v3j 增强
     - 每次弹出必重新调 API（禁止缓存）
     - remote-method 300ms debounce
     - 支持姓名 / 学号 / 拼音首字母 / 班级名
     - limit=50，避免 400 人时前 20 占满
+    - v3j: modelValue 是 id 但 options 里没有时，自动 fetch 该学生
   -->
   <el-select
     :model-value="modelValue"
@@ -30,8 +31,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { searchStudents } from '@/api/students.js'
+import http from '@/api/index.js'
 
 const props = defineProps({
   modelValue: { type: [Number, String, null], default: null },
@@ -56,18 +58,36 @@ async function fetchIt(q) {
 }
 
 function remoteSearch(query) {
-  // 300ms 防抖
   if (timer) clearTimeout(timer)
   timer = setTimeout(() => fetchIt(query || ''), 300)
 }
 
-/**
- * 打开下拉时：强制重新加载（禁止缓存）
- * air 硬要求：每次弹出新增弹窗时，下拉框必须重新调用后端 API
- */
 function onVisibleChange(open) {
   if (open) {
     fetchIt('')
   }
 }
+
+/**
+ * v3j: 编辑弹窗回显场景 - 传入了 student_id 但当前 options 里没有该学生时
+ * 单独 fetch 一次，避免 el-select 退化显示 raw id 数字（如"258"）
+ */
+async function ensureOptionForId(id) {
+  if (!id) return
+  if (options.value.find(o => String(o.id) === String(id))) return
+  try {
+    const s = await http.get(`/students/${id}`)
+    if (s && s.id) {
+      const label = `${s.name} (${s.student_no}${s.class_name ? ' · ' + s.class_name : ''})`
+      options.value = [{
+        id: s.id, name: s.name, student_no: s.student_no,
+        class_name: s.class_name || '', label,
+      }, ...options.value]
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+watch(() => props.modelValue, (v) => { ensureOptionForId(v) }, { immediate: true })
 </script>
