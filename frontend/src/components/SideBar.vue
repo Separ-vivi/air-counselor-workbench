@@ -1,9 +1,11 @@
 <template>
   <aside class="sidebar-root">
     <div class="brand">
-      <span class="brand-emoji">🎓</span>
-      <span class="brand-text">辅导员工作平台</span>
-      <span class="brand-ver">V3-A</span>
+      <el-icon class="brand-icon"><School /></el-icon>
+      <div class="brand-info">
+        <div class="brand-text">辅导员工作平台</div>
+        <div class="brand-ver">V3-A · 地基版</div>
+      </div>
     </div>
 
     <el-menu
@@ -53,8 +55,7 @@
     </el-menu>
 
     <div class="footer-hint">
-      <div>V3-A 地基版</div>
-      <div class="text-muted">Ctrl+K 全局搜索</div>
+      <div class="text-muted">⌘ K 全局搜索</div>
     </div>
   </aside>
 </template>
@@ -82,27 +83,38 @@
 }
 
 .brand {
-  padding: 20px 20px 14px;
-  border-bottom: 1px solid rgba(122, 168, 184, 0.18);
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid rgba(122, 168, 184, 0.15);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
-.brand-emoji { font-size: 22px; }
+.brand-icon {
+  font-size: 22px !important;
+  color: #3B6A7C;
+  flex-shrink: 0;
+}
+.brand-info {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
 .brand-text {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   color: #2E4A5E;
   letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
 }
 .brand-ver {
-  background: rgba(122, 168, 184, 0.18);
-  color: #3B6A7C;
-  padding: 2px 8px;
-  border-radius: 8px;
+  color: rgba(59, 106, 124, 0.68);
   font-size: 11px;
-  font-weight: 600;
-  margin-left: auto;
+  margin-top: 2px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 .side-menu {
   flex: 1;
