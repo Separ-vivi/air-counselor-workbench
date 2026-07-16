@@ -91,4 +91,6 @@ logs/
 .preview
 
 # CodeGraph index
-.codegraph
+.codegraphcmd_*.txt
+*.tmp
+

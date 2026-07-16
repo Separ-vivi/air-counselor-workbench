@@ -73,8 +73,15 @@ a:hover {
 
 .app-sidebar {
   width: 220px;
-  background: var(--color-sidebar);
-  color: var(--color-text-inverse);
+  background:
+    linear-gradient(180deg,
+      rgba(255, 225, 235, 0.72) 0%,
+      rgba(230, 225, 250, 0.72) 45%,
+      rgba(220, 240, 235, 0.78) 100%);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  color: #5B5273;
+  border-right: 1px solid rgba(255, 255, 255, 0.55);
   flex-shrink: 0;
   overflow-y: auto;
 }
@@ -144,37 +151,37 @@ a:hover {
   border-radius: var(--radius-btn) !important;
 }
 .el-button--primary {
-  background-color: var(--color-sidebar) !important;
-  border-color: var(--color-sidebar) !important;
+  background-color: #8B7EC7 !important;
+  border-color: #8B7EC7 !important;
   color: #fff !important;
   font-weight: 500 !important;
   letter-spacing: 0.5px;
 }
 .el-button--primary:hover {
-  background-color: var(--color-sidebar-hover) !important;
-  border-color: var(--color-sidebar-hover) !important;
+  background-color: #A398D8 !important;
+  border-color: #A398D8 !important;
 }
 /* size=small 的 primary 按钮：加高对比度、稍浅底色，避免小字糊 */
 .el-button--primary.el-button--small {
-  background-color: #5D8FA0 !important;
-  border-color: #5D8FA0 !important;
+  background-color: #A398D8 !important;
+  border-color: #A398D8 !important;
   padding-left: 12px !important;
   padding-right: 12px !important;
   font-weight: 500 !important;
 }
 .el-button--primary.el-button--small:hover {
-  background-color: #7AA8B8 !important;
-  border-color: #7AA8B8 !important;
+  background-color: #B5A8E0 !important;
+  border-color: #B5A8E0 !important;
 }
 /* link/text 风格的 primary 按钮：加下划线 hover、深色字 */
 .el-button.is-link.el-button--primary,
 .el-button.is-text.el-button--primary {
-  color: #3B6A7C !important;
+  color: #6B5EB0 !important;
   font-weight: 500 !important;
 }
 .el-button.is-link.el-button--primary:hover,
 .el-button.is-text.el-button--primary:hover {
-  color: #5D8FA0 !important;
+  color: #8B7EC7 !important;
   text-decoration: underline;
 }
 /* danger link 按钮（删除）：明显红色 */
@@ -501,13 +508,14 @@ a:hover {
   box-shadow: 0 4px 12px rgba(74, 122, 140, 0.18);
 }
 .el-button--primary {
-  background: linear-gradient(135deg, #5D8FA0 0%, #4A7A8C 100%) !important;
+  background: linear-gradient(135deg, #B5A8E0 0%, #8B7EC7 100%) !important;
   border-color: transparent !important;
-  box-shadow: 0 2px 8px rgba(74, 122, 140, 0.20);
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(139, 126, 199, 0.28);
 }
 .el-button--primary:hover {
-  background: linear-gradient(135deg, #6EA0B0 0%, #5D8FA0 100%) !important;
-  box-shadow: 0 4px 14px rgba(74, 122, 140, 0.28);
+  background: linear-gradient(135deg, #C4B8E8 0%, #A398D8 100%) !important;
+  box-shadow: 0 4px 14px rgba(139, 126, 199, 0.38);
 }
 .el-button--success {
   background: linear-gradient(135deg, #82C79A 0%, #67B085 100%) !important;
