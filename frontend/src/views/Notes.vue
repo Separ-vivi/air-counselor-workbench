@@ -159,7 +159,7 @@ async function load() {
     if (activeTab.value) params.category = activeTab.value
     if (activeTab.value === 'todo' && statusFilter.value) params.status = statusFilter.value
     if (keyword.value) params.keyword = keyword.value
-    const { data } = await notesApi.list(params)
+    const data = await notesApi.list(params)
     list.value = data || []
   } catch (e) {
     // handled by interceptor

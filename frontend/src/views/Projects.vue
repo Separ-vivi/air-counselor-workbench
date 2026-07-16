@@ -265,7 +265,7 @@ async function load() {
     const params = {}
     if (statusFilter.value) params.status = statusFilter.value
     if (keyword.value) params.keyword = keyword.value
-    const { data } = await projectsApi.list(params)
+    const data = await projectsApi.list(params)
     projects.value = data || []
   } finally { loading.value = false }
 }
@@ -316,7 +316,7 @@ async function onDelete(p) {
 }
 
 async function onOpen(p) {
-  const { data } = await projectsApi.get(p.id)
+  const data = await projectsApi.get(p.id)
   detail.value = data
   detailDrawer.value = true
 }
@@ -339,7 +339,7 @@ async function searchStudents(q) {
   if (!q) { studentOpts.value = []; return }
   studentSearchLoading.value = true
   try {
-    const { data } = await http.get('/students', { params: { keyword: q, limit: 20 } })
+    const data = await http.get('/students', { params: { keyword: q, limit: 20 } })
     studentOpts.value = data.items || data || []
   } catch { studentOpts.value = [] }
   finally { studentSearchLoading.value = false }
@@ -358,7 +358,7 @@ async function onSaveMember() {
     }
     ElMessage.success('已保存')
     memberDialog.value = false
-    const { data } = await projectsApi.get(detail.value.id)
+    const data = await projectsApi.get(detail.value.id)
     detail.value = data
     load()
   } finally { savingMember.value = false }
@@ -369,7 +369,7 @@ async function onDelMember(m) {
     await ElMessageBox.confirm(`移除「${m.student_name}」？`, '提示', { type: 'warning' })
     await projectsApi.removeMember(detail.value.id, m.ps_id)
     ElMessage.success('已移除')
-    const { data } = await projectsApi.get(detail.value.id)
+    const data = await projectsApi.get(detail.value.id)
     detail.value = data
     load()
   } catch {}

@@ -144,7 +144,7 @@ const cdForm = ref({
 async function loadCd() {
   loadingCd.value = true
   try {
-    const { data } = await countdownsApi.list({ include_past: false })
+    const data = await countdownsApi.list({ include_past: false })
     countdowns.value = data || []
   } finally { loadingCd.value = false }
 }
@@ -153,7 +153,7 @@ async function loadCd() {
 async function loadAct() {
   loadingAct.value = true
   try {
-    const { data } = await http.get('/activities')
+    const data = await http.get('/activities')
     activities.value = data || []
   } catch {} finally { loadingAct.value = false }
 }

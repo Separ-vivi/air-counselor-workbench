@@ -134,7 +134,7 @@ const form = ref({ id: null, title: '', week_start: '', week_end: '', content: '
 async function load(keepCurrent = false) {
   loading.value = true
   try {
-    const { data } = await summariesApi.list()
+    const data = await summariesApi.list()
     list.value = data || []
     if (!keepCurrent) {
       current.value = list.value[0] || null
@@ -145,7 +145,7 @@ async function load(keepCurrent = false) {
 
 async function fetchDetail(id) {
   try {
-    const { data } = await summariesApi.get(id)
+    const data = await summariesApi.get(id)
     current.value = data
   } catch {}
 }
@@ -171,7 +171,7 @@ async function onConfirmGen() {
   }
   generating.value = true
   try {
-    const { data } = await summariesApi.generate({
+    const data = await summariesApi.generate({
       week_offset: genForm.value.week_offset,
       dimensions: genForm.value.dimensions,
       format: genForm.value.format,
