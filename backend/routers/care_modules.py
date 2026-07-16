@@ -247,23 +247,51 @@ def export_party_progress(
 
 
 # ===== 心理关怀 =====
+def _psy_dict(r, db):
+    from models import ClassModel
+    stu = db.query(Student).get(r.student_id)
+    cls_name = ''
+    if stu and stu.class_id:
+        cls = db.query(ClassModel).get(stu.class_id)
+        cls_name = cls.class_name if cls else ''
+    return {
+        'id': r.id, 'student_id': r.student_id,
+        'student_name': stu.name if stu else '',
+        'student_no': stu.student_no if stu else '',
+        'class_name': cls_name,
+        'record_date': r.record_date, 'assessment_date': r.record_date,   # alias for frontend
+        'location': r.location, 'topic': r.topic, 'summary': r.summary,
+        'notes': r.summary,                                                 # alias
+        'emotion_tags': r.emotion_tags, 'follow_up_plan': r.follow_up_plan,
+        'next_follow_date': r.next_follow_date, 'next_follow_up': r.next_follow_date,  # alias
+        'attention_level': getattr(r, 'attention_level', '') or '',
+        'counseling_count': getattr(r, 'counseling_count', 0) or 0,
+    }
+
+
+def _psy_normalize_input(data: dict) -> dict:
+    """接收前端字段 -> 转成 model 字段"""
+    d = dict(data)
+    if 'assessment_date' in d and 'record_date' not in d:
+        d['record_date'] = d.pop('assessment_date')
+    if 'next_follow_up' in d and 'next_follow_date' not in d:
+        d['next_follow_date'] = d.pop('next_follow_up')
+    if 'notes' in d and 'summary' not in d:
+        d['summary'] = d.pop('notes')
+    # 只保留 model 有的字段
+    allowed = {'student_id','record_date','location','topic','summary','emotion_tags','follow_up_plan','next_follow_date','attention_level','counseling_count'}
+    return {k: v for k, v in d.items() if k in allowed}
+
+
 @router.get('/psychology')
-def list_psychology(student_id: Optional[int] = None, db: Session = Depends(get_db)):
+def list_psychology(student_id: Optional[int] = None, attention_level: Optional[str] = None, db: Session = Depends(get_db)):
     q = db.query(PsychologyRecord)
     if student_id:
         q = q.filter(PsychologyRecord.student_id == student_id)
+    if attention_level:
+        q = q.filter(PsychologyRecord.attention_level == attention_level)
     items = q.order_by(PsychologyRecord.created_at.desc()).all()
-    result = []
-    for r in items:
-        stu = db.query(Student).get(r.student_id)
-        result.append({
-            'id': r.id, 'student_id': r.student_id, 'record_date': r.record_date,
-            'location': r.location, 'topic': r.topic, 'summary': r.summary,
-            'emotion_tags': r.emotion_tags, 'follow_up_plan': r.follow_up_plan,
-            'next_follow_date': r.next_follow_date,
-            'student_name': stu.name if stu else '',
-        })
-    return result
+    return [_psy_dict(r, db) for r in items]
 
 
 @router.get('/psychology/reminders')
@@ -291,19 +319,12 @@ def get_psychology(record_id: int, db: Session = Depends(get_db)):
     r = db.query(PsychologyRecord).get(record_id)
     if not r:
         raise HTTPException(404, '记录不存在')
-    stu = db.query(Student).get(r.student_id)
-    return {
-        'id': r.id, 'student_id': r.student_id, 'record_date': r.record_date,
-        'location': r.location, 'topic': r.topic, 'summary': r.summary,
-        'emotion_tags': r.emotion_tags, 'follow_up_plan': r.follow_up_plan,
-        'next_follow_date': r.next_follow_date,
-        'student_name': stu.name if stu else '',
-    }
+    return _psy_dict(r, db)
 
 
 @router.post('/psychology')
 def create_psychology(data: dict, db: Session = Depends(get_db)):
-    r = PsychologyRecord(**data)
+    r = PsychologyRecord(**_psy_normalize_input(data))
     db.add(r)
     db.commit()
     db.refresh(r)
@@ -315,7 +336,7 @@ def update_psychology(rid: int, data: dict, db: Session = Depends(get_db)):
     r = db.query(PsychologyRecord).get(rid)
     if not r:
         raise HTTPException(404, '记录不存在')
-    for k, v in data.items():
+    for k, v in _psy_normalize_input(data).items():
         if hasattr(r, k):
             setattr(r, k, v)
     db.commit()
@@ -332,22 +353,59 @@ def delete_psychology(rid: int, db: Session = Depends(get_db)):
 
 
 # ===== 家校沟通 =====
+def _fam_dict(c, db):
+    from models import ClassModel
+    stu = db.query(Student).get(c.student_id)
+    cls_name = ''
+    if stu and stu.class_id:
+        cls = db.query(ClassModel).get(stu.class_id)
+        cls_name = cls.class_name if cls else ''
+    # 从 parent_name '父亲XX' / '母亲XX' 抽出关系
+    _rel = ''
+    for k in ('父亲','母亲','监护人','祖父','祖母','外祖父','外祖母','兄弟','姐妹'):
+        if c.parent_name and c.parent_name.startswith(k):
+            _rel = k
+            break
+    return {
+        'id': c.id, 'student_id': c.student_id,
+        'student_name': stu.name if stu else '',
+        'student_no': stu.student_no if stu else '',
+        'class_name': cls_name,
+        'contact_date': c.contact_date,
+        'parent_name': c.parent_name, 'contact_name': c.parent_name,   # alias
+        'contact_method': c.contact_method, 'contact_type': c.contact_method,  # alias
+        'relationship': _rel,
+        'topic': c.topic,
+        'conclusion': c.conclusion, 'content': c.conclusion,   # alias
+        'attachment': c.attachment,
+    }
+
+
+def _fam_normalize_input(data: dict) -> dict:
+    d = dict(data)
+    if 'contact_name' in d and 'parent_name' not in d:
+        d['parent_name'] = d.pop('contact_name')
+    if 'contact_type' in d and 'contact_method' not in d:
+        d['contact_method'] = d.pop('contact_type')
+    if 'content' in d and 'conclusion' not in d:
+        d['conclusion'] = d.pop('content')
+    # 如果传了 relationship 但 parent_name 没前缀，拼进去
+    rel = d.pop('relationship', None)
+    if rel and d.get('parent_name') and not any(d['parent_name'].startswith(k) for k in ('父亲','母亲','监护人','祖父','祖母','外祖父','外祖母','兄弟','姐妹')):
+        d['parent_name'] = f"{rel}{d['parent_name']}"
+    allowed = {'student_id','contact_date','parent_name','contact_method','topic','conclusion','attachment'}
+    return {k: v for k, v in d.items() if k in allowed}
+
+
 @router.get('/family-contacts')
-def list_family_contacts(student_id: Optional[int] = None, db: Session = Depends(get_db)):
+def list_family_contacts(student_id: Optional[int] = None, contact_type: Optional[str] = None, db: Session = Depends(get_db)):
     q = db.query(FamilyContact)
     if student_id:
         q = q.filter(FamilyContact.student_id == student_id)
+    if contact_type:
+        q = q.filter(FamilyContact.contact_method == contact_type)
     items = q.order_by(FamilyContact.created_at.desc()).all()
-    result = []
-    for c in items:
-        stu = db.query(Student).get(c.student_id)
-        result.append({
-            'id': c.id, 'student_id': c.student_id, 'contact_date': c.contact_date,
-            'parent_name': c.parent_name, 'contact_method': c.contact_method,
-            'topic': c.topic, 'conclusion': c.conclusion,
-            'student_name': stu.name if stu else '',
-        })
-    return result
+    return [_fam_dict(c, db) for c in items]
 
 
 @router.get('/family-contacts/{contact_id}')
@@ -355,18 +413,12 @@ def get_family_contact(contact_id: int, db: Session = Depends(get_db)):
     c = db.query(FamilyContact).get(contact_id)
     if not c:
         raise HTTPException(404, '记录不存在')
-    stu = db.query(Student).get(c.student_id)
-    return {
-        'id': c.id, 'student_id': c.student_id, 'contact_date': c.contact_date,
-        'parent_name': c.parent_name, 'contact_method': c.contact_method,
-        'topic': c.topic, 'conclusion': c.conclusion,
-        'student_name': stu.name if stu else '',
-    }
+    return _fam_dict(c, db)
 
 
 @router.post('/family-contacts')
 def create_family_contact(data: dict, db: Session = Depends(get_db)):
-    c = FamilyContact(**data)
+    c = FamilyContact(**_fam_normalize_input(data))
     db.add(c)
     db.commit()
     db.refresh(c)
@@ -378,7 +430,7 @@ def update_family_contact(cid: int, data: dict, db: Session = Depends(get_db)):
     c = db.query(FamilyContact).get(cid)
     if not c:
         raise HTTPException(404, '记录不存在')
-    for k, v in data.items():
+    for k, v in _fam_normalize_input(data).items():
         if hasattr(c, k):
             setattr(c, k, v)
     db.commit()

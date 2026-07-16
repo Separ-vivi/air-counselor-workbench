@@ -230,7 +230,13 @@ def seed_large_dataset():
             cobj.league_secretary = picks[1].name
             for i, stu in enumerate(picks):
                 pos = cadre_positions[i] if i < len(cadre_positions) else '委员'
-                db.add(StudentCadreRecord(student_id=stu.id, position=pos, term=f'{2022+i%3}-{2024+i%3}', notes=''))
+                _level = '校级' if pos in ('学生会主席','团委副书记') else ('院级' if pos in ('学习委员','团支书','班长','副班长') else '班级')
+                _org = {'学生会主席':'校学生会','团委副书记':'校团委','学习委员':'班委会','团支书':'团支部','班长':'班委会','副班长':'班委会'}.get(pos, '班委会')
+                _sdate = f'{2022+i%3}-09-01'
+                _edate = f'{2024+i%3}-08-31'
+                _email = f'{stu.student_no or stu.id}@stu.example.edu'
+                db.add(StudentCadreRecord(student_id=stu.id, position=pos, term=f'{2022+i%3}-{2024+i%3}',
+                    level=_level, organization=_org, start_date=_sdate, end_date=_edate, email=_email, notes=''))
                 stats['cadres'] += 1
         db.commit()
 
@@ -248,10 +254,12 @@ def seed_large_dataset():
         stats['class_teachers'] = 0
         for cobj in classes:
             tp = next((x for x in teacher_pool if x[0] == cobj.class_teacher), teacher_pool[0])
+            _t_title = '教授' if '教授' in tp[0] and '副' not in tp[0] else ('副教授' if '副教授' in tp[0] else '讲师')
+            _t_email = f'{tp[1].lower()}@example.edu'
             db.add(ClassTeacher(
                 class_id=cobj.id, name=tp[0], staff_no=tp[1], department=tp[2],
                 phone=gen_phone(), office=f'机械楼{random.randint(3,6)}0{random.randint(1,9)}',
-                research_direction=tp[3],
+                research_direction=tp[3], title=_t_title, email=_t_email,
             ))
             stats['class_teachers'] += 1
         db.commit()
@@ -282,9 +290,22 @@ def seed_large_dataset():
                     elif score >= 60: gpa = 2.0
                     else:
                         gpa = 0.0; fail_courses += 1
+                    # 生成课程代码：机械专业课 MECH###, 通识课 GEN###
+                    _prefix = 'MECH' if any(kw in cname for kw in ('机械','车辆','数控','材料','液压','制造','仿真','控制','机器人')) else 'GEN'
+                    _ccode = f'{_prefix}{hash(cname) % 900 + 100:03d}'
+                    # 成绩等级
+                    if score >= 90: _lvl = 'A'
+                    elif score >= 85: _lvl = 'A-'
+                    elif score >= 80: _lvl = 'B+'
+                    elif score >= 75: _lvl = 'B'
+                    elif score >= 70: _lvl = 'C+'
+                    elif score >= 65: _lvl = 'C'
+                    elif score >= 60: _lvl = 'D'
+                    else: _lvl = 'F'
                     bulk_grades.append(GradeRecord(
                         student_id=stu.id, semester=sem, course_name=cname,
                         score=score, gpa=gpa, credit=credit, is_repair=is_repair,
+                        course_code=_ccode, grade_level=_lvl, is_makeup=is_repair,
                     ))
             if fail_courses >= 2:
                 db.add(WarningRecord(student_id=stu.id, warning_type='red', description=f'累计挂科 {fail_courses} 门', semester=student_semesters[-1]))
@@ -319,6 +340,8 @@ def seed_large_dataset():
         stats['psychology'] = 0
         for stu in random.sample(all_students, k=int(len(all_students) * 0.12)):
             for _ in range(random.randint(1,3)):
+                _atlvl = random.choices(['一级关注','二级关注','三级关注','普通'], weights=[1,2,3,4])[0]
+                _cc = random.randint(1, 5)
                 db.add(PsychologyRecord(
                     student_id=stu.id,
                     record_date=f'2024-{random.randint(1,12):02d}-{random.randint(1,28):02d}',
@@ -327,6 +350,7 @@ def seed_large_dataset():
                     summary='详谈约 40 分钟，情绪稳定后达成初步共识',
                     emotion_tags=random.choice(['["焦虑","低落"]','["焦虑"]','["紧张","失眠"]','["低落"]','["迷茫"]']),
                     follow_up_plan='下周再谈一次', next_follow_date=f'2024-{random.randint(1,12):02d}-{random.randint(1,28):02d}',
+                    attention_level=_atlvl, counseling_count=_cc,
                 ))
                 stats['psychology'] += 1
         db.commit()
@@ -367,7 +391,8 @@ def seed_large_dataset():
         ]
         activities = []
         for title, adate, loc, desc, atype in activity_defs:
-            a = Activity(title=title, activity_date=adate, end_date=adate, location=loc, description=desc, activity_type=atype, status='completed', max_participants=100)
+            _org_pool = ['学生会文体部','团委学习部','就业指导中心','心理健康中心','学工办','机械工程学院']
+            a = Activity(title=title, activity_date=adate, end_date=adate, location=loc, description=desc, activity_type=atype, status='completed', max_participants=100, organizer=random.choice(_org_pool))
             db.add(a); activities.append(a)
         db.flush()
         stats['activities'] = len(activities)
@@ -483,7 +508,10 @@ def seed_large_dataset():
         topics_pool = ['期末考试动员','新学期规划','安全教育','宿舍卫生检查','诚信考试','职业规划','心理健康','奖学金评定','党团学习','假期安全']
         for cobj in classes:
             for i in range(random.randint(3,5)):
-                db.add(ClassMeeting(class_id=cobj.id, meeting_date=f'2024-{i*2+1:02d}-{random.randint(5,25):02d}', topic=random.choice(topics_pool), attendance_count=random.randint(25,35), absent_students='', content_summary='本次班会内容涉及学期重点工作', resolution='已布置任务'))
+                _monitor = cobj.monitor or '班长'
+                _host_pool = [cobj.class_teacher or '班主任', _monitor]
+                _rec_pool = [cobj.league_secretary or '团支书', _monitor]
+                db.add(ClassMeeting(class_id=cobj.id, meeting_date=f'2024-{i*2+1:02d}-{random.randint(5,25):02d}', topic=random.choice(topics_pool), attendance_count=random.randint(25,35), absent_students='', content_summary='本次班会内容涉及学期重点工作', resolution='已布置任务', host=random.choice(_host_pool), recorder=random.choice(_rec_pool), notes='全体到会情况良好'))
                 stats['meetings'] += 1
         db.commit()
 

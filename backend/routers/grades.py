@@ -184,18 +184,37 @@ async def import_grades(file: UploadFile = File(...), db: Session = Depends(get_
     }
 
 
+def _calc_grade_level(score):
+    if score is None: return ''
+    if score >= 90: return 'A'
+    if score >= 85: return 'A-'
+    if score >= 80: return 'B+'
+    if score >= 75: return 'B'
+    if score >= 70: return 'C+'
+    if score >= 65: return 'C'
+    if score >= 60: return 'D'
+    return 'F'
+
+
+def _grade_dict(g):
+    return {
+        'id': g.id, 'semester': g.semester,
+        'course_code': getattr(g, 'course_code', '') or '',
+        'course_name': g.course_name,
+        'score': g.score, 'gpa': g.gpa, 'credit': g.credit,
+        'grade_level': getattr(g, 'grade_level', '') or _calc_grade_level(g.score),
+        'is_makeup': bool(getattr(g, 'is_makeup', False) or getattr(g, 'is_repair', False)),
+        'is_repair': bool(getattr(g, 'is_repair', False)),
+    }
+
+
 @router.get('/student/{student_id}')
 def get_student_grades(student_id: int, db: Session = Depends(get_db)):
     """获取学生成绩列表"""
     grades = db.query(GradeRecord).filter(GradeRecord.student_id == student_id).order_by(
         GradeRecord.semester.desc(), GradeRecord.course_name
     ).all()
-    return [
-        {
-            'id': g.id, 'semester': g.semester, 'course_name': g.course_name,
-            'score': g.score, 'gpa': g.gpa, 'credit': g.credit
-        } for g in grades
-    ]
+    return [_grade_dict(g) for g in grades]
 
 
 @router.get('/semesters')
@@ -459,19 +478,9 @@ def get_grades_by_class(
     detail = []
     for g in all_grades:
         nm, no = sid_to_name.get(g.student_id, ('', ''))
-        detail.append({
-            'id': g.id,
-            'student_id': g.student_id,
-            'student_no': no,
-            'student_name': nm,
-            'semester': g.semester,
-            'course_code': g.course_code,
-            'course_name': g.course_name,
-            'credit': g.credit,
-            'score': g.score,
-            'grade_level': g.grade_level,
-            'is_makeup': g.is_makeup,
-        })
+        _d = _grade_dict(g)
+        _d.update({'student_id': g.student_id, 'student_no': no, 'student_name': nm})
+        detail.append(_d)
 
     all_scores = [float(g.score) for g in all_grades if g.score is not None]
     stats = {

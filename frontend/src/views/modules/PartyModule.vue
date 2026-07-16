@@ -34,21 +34,21 @@
     </el-row>
 
     <el-card shadow="never">
-      <el-table :data="list" v-loading="loading" stripe border max-height="600">
-        <el-table-column label="学生" prop="student_name" width="120">
+      <el-table :data="list" v-loading="loading" stripe border max-height="600" :default-sort="{ prop: 'stage_date', order: 'descending' }">
+        <el-table-column label="学生" prop="student_name" width="120" sortable>
           <template #default="{ row }">
             <el-link type="primary" @click="$router.push(`/students/${row.student_id}`)">{{ row.student_name }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column label="学号" prop="student_no" width="140" />
-        <el-table-column label="班级" prop="class_name" min-width="140" show-overflow-tooltip />
-        <el-table-column label="发展阶段" prop="stage" width="150">
+        <el-table-column label="学号" prop="student_no" width="140" sortable />
+        <el-table-column label="班级" prop="class_name" min-width="140" show-overflow-tooltip sortable />
+        <el-table-column label="发展阶段" prop="stage" width="150" sortable :sort-by="row => stageOrder(row.stage)">
           <template #default="{ row }">
             <el-tag :type="stageTag(row.stage)" size="small">{{ row.stage }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="阶段日期" prop="stage_date" width="130" />
-        <el-table-column label="联系人" prop="contact_person" width="120" />
+        <el-table-column label="阶段日期" prop="stage_date" width="130" sortable />
+        <el-table-column label="联系人" prop="contact_person" width="120" sortable />
         <el-table-column label="备注" prop="notes" show-overflow-tooltip />
         <el-table-column label="操作" fixed="right" width="140">
           <template #default="{ row }">
@@ -110,6 +110,8 @@ const list = ref([])
 const loading = ref(false)
 const filter = reactive({ student_id: null, stage: '' })
 
+const stageOrderMap = { '递交入党申请书': 1, '入党积极分子': 2, '发展对象': 3, '预备党员': 4, '正式党员': 5 }
+const stageOrder = (s) => stageOrderMap[s] || 0
 const stageTag = (s) => {
   const m = { '递交入党申请书': 'info', '入党积极分子': 'primary', '发展对象': 'warning', '预备党员': 'danger', '正式党员': 'success' }
   return m[s] || ''

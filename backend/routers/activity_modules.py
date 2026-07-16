@@ -9,15 +9,30 @@ router = APIRouter(prefix='/api')
 
 
 # ===== 活动日程 =====
-@router.get('/activities')
-def list_activities(db: Session = Depends(get_db)):
-    items = db.query(Activity).order_by(Activity.activity_date.desc()).all()
-    return [{
-        'id': a.id, 'title': a.title, 'activity_date': a.activity_date,
+def _act_dict(a):
+    return {
+        'id': a.id,
+        'title': a.title, 'activity_name': a.title,   # alias
+        'activity_date': a.activity_date,
         'end_date': a.end_date, 'location': a.location,
         'description': a.description, 'activity_type': a.activity_type,
         'status': a.status, 'max_participants': a.max_participants,
-    } for a in items]
+        'organizer': getattr(a, 'organizer', '') or '',
+    }
+
+
+def _act_normalize_input(data: dict) -> dict:
+    d = dict(data)
+    if 'activity_name' in d and 'title' not in d:
+        d['title'] = d.pop('activity_name')
+    allowed = {'title','activity_date','end_date','location','description','activity_type','status','max_participants','organizer'}
+    return {k: v for k, v in d.items() if k in allowed}
+
+
+@router.get('/activities')
+def list_activities(db: Session = Depends(get_db)):
+    items = db.query(Activity).order_by(Activity.activity_date.desc()).all()
+    return [_act_dict(a) for a in items]
 
 
 @router.get('/activities/{activity_id}')
@@ -35,18 +50,14 @@ def get_activity(activity_id: int, db: Session = Depends(get_db)):
             'student_name': stu.name if stu else '',
             'signed_up': s.signed_up, 'checked_in': s.checked_in,
         })
-    return {
-        'id': a.id, 'title': a.title, 'activity_date': a.activity_date,
-        'end_date': a.end_date, 'location': a.location,
-        'description': a.description, 'activity_type': a.activity_type,
-        'status': a.status, 'max_participants': a.max_participants,
-        'participants': participants,
-    }
+    _r = _act_dict(a)
+    _r['participants'] = participants
+    return _r
 
 
 @router.post('/activities')
 def create_activity(data: dict, db: Session = Depends(get_db)):
-    a = Activity(**data)
+    a = Activity(**_act_normalize_input(data))
     db.add(a)
     db.commit()
     db.refresh(a)
@@ -58,7 +69,7 @@ def update_activity(aid: int, data: dict, db: Session = Depends(get_db)):
     a = db.query(Activity).get(aid)
     if not a:
         raise HTTPException(404)
-    for k, v in data.items():
+    for k, v in _act_normalize_input(data).items():
         if hasattr(a, k):
             setattr(a, k, v)
     db.commit()
@@ -188,10 +199,38 @@ def delete_party_study(pid: int, db: Session = Depends(get_db)):
 
 
 # ===== 班会记录 =====
+def _meeting_dict(m, cls_name):
+    return {
+        'id': m.id, 'class_id': m.class_id, 'class_name': cls_name,
+        'meeting_date': m.meeting_date,
+        'topic': m.topic, 'theme': m.topic,     # alias for frontend
+        'attendance_count': m.attendance_count,
+        'absent_students': m.absent_students,
+        'content_summary': m.content_summary,
+        'summary': m.content_summary,            # alias
+        'resolution': m.resolution,
+        'host': getattr(m, 'host', '') or '',
+        'recorder': getattr(m, 'recorder', '') or '',
+        'notes': getattr(m, 'notes', '') or '',
+    }
+
+
+def _meeting_normalize_input(data: dict) -> dict:
+    d = dict(data)
+    if 'theme' in d and 'topic' not in d:
+        d['topic'] = d.pop('theme')
+    if 'summary' in d and 'content_summary' not in d:
+        d['content_summary'] = d.pop('summary')
+    allowed = {'class_id','meeting_date','topic','attendance_count','absent_students','content_summary','resolution','photo','host','recorder','notes'}
+    return {k: v for k, v in d.items() if k in allowed}
+
+
 @router.get('/class-meetings')
-def list_class_meetings(class_name: Optional[str] = None, db: Session = Depends(get_db)):
+def list_class_meetings(class_name: Optional[str] = None, class_id: Optional[int] = None, db: Session = Depends(get_db)):
     from models import ClassModel
     q = db.query(ClassMeeting)
+    if class_id:
+        q = q.filter(ClassMeeting.class_id == class_id)
     items = q.order_by(ClassMeeting.meeting_date.desc()).all()
     result = []
     for m in items:
@@ -201,12 +240,7 @@ def list_class_meetings(class_name: Optional[str] = None, db: Session = Depends(
             cls_name = cls.class_name if cls else ''
         if class_name and cls_name != class_name:
             continue
-        result.append({
-            'id': m.id, 'class_name': cls_name, 'meeting_date': m.meeting_date,
-            'topic': m.topic, 'attendance_count': m.attendance_count,
-            'absent_students': m.absent_students, 'content_summary': m.content_summary,
-            'resolution': m.resolution,
-        })
+        result.append(_meeting_dict(m, cls_name))
     return result
 
 
@@ -220,17 +254,12 @@ def get_class_meeting(meeting_id: int, db: Session = Depends(get_db)):
     if m.class_id:
         cls = db.query(ClassModel).filter(ClassModel.id == m.class_id).first()
         cls_name = cls.class_name if cls else ''
-    return {
-        'id': m.id, 'class_name': cls_name, 'meeting_date': m.meeting_date,
-        'topic': m.topic, 'attendance_count': m.attendance_count,
-        'absent_students': m.absent_students, 'content_summary': m.content_summary,
-        'resolution': m.resolution,
-    }
+    return _meeting_dict(m, cls_name)
 
 
 @router.post('/class-meetings')
 def create_class_meeting(data: dict, db: Session = Depends(get_db)):
-    m = ClassMeeting(**data)
+    m = ClassMeeting(**_meeting_normalize_input(data))
     db.add(m)
     db.commit()
     db.refresh(m)
@@ -242,7 +271,7 @@ def update_class_meeting(mid: int, data: dict, db: Session = Depends(get_db)):
     m = db.query(ClassMeeting).get(mid)
     if not m:
         raise HTTPException(404)
-    for k, v in data.items():
+    for k, v in _meeting_normalize_input(data).items():
         if hasattr(m, k):
             setattr(m, k, v)
     db.commit()

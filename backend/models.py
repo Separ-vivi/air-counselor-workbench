@@ -149,6 +149,9 @@ class GradeRecord(Base):
     gpa = Column(Float, nullable=True)
     credit = Column(Float, nullable=True)
     is_repair = Column(Boolean, default=False)  # 是否补修
+    course_code = Column(String(50), default='')     # 课程代码
+    grade_level = Column(String(10), default='')     # 成绩等级 A/A-/B+/B/C+/C/D/F
+    is_makeup = Column(Boolean, default=False)       # 是否重修（与 is_repair 同步）
     created_at = Column(DateTime, default=datetime.now)
     student = relationship('Student', back_populates='grade_records')
 
@@ -194,6 +197,8 @@ class PsychologyRecord(Base):
     emotion_tags = Column(Text, default='')  # JSON array
     follow_up_plan = Column(Text, default='')
     next_follow_date = Column(String(20), default='')
+    attention_level = Column(String(20), default='')   # 关注等级：一级关注/二级关注/三级关注/普通
+    counseling_count = Column(Integer, default=0)       # 累计咨询次数
     created_at = Column(DateTime, default=datetime.now)
     student = relationship('Student', back_populates='psychology_records')
 
@@ -224,6 +229,11 @@ class StudentCadreRecord(Base):
     student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
     position = Column(String(100), nullable=False)
     term = Column(String(50), default='')
+    level = Column(String(20), default='')          # 级别：校级/院级/班级
+    organization = Column(String(200), default='')  # 组织：学生会/团委/班委等
+    start_date = Column(String(20), default='')     # 任职起始
+    end_date = Column(String(20), default='')       # 任职结束
+    email = Column(String(120), default='')          # 邮箱
     notes = Column(Text, default='')
     created_at = Column(DateTime, default=datetime.now)
     student = relationship('Student', back_populates='cadre_records')
@@ -243,6 +253,7 @@ class Activity(Base):
     activity_type = Column(String(50), default='')
     status = Column(String(20), default='draft')
     max_participants = Column(Integer, default=0)
+    organizer = Column(String(120), default='')     # 主办方/组织者
     created_at = Column(DateTime, default=datetime.now)
 
 
@@ -518,6 +529,9 @@ class ClassMeeting(Base):
     content_summary = Column(Text, default='')
     resolution = Column(Text, default='')
     photo = Column(Text, default='')
+    host = Column(String(80), default='')       # 主持人
+    recorder = Column(String(80), default='')   # 记录人
+    notes = Column(Text, default='')             # 备注
     created_at = Column(DateTime, default=datetime.now)
 
 
@@ -532,6 +546,8 @@ class ClassTeacher(Base):
     phone = Column(String(50), default='')
     office = Column(String(100), default='')
     research_direction = Column(String(200), default='')
+    title = Column(String(50), default='')     # 职称（教授/副教授/讲师）
+    email = Column(String(120), default='')     # 邮箱
     notes = Column(Text, default='')
     created_at = Column(DateTime, default=datetime.now)
 

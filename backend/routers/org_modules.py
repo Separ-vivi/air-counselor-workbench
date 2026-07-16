@@ -17,22 +17,39 @@ def _get_student_class_name(db: Session, student_id: int) -> str:
 
 
 # ===== 学生干部 =====
+def _cadre_dict(c, db):
+    stu = db.query(Student).filter(Student.id == c.student_id).first()
+    return {
+        'id': c.id, 'student_id': c.student_id,
+        'class_name': _get_student_class_name(db, c.student_id),
+        'student_name': stu.name if stu else '',
+        'student_no': stu.student_no if stu else '',
+        'phone': stu.phone if stu else '',
+        'position': c.position,
+        'level': getattr(c, 'level', '') or '',
+        'organization': getattr(c, 'organization', '') or '',
+        'term': c.term,
+        'start_date': getattr(c, 'start_date', '') or '',
+        'end_date': getattr(c, 'end_date', '') or '',
+        'email': getattr(c, 'email', '') or '',
+        'notes': c.notes,
+    }
+
+
 @router.get('/cadres')
-def list_cadres(class_name: Optional[str] = None, db: Session = Depends(get_db)):
-    items = db.query(StudentCadreRecord).order_by(StudentCadreRecord.position).all()
+def list_cadres(class_name: Optional[str] = None, level: Optional[str] = None, position: Optional[str] = None, db: Session = Depends(get_db)):
+    q = db.query(StudentCadreRecord)
+    if level:
+        q = q.filter(StudentCadreRecord.level == level)
+    if position:
+        q = q.filter(StudentCadreRecord.position.contains(position))
+    items = q.order_by(StudentCadreRecord.position).all()
     result = []
     for c in items:
-        stu = db.query(Student).filter(Student.id == c.student_id).first()
         stu_class_name = _get_student_class_name(db, c.student_id)
-        # 如果指定了class_name过滤
         if class_name and stu_class_name != class_name:
             continue
-        result.append({
-            'id': c.id, 'student_id': c.student_id, 'class_name': stu_class_name,
-            'position': c.position, 'term': c.term, 'notes': c.notes,
-            'student_name': stu.name if stu else '',
-            'phone': stu.phone if stu else '',
-        })
+        result.append(_cadre_dict(c, db))
     return result
 
 
@@ -70,13 +87,7 @@ def get_cadre(cadre_id: int, db: Session = Depends(get_db)):
     c = db.query(StudentCadreRecord).filter(StudentCadreRecord.id == cadre_id).first()
     if not c:
         raise HTTPException(404, '记录不存在')
-    stu = db.query(Student).filter(Student.id == c.student_id).first()
-    return {
-        'id': c.id, 'student_id': c.student_id, 'class_name': _get_student_class_name(db, c.student_id),
-        'position': c.position, 'term': c.term, 'notes': c.notes,
-        'student_name': stu.name if stu else '',
-        'phone': stu.phone if stu else '',
-    }
+    return _cadre_dict(c, db)
 
 
 @router.post('/cadres')
@@ -112,26 +123,40 @@ def delete_cadre(cid: int, db: Session = Depends(get_db)):
 # ===== 班主任 =====
 @router.get('/class-teachers')
 def list_class_teachers(db: Session = Depends(get_db)):
+    from models import ClassModel
     items = db.query(ClassTeacher).all()
     result = []
     for t in items:
         cls_name = ''
         if t.class_id:
-            from models import ClassModel
             cls = db.query(ClassModel).filter(ClassModel.id == t.class_id).first()
             cls_name = cls.class_name if cls else ''
         result.append({
-            'id': t.id, 'class_name': cls_name or getattr(t, 'class_name', ''),
-            'name': t.name, 'staff_no': t.staff_no, 'department': t.department,
+            'id': t.id, 'class_id': t.class_id,
+            'class_name': cls_name or getattr(t, 'class_name', ''),
+            'name': t.name,
+            'staff_no': t.staff_no, 'teacher_no': t.staff_no,  # alias
+            'department': t.department,
             'phone': t.phone, 'office': t.office,
-            'research_direction': t.research_direction, 'notes': t.notes,
+            'research_direction': t.research_direction,
+            'title': getattr(t, 'title', '') or '',
+            'email': getattr(t, 'email', '') or '',
+            'notes': t.notes,
         })
     return result
 
 
+def _teacher_normalize_input(data: dict) -> dict:
+    d = dict(data)
+    if 'teacher_no' in d and 'staff_no' not in d:
+        d['staff_no'] = d.pop('teacher_no')
+    allowed = {'class_id','name','staff_no','department','phone','office','research_direction','title','email','notes'}
+    return {k: v for k, v in d.items() if k in allowed}
+
+
 @router.post('/class-teachers')
 def create_class_teacher(data: dict, db: Session = Depends(get_db)):
-    t = ClassTeacher(**data)
+    t = ClassTeacher(**_teacher_normalize_input(data))
     db.add(t)
     db.commit()
     db.refresh(t)
@@ -143,7 +168,7 @@ def update_class_teacher(tid: int, data: dict, db: Session = Depends(get_db)):
     t = db.query(ClassTeacher).filter(ClassTeacher.id == tid).first()
     if not t:
         raise HTTPException(404, '记录不存在')
-    for k, v in data.items():
+    for k, v in _teacher_normalize_input(data).items():
         if hasattr(t, k):
             setattr(t, k, v)
     db.commit()

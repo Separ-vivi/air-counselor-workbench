@@ -47,7 +47,7 @@
         </div>
       </div>
 
-      <!-- 8 Tab -->
+      <!-- 10 Tab -->
       <div class="c360-body">
         <div class="side-tabs">
           <div
@@ -55,16 +55,23 @@
             :key="tab.key"
             class="side-tab-item"
             :class="{ active: activeTab === tab.key }"
-            @click="activeTab = tab.key"
+            @click.stop="switchTab(tab.key)"
           >
             {{ tab.icon }} {{ tab.label }}
           </div>
         </div>
 
-        <div class="tab-main">
-          <keep-alive>
-            <component v-if="!Number.isNaN(cid)" :is="currentTabComponent" :cid="cid" :class-info="classInfo" :summary="summary" />
-          </keep-alive>
+        <div class="tab-main" v-if="!Number.isNaN(cid)">
+          <ClassSummary            v-if="activeTab==='summary'"    :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassStudents           v-else-if="activeTab==='students'"   :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassGrades             v-else-if="activeTab==='grades'"     :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassParty              v-else-if="activeTab==='party'"      :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassPsychology         v-else-if="activeTab==='psychology'" :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassFunding            v-else-if="activeTab==='funding'"    :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassActivities         v-else-if="activeTab==='activities'" :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassFeaturedActivities v-else-if="activeTab==='featured'"   :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassPartyBranch        v-else-if="activeTab==='branch'"     :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassDaily              v-else-if="activeTab==='daily'"      :cid="cid" :class-info="classInfo" :summary="summary" />
         </div>
       </div>
     </template>
@@ -115,6 +122,9 @@ const summaryErr = ref(false)
 const students = ref([])
 const loadingHeader = ref(false)
 const activeTab = ref('summary')
+function switchTab(key) {
+  activeTab.value = key
+}
 
 const tabs = [
   { key: 'summary',    label: '概览',       icon: '📊', comp: ClassSummary },
