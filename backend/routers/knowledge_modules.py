@@ -233,47 +233,86 @@ def get_weekly_summary(summary_id: int, db: Session = Depends(get_db)):
 
 
 @router.post('/weekly-summaries/generate')
-def generate_weekly_summary(db: Session = Depends(get_db)):
-    """自动生成周汇总"""
+def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db)):
+    """自动生成周汇总
+    payload 可选字段：
+      dimensions: [academic|party|psychology|aid|employment|daily|activity] 多选
+      format: bullet | paragraph | mixed
+      week_offset: int，0=本周，-1=上周
+    """
     from datetime import datetime, timedelta
     from models import PsychologyRecord, FamilyContact, PartyProgress, WarningRecord, ClassMeeting, WeeklySummary as WS
+    from models import Activity, StudentGrant, EmploymentRecord, GradeRecord, StudentDiscipline, StudentDormVisit
 
-    today = datetime.now()
+    payload = payload or {}
+    dims = payload.get('dimensions') or ['academic','party','psychology','aid','employment','daily','activity']
+    fmt  = payload.get('format') or 'bullet'
+    week_offset = int(payload.get('week_offset') or 0)
+
+    today = datetime.now() + timedelta(weeks=week_offset)
     week_start = today - timedelta(days=today.weekday())
     week_end = week_start + timedelta(days=6)
     ws = week_start.strftime('%Y-%m-%d')
     we = week_end.strftime('%Y-%m-%d')
 
-    sections = []
-    sections.append(f'# 第{today.isocalendar()[1]}周工作汇总 ({ws} ~ {we})\n')
+    def line(label, val):
+        if fmt == 'paragraph':
+            return f'{label}{val}；'
+        if fmt == 'mixed':
+            return f'- **{label}**：{val}'
+        return f'- {label}：{val}'
 
-    # 心理关怀
-    psych_count = db.query(PsychologyRecord).count()
-    sections.append(f'## 心理关怀\n- 累计谈心记录: {psych_count}条\n')
+    sections = [f'# 第{today.isocalendar()[1]}周工作汇总 ({ws} ~ {we})\n']
 
-    # 家校沟通
-    family_count = db.query(FamilyContact).count()
-    sections.append(f'## 家校沟通\n- 累计沟通记录: {family_count}条\n')
+    # 各维度独立取数
+    if 'academic' in dims:
+        w = db.query(WarningRecord).count()
+        g = db.query(GradeRecord).count()
+        body = '\n'.join([line('累计预警', f'{w} 条'), line('成绩记录', f'{g} 条')])
+        sections.append(f'## 学业\n{body}\n')
+    if 'party' in dims:
+        p = db.query(PartyProgress).count()
+        body = line('党团进度记录', f'{p} 条')
+        sections.append(f'## 党团\n{body}\n')
+    if 'psychology' in dims:
+        ps = db.query(PsychologyRecord).count()
+        body = line('心理谈心', f'{ps} 条')
+        sections.append(f'## 心理\n{body}\n')
+    if 'aid' in dims:
+        gr = db.query(StudentGrant).count()
+        body = line('资助/助学金', f'{gr} 条')
+        sections.append(f'## 资助\n{body}\n')
+    if 'employment' in dims:
+        em = db.query(EmploymentRecord).count()
+        body = line('就业进展', f'{em} 条')
+        sections.append(f'## 就业\n{body}\n')
+    if 'daily' in dims:
+        f_ = db.query(FamilyContact).count()
+        d_ = db.query(StudentDiscipline).count()
+        v_ = db.query(StudentDormVisit).count()
+        body = '\n'.join([line('家校沟通', f'{f_} 条'), line('违纪记录', f'{d_} 条'), line('宿舍走访', f'{v_} 次')])
+        sections.append(f'## 日常\n{body}\n')
+    if 'activity' in dims:
+        a_ = db.query(Activity).count()
+        m_ = db.query(ClassMeeting).count()
+        body = '\n'.join([line('活动记录', f'{a_} 场'), line('班会次数', f'{m_} 次')])
+        sections.append(f'## 活动\n{body}\n')
 
-    # 预警
-    warning_count = db.query(WarningRecord).count()
-    sections.append(f'## 学业预警\n- 累计预警: {warning_count}条\n')
-
-    # 党团
-    party_count = db.query(PartyProgress).count()
-    sections.append(f'## 党团发展\n- 累计进度记录: {party_count}条\n')
-
-    # 班会
-    meeting_count = db.query(ClassMeeting).count()
-    sections.append(f'## 班会记录\n- 累计班会: {meeting_count}次\n')
+    if fmt == 'paragraph':
+        sections.append('\n> 输出格式：段落叙述')
+    elif fmt == 'mixed':
+        sections.append('\n> 输出格式：图文混排（后续可插入图表）')
+    else:
+        sections.append('\n> 输出格式：分点列表')
 
     content = '\n'.join(sections)
 
-    summary = WS(week_start=ws, week_end=we, content=content, summary_type='auto')
+    summary = WS(week_start=ws, week_end=we, content=content, summary_type='auto',
+                 title=f'第{today.isocalendar()[1]}周工作汇总')
     db.add(summary)
     db.commit()
     db.refresh(summary)
-    return {'id': summary.id, 'content': content}
+    return {'id': summary.id, 'content': content, 'dimensions': dims, 'format': fmt}
 
 
 @router.put('/weekly-summaries/{sid}')

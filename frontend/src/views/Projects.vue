@@ -18,13 +18,18 @@
           <el-radio-button label="completed">已完成</el-radio-button>
           <el-radio-button label="archived">归档</el-radio-button>
         </el-radio-group>
+        <el-radio-group v-model="viewMode" size="default">
+          <el-radio-button label="card">卡片</el-radio-button>
+          <el-radio-button label="list">列表</el-radio-button>
+          <el-radio-button label="kanban">看板</el-radio-button>
+        </el-radio-group>
         <el-button type="primary" :icon="Plus" @click="onCreate">新建项目</el-button>
       </div>
     </div>
 
     <el-empty v-if="!loading && projects.length === 0" description="还没有项目，点右上角新建" />
 
-    <div class="p-grid" v-loading="loading">
+    <div class="p-grid" v-loading="loading" v-if="viewMode === 'card'">
       <el-card
         v-for="p in projects"
         :key="p.id"
@@ -51,6 +56,54 @@
           <el-button link :icon="Delete" @click="onDelete(p)">删除</el-button>
         </div>
       </el-card>
+    </div>
+
+    <!-- 列表视图 -->
+    <el-table v-if="viewMode === 'list'" :data="projects" v-loading="loading" style="width: 100%">
+      <el-table-column prop="name" label="项目名" min-width="180">
+        <template #default="{ row }">
+          <el-link type="primary" @click.stop="onOpen(row)">{{ row.name }}</el-link>
+        </template>
+      </el-table-column>
+      <el-table-column prop="status" label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="statusTag(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="progress" label="进度" width="180">
+        <template #default="{ row }">
+          <el-progress :percentage="row.progress" :stroke-width="8" />
+        </template>
+      </el-table-column>
+      <el-table-column prop="student_count" label="成员" width="80" align="center" />
+      <el-table-column label="周期" min-width="180">
+        <template #default="{ row }">
+          <span>{{ row.start_date || '?' }} ~ {{ row.end_date || '?' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="description" label="说明" show-overflow-tooltip />
+      <el-table-column label="操作" width="180" fixed="right">
+        <template #default="{ row }">
+          <el-button link size="small" @click.stop="onOpen(row)">详情</el-button>
+          <el-button link size="small" @click.stop="onEdit(row)">编辑</el-button>
+          <el-button link size="small" type="danger" @click.stop="onDelete(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <!-- 看板视图 -->
+    <div v-if="viewMode === 'kanban'" class="kanban" v-loading="loading">
+      <div v-for="col in kanbanCols" :key="col.status" class="kb-col">
+        <div class="kb-head" :class="`kb-head-${col.status}`">
+          {{ col.label }} <span class="kb-count">{{ col.items.length }}</span>
+        </div>
+        <el-empty v-if="!col.items.length" description="空" :image-size="50" />
+        <div v-for="p in col.items" :key="p.id" class="kb-card" @click="onOpen(p)">
+          <div class="kb-name">{{ p.name }}</div>
+          <el-progress :percentage="p.progress" :stroke-width="6" />
+          <div class="kb-meta">👥 {{ p.student_count }} · {{ p.end_date || '未定' }}</div>
+        </div>
+      </div>
     </div>
 
     <!-- 项目 CRUD 弹窗 -->
@@ -175,7 +228,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, View, Search, User, Calendar } from '@element-plus/icons-vue'
 import { projectsApi } from '@/api/productivity.js'
@@ -185,6 +238,7 @@ const projects = ref([])
 const loading = ref(false)
 const keyword = ref('')
 const statusFilter = ref('')
+const viewMode = ref('card')
 
 const editDialog = ref(false)
 const saving = ref(false)
@@ -215,6 +269,19 @@ async function load() {
     projects.value = data || []
   } finally { loading.value = false }
 }
+
+const kanbanCols = computed(() => {
+  const buckets = { active: [], completed: [], archived: [] }
+  for (const p of projects.value) {
+    const key = p.status && p.status in buckets ? p.status : 'active'
+    buckets[key].push(p)
+  }
+  return [
+    { status: 'active',    label: '进行中', items: buckets.active },
+    { status: 'completed', label: '已完成', items: buckets.completed },
+    { status: 'archived',  label: '已归档', items: buckets.archived },
+  ]
+})
 
 function statusLabel(s) { return ({ active: '进行中', completed: '已完成', archived: '归档' })[s] || s }
 function statusTag(s)   { return ({ active: 'primary', completed: 'success', archived: 'info' })[s] || '' }
@@ -346,4 +413,16 @@ onMounted(load)
   display: flex; justify-content: space-between; align-items: center;
   font-weight: 600; margin-bottom: 12px;
 }
+
+.kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.kb-col { background: #F5F7FA; border-radius: 10px; padding: 12px; min-height: 300px; }
+.kb-head { font-weight: 600; font-size: 14px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 2px solid #DDE4EA; display: flex; justify-content: space-between; align-items: center; }
+.kb-head-active    { color: #4A7A8C; border-bottom-color: #4A7A8C; }
+.kb-head-completed { color: #67C23A; border-bottom-color: #67C23A; }
+.kb-head-archived  { color: #909399; border-bottom-color: #909399; }
+.kb-count { background: rgba(0,0,0,0.06); padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+.kb-card { background: #fff; border-radius: 8px; padding: 12px; margin-bottom: 10px; cursor: pointer; transition: transform 0.15s; }
+.kb-card:hover { transform: translateY(-2px); box-shadow: 0 3px 10px rgba(0,0,0,0.06); }
+.kb-name { font-weight: 500; margin-bottom: 8px; color: #303133; }
+.kb-meta { color: #909399; font-size: 12px; margin-top: 8px; }
 </style>

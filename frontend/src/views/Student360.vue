@@ -23,6 +23,9 @@
             <el-button link @click="editBasic" style="margin-left:12px">
               <el-icon><Edit /></el-icon>&nbsp;编辑基础信息
             </el-button>
+            <el-button link @click="onOpenPdf" style="margin-left:8px" class="action-btn-edit">
+              <span>📄 导出 PDF</span>
+            </el-button>
           </div>
           <div class="meta">
             <span>🎓 <b>{{ student.student_no }}</b></span>
@@ -152,6 +155,94 @@
         <el-button type="primary" :loading="savingBasic" @click="saveBasic">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- PDF 导出弹窗 -->
+    <el-dialog v-model="pdfDialog" title="导出 PDF · 选择字段" width="720px">
+      <el-form label-width="90px">
+        <el-form-item label="包含字段">
+          <el-checkbox-group v-model="pdfFields">
+            <el-checkbox label="basic">A 基本信息</el-checkbox>
+            <el-checkbox label="academic">B 学业总览</el-checkbox>
+            <el-checkbox label="party">C 党团进度</el-checkbox>
+            <el-checkbox label="psych">D 心理等级</el-checkbox>
+            <el-checkbox label="aid">E 资助情况</el-checkbox>
+            <el-checkbox label="family">F 家庭联络</el-checkbox>
+            <el-checkbox label="employment">G 就业意向</el-checkbox>
+            <el-checkbox label="status">H 学籍异动</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="脱敏">
+          <el-switch v-model="pdfMask" active-text="身份证/电话中段脱敏" />
+        </el-form-item>
+      </el-form>
+      <div class="pdf-preview-hint">提示：确认后弹出浏览器打印窗口，可选择「另存为 PDF」</div>
+      <template #footer>
+        <el-button @click="pdfDialog = false">取消</el-button>
+        <el-button type="primary" @click="onDoPrint">打印 / 保存 PDF</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 隐藏的 A4 打印区，只在打印时显示 -->
+    <div id="s360-print-area" v-if="student">
+      <h1>{{ student.name }} · 学生 360 一页汇总</h1>
+      <p class="print-meta">学号 {{ student.student_no }} · {{ student.class_name }} · 生成于 {{ nowStr }}</p>
+
+      <section v-if="pdfFields.includes('basic')">
+        <h2>A 基本信息</h2>
+        <dl>
+          <dt>姓名</dt><dd>{{ student.name }}</dd>
+          <dt>性别</dt><dd>{{ student.gender || '—' }}</dd>
+          <dt>学号</dt><dd>{{ student.student_no }}</dd>
+          <dt>班级</dt><dd>{{ student.class_name || '—' }}</dd>
+          <dt>专业/年级</dt><dd>{{ student.major_name || '—' }} · {{ student.grade_name || '—' }}</dd>
+          <dt>政治面貌</dt><dd>{{ student.political_status || '—' }}</dd>
+          <dt>身份证</dt><dd>{{ printIdCard }}</dd>
+          <dt>电话</dt><dd>{{ printPhone }}</dd>
+          <dt>生源地</dt><dd>{{ student.birth_source || '—' }}</dd>
+          <dt>校区/宿舍</dt><dd>{{ student.campus || '—' }} · {{ student.dorm_building || '—' }} · {{ student.dorm_room || '—' }}</dd>
+        </dl>
+      </section>
+
+      <section v-if="pdfFields.includes('academic')">
+        <h2>B 学业总览</h2>
+        <p>预警状态：<b>{{ warningLabel }}</b></p>
+        <p v-if="summary?.stats?.gpa">GPA / 平均分：{{ summary.stats.gpa }}</p>
+        <p v-else>成绩数据待完善</p>
+      </section>
+
+      <section v-if="pdfFields.includes('party')">
+        <h2>C 党团进度</h2>
+        <p>当前阶段：<b>{{ summary?.party_stage || student.political_status || '—' }}</b></p>
+      </section>
+
+      <section v-if="pdfFields.includes('psych')">
+        <h2>D 心理等级</h2>
+        <p>{{ summary?.psych_status === 'attention' ? '有谈心/关注记录' : '暂无关注记录' }}</p>
+      </section>
+
+      <section v-if="pdfFields.includes('aid')">
+        <h2>E 资助情况</h2>
+        <p>困难等级：{{ summary?.hardship_level || '无' }}</p>
+      </section>
+
+      <section v-if="pdfFields.includes('family')">
+        <h2>F 家庭联络</h2>
+        <p>家长电话：{{ printParent }}</p>
+      </section>
+
+      <section v-if="pdfFields.includes('employment')">
+        <h2>G 就业意向</h2>
+        <p>就业状态：{{ summary?.employment_status || '未登记' }}</p>
+      </section>
+
+      <section v-if="pdfFields.includes('status')">
+        <h2>H 学籍异动</h2>
+        <p>完整时间线请查看学生 360 · 时间线标签</p>
+      </section>
+
+      <footer class="print-footer">辅导员工作平台 · 由 air 生成</footer>
+    </div>
+
   </div>
 </template>
 
@@ -195,6 +286,34 @@ const student = ref(null)
 const summary = ref(null)
 const loading = ref(false)
 const activeTab = ref('basic')
+const pdfDialog = ref(false)
+const pdfFields = ref(['basic','academic','party','psych','aid','family','employment','status'])
+const pdfMask = ref(true)
+const nowStr = new Date().toLocaleString()
+
+const maskCenter = (str, keepStart = 3, keepEnd = 4) => {
+  if (!str) return '—'
+  if (!pdfMask.value) return str
+  if (str.length <= keepStart + keepEnd) return str
+  return str.slice(0, keepStart) + '*'.repeat(str.length - keepStart - keepEnd) + str.slice(-keepEnd)
+}
+const printIdCard = computed(() => maskCenter(student.value?.id_card, 6, 4))
+const printPhone  = computed(() => maskCenter(student.value?.phone, 3, 4))
+const printParent = computed(() => maskCenter(student.value?.parent_phone, 3, 4))
+
+function onOpenPdf() {
+  pdfDialog.value = true
+}
+
+function onDoPrint() {
+  pdfDialog.value = false
+  // 等 DOM 更新完再打印
+  setTimeout(() => {
+    document.body.classList.add('printing-s360')
+    window.print()
+    document.body.classList.remove('printing-s360')
+  }, 150)
+}
 
 const tabs = [
   { key: 'basic',      label: '基础信息 · 学籍异动', icon: '📋', comp: TabBasic },
@@ -348,4 +467,28 @@ async function saveBasic() {
 }
 .back-inline-btn:hover { background: rgba(74, 122, 140, .18); }
 .inline-title { color: #666; font-size: 13px; }
+
+#s360-print-area { display: none; }
+@media print {
+  body.printing-s360 * { visibility: hidden !important; }
+  body.printing-s360 #s360-print-area,
+  body.printing-s360 #s360-print-area * { visibility: visible !important; }
+  #s360-print-area {
+    display: block !important;
+    position: absolute; left: 0; top: 0; width: 100%;
+    padding: 24mm 18mm; background: #fff; color: #000;
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
+  }
+  #s360-print-area h1 { font-size: 20px; margin: 0 0 6px; }
+  #s360-print-area h2 { font-size: 14px; margin: 14px 0 6px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  #s360-print-area .print-meta { color: #666; font-size: 12px; margin-bottom: 12px; }
+  #s360-print-area dl { display: grid; grid-template-columns: 90px 1fr 90px 1fr; row-gap: 4px; column-gap: 12px; font-size: 12px; }
+  #s360-print-area dt { color: #666; }
+  #s360-print-area dd { margin: 0; color: #000; }
+  #s360-print-area section { margin-bottom: 8px; }
+  #s360-print-area p { font-size: 12px; margin: 4px 0; }
+  #s360-print-area .print-footer { position: fixed; bottom: 10mm; left: 18mm; right: 18mm; text-align: center; color: #999; font-size: 10px; }
+  @page { size: A4; margin: 0; }
+}
+.pdf-preview-hint { color: #909399; font-size: 12px; margin-top: -8px; margin-bottom: 8px; }
 </style>

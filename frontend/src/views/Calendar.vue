@@ -4,6 +4,7 @@
       <h2>📅 校历 & 倒计时</h2>
       <div class="header-actions">
         <el-button type="primary" :icon="Plus" @click="onCreateCd">新建倒计时</el-button>
+        <el-button :icon="MagicStick" @click="onSeedHolidays">一键灌入法定节假日</el-button>
       </div>
     </div>
 
@@ -45,11 +46,12 @@
             <div class="day-events">
               <span
                 v-for="ev in eventsByDay[data.day] || []"
-                :key="ev.id"
+                :key="`${ev.type}-${ev.id}`"
                 class="event-dot"
-                :class="`type-${ev.type}`"
-                :title="ev.title"
+                :class="[`type-${ev.type}`, ev.subtype ? `sub-${ev.subtype}` : '']"
+                :title="`${activityIcon(ev.subtype)} ${ev.title}`"
               >
+                <span class="dot-icon">{{ activityIcon(ev.subtype || ev.type) }}</span>
                 {{ ev.title.slice(0, 6) }}
               </span>
             </div>
@@ -163,7 +165,12 @@ const eventsByDay = computed(() => {
     const d = a.activity_date || a.date || ''
     if (!d) continue
     if (!map[d]) map[d] = []
-    map[d].push({ id: a.id, type: 'activity', title: a.title || '活动' })
+    map[d].push({
+      id: a.id,
+      type: 'activity',
+      subtype: a.activity_type || 'general',
+      title: a.title || '活动',
+    })
   }
   for (const c of countdowns.value) {
     const d = c.target_date
@@ -206,6 +213,23 @@ function categoryLabel(cat) {
   return ({ exam: '考试', deadline: '截止', event: '活动', holiday: '节假日', general: '一般' })[cat] || '一般'
 }
 
+function activityIcon(sub) {
+  const map = {
+    party:  '🚩',
+    class:  '📚',
+    college:'🏫',
+    school: '🎓',
+    countdown: '⏳',
+    activity:  '📌',
+    general: '📌',
+    exam: '📝',
+    holiday: '🌸',
+    event: '📌',
+    deadline: '⚡',
+  }
+  return map[sub] || '·'
+}
+
 function onCreateCd() {
   cdForm.value = { id: null, title: '', target_date: '', category: 'general', color: 'blue', description: '', pinned: false }
   cdDialog.value = true
@@ -216,7 +240,24 @@ function onEditCd(c) {
   cdDialog.value = true
 }
 
-async function onSaveCd() {
+async function onSeedHolidays() {
+  try {
+    await ElMessageBox.confirm(
+      '将写入 2026 年全部法定节假日 + 学期关键节点（元旦/春节/清明/劳动节/端午/中秋/国庆 + 开学/期中/期末/寒假等），已存在的同名条目会被替换。是否继续？',
+      '一键灌入校历',
+      { confirmButtonText: '灌入', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch { return }
+  try {
+    const data = await http.post('/system/seed-holidays', null, { params: { overwrite: true } })
+    ElMessage.success(`已灌入，新增 ${data?.stats?.added ?? 0} 条`)
+    await loadCd()
+  } catch (e) {
+    ElMessage.error('灌入失败：' + (e?.response?.data?.detail || e.message))
+  }
+}
+
+function onSaveCd() {
   if (!cdForm.value.title || !cdForm.value.target_date) {
     ElMessage.warning('标题和目标日期不能为空')
     return
@@ -304,6 +345,11 @@ onMounted(() => { loadCd(); loadAct() })
 }
 .event-dot.type-activity  { background: #4A7A8C; }
 .event-dot.type-countdown { background: #E58B3E; }
+.event-dot.sub-party  { background: #C9635B; }
+.event-dot.sub-class  { background: #4A7A8C; }
+.event-dot.sub-college{ background: #7A6BAF; }
+.event-dot.sub-school { background: #2E7D6B; }
+.dot-icon { margin-right: 2px; font-size: 10px; }
 
 .day-item { padding: 12px 0; border-bottom: 1px dashed #eee; }
 .day-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }

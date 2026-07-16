@@ -76,6 +76,41 @@
         <el-button type="primary" @click="onSave" :loading="saving">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 生成配置弹窗 -->
+    <el-dialog v-model="genDialog" title="生成周汇总 · 参数选择" width="480px">
+      <el-form label-width="90px">
+        <el-form-item label="周次">
+          <el-radio-group v-model="genForm.week_offset">
+            <el-radio :label="0">本周</el-radio>
+            <el-radio :label="-1">上周</el-radio>
+            <el-radio :label="-2">上上周</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="维度">
+          <el-checkbox-group v-model="genForm.dimensions">
+            <el-checkbox label="academic">学业</el-checkbox>
+            <el-checkbox label="party">党团</el-checkbox>
+            <el-checkbox label="psychology">心理</el-checkbox>
+            <el-checkbox label="aid">资助</el-checkbox>
+            <el-checkbox label="employment">就业</el-checkbox>
+            <el-checkbox label="daily">日常</el-checkbox>
+            <el-checkbox label="activity">活动</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="输出格式">
+          <el-radio-group v-model="genForm.format">
+            <el-radio label="bullet">分点列表</el-radio>
+            <el-radio label="paragraph">段落叙述</el-radio>
+            <el-radio label="mixed">图文混排</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="genDialog = false">取消</el-button>
+        <el-button type="primary" @click="onConfirmGen" :loading="generating">确定生成</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -89,6 +124,8 @@ const list = ref([])
 const current = ref(null)
 const loading = ref(false)
 const generating = ref(false)
+const genDialog = ref(false)
+const genForm = ref({ week_offset: 0, dimensions: [], format: 'bullet' })
 const saving = ref(false)
 
 const editDialog = ref(false)
@@ -118,11 +155,29 @@ async function onSelect(s) {
   await fetchDetail(s.id)
 }
 
-async function onGenerate() {
+function onGenerate() {
+  genForm.value = {
+    week_offset: 0,
+    dimensions: ['academic','party','psychology','aid','employment','daily','activity'],
+    format: 'bullet',
+  }
+  genDialog.value = true
+}
+
+async function onConfirmGen() {
+  if (!genForm.value.dimensions.length) {
+    ElMessage.warning('至少选择一个维度')
+    return
+  }
   generating.value = true
   try {
-    const { data } = await summariesApi.generate({})
+    const { data } = await summariesApi.generate({
+      week_offset: genForm.value.week_offset,
+      dimensions: genForm.value.dimensions,
+      format: genForm.value.format,
+    })
     ElMessage.success('已生成')
+    genDialog.value = false
     await load()
     if (data.id) await fetchDetail(data.id)
   } finally { generating.value = false }

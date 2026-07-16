@@ -164,10 +164,13 @@ async function onSeedLarge() {
   loadingSeed.value = true
   try {
     const res = await system.seedLarge()
-    ElMessage.success(`✅ 生成完成：${res?.message || 'OK'}`)
+    const added = res?.stats?.students || res?.stats?.count || 0
+    ElMessage.success(`✅ 生成完成 · 新增 ${added} 学生`)
     await loadHealth()
   } catch (e) {
-    ElMessage.error('生成失败：' + (e?.message || e))
+    const detail = e?.response?.data?.detail || e?.message || e
+    ElMessage.error('生成失败：' + detail)
+    console.error('seedLarge error:', e)
   } finally {
     loadingSeed.value = false
   }
@@ -204,10 +207,22 @@ async function onReinit() {
   loadingReinit.value = true
   try {
     const res = await system.reinit()
-    ElMessage.success(`✅ 重建完成：${res?.message || 'OK'}`)
+    // 后端现在返回结构 { ok, stats, holidays, error }
+    if (res && res.error) {
+      ElMessage.error('重建部分失败：' + res.error)
+    } else if (res && res.ok === false) {
+      ElMessage.warning('重建完成但 seed 有问题，请查看控制台')
+      console.warn('reinit result:', res)
+    } else {
+      const added = res?.stats?.students || res?.stats?.count || 0
+      const h = res?.holidays?.added || 0
+      ElMessage.success(`✅ 重建完成 · 学生 ${added} · 节假日 ${h}`)
+    }
     await loadHealth()
   } catch (e) {
-    ElMessage.error('重建失败：' + (e?.message || e))
+    const detail = e?.response?.data?.detail || e?.message || e
+    ElMessage.error('重建失败：' + detail)
+    console.error('reinit error:', e)
   } finally {
     loadingReinit.value = false
   }

@@ -66,6 +66,53 @@
       </el-col>
     </el-row>
 
+    <el-row :gutter="16" style="margin-bottom: 16px">
+      <el-col :span="8">
+        <el-card shadow="never">
+          <template #header>
+            <div class="card-header">
+              <span>📌 待办中心</span>
+              <el-button text type="primary" size="small" @click="$router.push('/notes')">查看便签</el-button>
+            </div>
+          </template>
+          <div class="prod-row">
+            <div class="prod-item">
+              <div class="prod-num warning">{{ prodStats.todo_active }}</div>
+              <div class="prod-label">待办中</div>
+            </div>
+            <div class="prod-item">
+              <div class="prod-num danger">{{ prodStats.todo_urgent_week }}</div>
+              <div class="prod-label">一周内到期</div>
+            </div>
+            <div class="prod-item">
+              <div class="prod-num success">{{ prodStats.projects_active }}</div>
+              <div class="prod-label">进行中项目</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="16">
+        <el-card shadow="never">
+          <template #header>
+            <div class="card-header">
+              <span>⏳ 校历倒计时</span>
+              <el-button text type="primary" size="small" @click="$router.push('/calendar')">打开校历</el-button>
+            </div>
+          </template>
+          <el-empty v-if="!prodStats.countdowns_top || !prodStats.countdowns_top.length" description="暂无倒计时事件" :image-size="60" />
+          <div v-else class="cd-row">
+            <div v-for="cd in prodStats.countdowns_top" :key="cd.id" class="cd-card" :style="{ borderColor: cd.color || '#4A7A8C' }">
+              <div class="cd-title">{{ cd.title }}</div>
+              <div class="cd-date">{{ cd.target_date }}</div>
+              <div class="cd-days" :class="daysClass(cd.days_left)">
+                {{ cd.days_left >= 0 ? `还有 ${cd.days_left} 天` : `已过 ${-cd.days_left} 天` }}
+              </div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <el-card shadow="never">
       <template #header>
         <span>⚡ 快捷入口</span>
@@ -84,10 +131,19 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { dashboard as getDashboard } from '@/api/modules'
+import { productivityDashboard } from '@/api/productivity'
 
 const router = useRouter()
 const warnings = ref([])
 const recentActivities = ref([])
+const prodStats = ref({ todo_active: 0, todo_urgent_week: 0, projects_active: 0, countdowns_top: [] })
+
+const daysClass = (d) => {
+  if (d === undefined || d === null) return ''
+  if (d <= 3) return 'danger'
+  if (d <= 7) return 'warning'
+  return ''
+}
 
 const statCards = ref([
   { label: '在校学生', value: 0, icon: '👥', bg: '#E1F0FF' },
@@ -122,6 +178,12 @@ onMounted(async () => {
     recentActivities.value = d.recent || d.recent_activities || d.timeline || []
   } catch (e) {
     // 拦截器已提示，页面用空态展示
+  }
+  try {
+    const pd = await productivityDashboard()
+    if (pd) prodStats.value = pd
+  } catch (e) {
+    // 空态
   }
 })
 </script>
@@ -192,4 +254,23 @@ onMounted(async () => {
   font-size: 13px;
   color: #303133;
 }
+.prod-row { display: flex; gap: 12px; align-items: stretch; }
+.prod-item { flex: 1; text-align: center; padding: 18px 8px; border-radius: 10px; background: #F5F7FA; }
+.prod-num { font-size: 32px; font-weight: 700; color: #303133; }
+.prod-num.warning { color: #E6A23C; }
+.prod-num.danger { color: #F56C6C; }
+.prod-num.success { color: #67C23A; }
+.prod-label { color: #909399; font-size: 12px; margin-top: 6px; }
+.cd-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.cd-card {
+  border-left: 4px solid #4A7A8C;
+  background: #F5F7FA;
+  padding: 14px 12px;
+  border-radius: 8px;
+}
+.cd-title { font-size: 14px; font-weight: 600; color: #303133; }
+.cd-date { color: #909399; font-size: 12px; margin-top: 4px; }
+.cd-days { margin-top: 8px; font-size: 13px; font-weight: 600; color: #4A7A8C; }
+.cd-days.warning { color: #E6A23C; }
+.cd-days.danger { color: #F56C6C; }
 </style>

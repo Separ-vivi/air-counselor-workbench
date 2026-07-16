@@ -62,22 +62,60 @@ def system_reinit(seed_size: str = 'large'):
     from schema_migrations import hard_reset
     logger.warning(f"[system] 执行 reinit, seed_size={seed_size}")
     hard_reset(engine, Base)
+    stats = {}
+    seed_err = None
     if seed_size == 'large':
-        from seed_large import seed_large_dataset
-        stats = seed_large_dataset()
+        try:
+            from seed_large import seed_large_dataset
+            stats = seed_large_dataset()
+        except Exception as e:
+            logger.exception('[system] seed_large 失败')
+            seed_err = f'{type(e).__name__}: {e}'
+            stats = {'mode': 'large', 'error': seed_err}
     else:
-        from seed_data import seed_if_empty
-        seed_if_empty()
-        stats = {'mode': 'small', 'note': '原示例种子已灌入'}
-    return {'ok': True, 'reinit': True, 'seed_size': seed_size, 'stats': stats}
+        try:
+            from seed_data import seed_if_empty
+            seed_if_empty()
+            stats = {'mode': 'small', 'note': '原示例种子已灌入'}
+        except Exception as e:
+            logger.exception('[system] seed_small 失败')
+            seed_err = f'{type(e).__name__}: {e}'
+            stats = {'mode': 'small', 'error': seed_err}
+    # 无论如何都跑一次节假日 seed（幂等）
+    holiday_stats = {}
+    try:
+        from seed_holidays import seed_holidays
+        holiday_stats = seed_holidays(overwrite=True)
+    except Exception as e:
+        logger.warning(f'[system] seed_holidays 失败: {e}')
+        holiday_stats = {'error': str(e)}
+    return {
+        'ok': seed_err is None,
+        'reinit': True,
+        'seed_size': seed_size,
+        'stats': stats,
+        'holidays': holiday_stats,
+        'error': seed_err,
+    }
 
 
 @router.post('/seed-large')
 def seed_large_endpoint():
     """在已有数据库上追加大 seed（不 drop）"""
-    from seed_large import seed_large_dataset
-    stats = seed_large_dataset()
-    return {'ok': True, 'stats': stats}
+    try:
+        from seed_large import seed_large_dataset
+        stats = seed_large_dataset()
+        return {'ok': True, 'stats': stats}
+    except Exception as e:
+        logger.exception('[system] seed_large_endpoint 失败')
+        raise HTTPException(500, f'seed_large 报错：{type(e).__name__}: {e}')
+
+
+@router.post('/seed-holidays')
+def seed_holidays_endpoint(overwrite: bool = False):
+    """独立灌一次法定节假日/校历里程碑"""
+    from seed_holidays import seed_holidays
+    return {'ok': True, 'stats': seed_holidays(overwrite=overwrite)}
 
 
 @router.get('/backup')
