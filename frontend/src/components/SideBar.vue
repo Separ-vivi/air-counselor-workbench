@@ -22,31 +22,31 @@
 
       <el-sub-menu index="modules">
         <template #title><el-icon><Menu /></el-icon><span>业务模块</span></template>
-        <el-menu-item index="/module/grades">📊 成绩</el-menu-item>
-        <el-menu-item index="/module/warnings">🚦 学业预警</el-menu-item>
-        <el-menu-item index="/module/party">🎯 党团</el-menu-item>
-        <el-menu-item index="/module/psychology">💚 心理</el-menu-item>
-        <el-menu-item index="/module/family">🏠 家庭</el-menu-item>
-        <el-menu-item index="/module/cadres">👥 干部</el-menu-item>
-        <el-menu-item index="/module/activities">🎨 活动</el-menu-item>
-        <el-menu-item index="/module/employment">💼 就业</el-menu-item>
-        <el-menu-item index="/module/meetings">📋 班会</el-menu-item>
-        <el-menu-item index="/module/teachers">🧑‍🏫 班主任</el-menu-item>
+        <el-menu-item index="/module/grades"><el-icon><Notebook /></el-icon><span>成绩</span></el-menu-item>
+        <el-menu-item index="/module/warnings"><el-icon><WarningFilled /></el-icon><span>学业预警</span></el-menu-item>
+        <el-menu-item index="/module/party"><el-icon><Flag /></el-icon><span>党团</span></el-menu-item>
+        <el-menu-item index="/module/psychology"><el-icon><Sunny /></el-icon><span>心理</span></el-menu-item>
+        <el-menu-item index="/module/family"><el-icon><House /></el-icon><span>家庭</span></el-menu-item>
+        <el-menu-item index="/module/cadres"><el-icon><UserFilled /></el-icon><span>干部</span></el-menu-item>
+        <el-menu-item index="/module/activities"><el-icon><Star /></el-icon><span>活动</span></el-menu-item>
+        <el-menu-item index="/module/employment"><el-icon><Promotion /></el-icon><span>就业</span></el-menu-item>
+        <el-menu-item index="/module/meetings"><el-icon><Tickets /></el-icon><span>班会</span></el-menu-item>
+        <el-menu-item index="/module/teachers"><el-icon><Avatar /></el-icon><span>班主任</span></el-menu-item>
       </el-sub-menu>
 
       <el-sub-menu index="productivity">
         <template #title><el-icon><Compass /></el-icon><span>效率中心</span></template>
-        <el-menu-item index="/notes">📝 记事本</el-menu-item>
-        <el-menu-item index="/calendar">📅 校历倒计时</el-menu-item>
-        <el-menu-item index="/projects">📌 项目追踪</el-menu-item>
-        <el-menu-item index="/summary">📊 周汇总</el-menu-item>
+        <el-menu-item index="/notes"><el-icon><EditPen /></el-icon><span>记事本</span></el-menu-item>
+        <el-menu-item index="/calendar"><el-icon><Calendar /></el-icon><span>校历倒计时</span></el-menu-item>
+        <el-menu-item index="/projects"><el-icon><Collection /></el-icon><span>项目追踪</span></el-menu-item>
+        <el-menu-item index="/summary"><el-icon><PieChart /></el-icon><span>周汇总</span></el-menu-item>
       </el-sub-menu>
 
       <el-sub-menu index="helper">
         <template #title><el-icon><Reading /></el-icon><span>辅助工具</span></template>
-        <el-menu-item index="/knowledge">📚 知识库</el-menu-item>
-        <el-menu-item index="/faqs">❓ FAQ</el-menu-item>
-        <el-menu-item index="/templates">📄 文档模板</el-menu-item>
+        <el-menu-item index="/knowledge"><el-icon><Files /></el-icon><span>知识库</span></el-menu-item>
+        <el-menu-item index="/faqs"><el-icon><QuestionFilled /></el-icon><span>FAQ</span></el-menu-item>
+        <el-menu-item index="/templates"><el-icon><Document /></el-icon><span>文档模板</span></el-menu-item>
       </el-sub-menu>
 
       <el-menu-item index="/system"><el-icon><Setting /></el-icon><span>系统设置</span></el-menu-item>
@@ -144,6 +144,18 @@
   min-width: unset !important;
   padding-left: 44px !important;
   font-size: 13.5px;
+}
+:deep(.el-menu-item .el-icon),
+:deep(.el-sub-menu__title .el-icon) {
+  font-size: 16px;
+  margin-right: 8px;
+  vertical-align: middle;
+  color: inherit;
+}
+:deep(.el-sub-menu .el-menu-item .el-icon) {
+  font-size: 15px;
+  margin-right: 6px;
+  opacity: 0.85;
 }
 :deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
   color: #3B6A7C !important;
