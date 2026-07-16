@@ -60,8 +60,11 @@ def system_reinit(seed_size: str = 'none'):
     默认 seed_size=none（不灌任何数据）；如需灌演示数据请单独调 /system/seed-large 或前端"生成测试数据"按钮。
     """
     from schema_migrations import hard_reset
+    from seed_data import seed_if_empty
     logger.warning(f"[system] 执行 reinit, seed_size={seed_size}")
     hard_reset(engine, Base)
+    # 空库启动只灌基础标签字典（不含假学生/班级），保证 UI 打标签下拉可用
+    seed_if_empty()
     stats = {'mode': 'empty', 'note': '所有表已 drop+create，当前为空表'}
     seed_err = None
     # 兼容老前端：如显式传 seed_size=large 才灌 seed

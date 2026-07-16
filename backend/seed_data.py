@@ -50,6 +50,10 @@ def seed_if_empty():
             db.flush()
             tags[name] = tag
 
+        db.commit()
+        print(f'[Seed] 已初始化 {len(tags)} 个基础标签，跳过示例学生/班级数据（如需演示数据请点"生成测试数据"）')
+        return
+
         # ===== 创建组织架构 =====
         grade_2024 = Grade(grade_name='2024级', start_year=2024)
         grade_2022 = Grade(grade_name='2022级', start_year=2022)
