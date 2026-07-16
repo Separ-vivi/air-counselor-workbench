@@ -34,10 +34,15 @@ const columns = [
   { prop: 'progress', label: '进度(%)', width: 100,
     formatter: (v) => v == null ? '—' : (v + '%') },
   { prop: 'material_status', label: '材料状态', width: 130, type: 'tag',
-    tagType: (r) => r.material_status === '审核通过' ? 'success' :
-      r.material_status === '已提交' ? 'primary' :
-      r.material_status === '待催缴' ? 'warning' :
-      r.material_status === '未通过' ? 'danger' : '' },
+    formatter: (v) => ({ pending: '待提交', submitted: '已提交', approved: '审核通过', rejected: '未通过' })[v] || v || '—',
+    tagType: (r) => {
+      const v = r.material_status
+      if (v === '审核通过' || v === 'approved') return 'success'
+      if (v === '已提交' || v === 'submitted') return 'primary'
+      if (v === '待催缴') return 'warning'
+      if (v === '未通过' || v === 'rejected') return 'danger'
+      return ''
+    } },
   { prop: 'notes', label: '备注', minWidth: 200 }
 ]
 const fields = [

@@ -10,8 +10,8 @@
 
     <div class="hint-bar">
       预置常用文书模板（个人情况说明、家访通知、评优推荐信等），支持变量占位符：
-      <code>{{'{{ 姓名 }}'}}</code> <code>{{'{{ 学号 }}'}}</code> <code>{{'{{ 性别 }}'}}</code>
-      <code>{{'{{ 专业 }}'}}</code> <code>{{'{{ 班级 }}'}}</code> <code>{{'{{ 政治面貌 }}'}}</code>
+      <code v-pre>{{ 姓名 }}</code> <code v-pre>{{ 学号 }}</code> <code v-pre>{{ 性别 }}</code>
+      <code v-pre>{{ 专业 }}</code> <code v-pre>{{ 班级 }}</code> <code v-pre>{{ 政治面貌 }}</code>
       一键根据学生数据生成个性化文书。
     </div>
 

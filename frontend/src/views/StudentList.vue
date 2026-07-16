@@ -71,19 +71,24 @@
             <el-link type="primary" @click="$router.push(`/students/${row.id}`)">{{ row.name }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column label="性别" prop="gender" width="70" sortable="custom" />
+        <el-table-column label="性别" prop="gender" width="90" sortable="custom" />
         <el-table-column label="班级" prop="class_name" min-width="160" show-overflow-tooltip sortable="custom" />
         <el-table-column label="专业" prop="major" min-width="140" show-overflow-tooltip sortable="custom" />
         <el-table-column label="政治面貌" prop="political_status" width="110" sortable="custom" />
         <el-table-column label="生源地" prop="birth_source" width="140" show-overflow-tooltip sortable="custom" />
-        <el-table-column label="身份证号" prop="id_card" width="180" sortable="custom">
+        <el-table-column label="身份证号" prop="id_card" min-width="230" sortable="custom">
           <template #default="{ row }">
-            <span v-if="row.id_card && row.id_card.length >= 10">{{ row.id_card.slice(0,6) }}********{{ row.id_card.slice(-4) }}</span>
+            <span v-if="row.id_card && row.id_card.length >= 10" class="id-cell">
+              <span class="id-txt">{{ revealedIds.includes(row.id) ? row.id_card : (row.id_card.slice(0,6) + '********' + row.id_card.slice(-4)) }}</span>
+              <el-button link type="primary" size="small" @click="toggleReveal(row.id)">
+                {{ revealedIds.includes(row.id) ? '隐藏' : '查看' }}
+              </el-button>
+            </span>
             <span v-else style="color:#c0c4cc">—</span>
           </template>
         </el-table-column>
         <el-table-column label="校区" prop="campus" width="90" sortable="custom" />
-        <el-table-column label="宿舍" min-width="150" show-overflow-tooltip>
+        <el-table-column label="宿舍" prop="dorm_building" min-width="160" show-overflow-tooltip sortable="custom">
           <template #default="{ row }">
             <el-tag v-if="row.is_off_campus" size="small" type="warning">外宿</el-tag>
             <span v-else-if="row.dorm_building || row.dorm_room">{{ row.dorm_building }}·{{ row.dorm_room }}</span>
@@ -253,6 +258,13 @@ const page = ref(1)
 const pageSize = ref(20)
 const loading = ref(false)
 
+const revealedIds = ref([])
+const toggleReveal = (id) => {
+  const i = revealedIds.value.indexOf(id)
+  if (i >= 0) revealedIds.value.splice(i, 1)
+  else revealedIds.value.push(id)
+}
+
 const filters = reactive({
   search: '',
   class_name: '',
@@ -397,14 +409,24 @@ const onDelete = async (row) => {
 
 const exportAll = async () => {
   try {
-    const blob = await exportStudents()
+    const params = {}
+    if (filters.search) params.keyword = filters.search
+    if (filters.class_name) params.class_name = filters.class_name
+    if (filters.major) params.major = filters.major
+    if (filters.gender) params.gender = filters.gender
+    if (filters.political_status) params.political_status = filters.political_status
+    if (filters.birth_source) params.birth_source = filters.birth_source
+    const blob = await exportStudents(params)
     const url = URL.createObjectURL(new Blob([blob]))
     const a = document.createElement('a')
     a.href = url
-    a.download = `students_${Date.now()}.xlsx`
+    const stamp = new Date().toISOString().slice(0,19).replace(/[-T:]/g,'')
+    const tag = Object.values(params).filter(Boolean).length ? '_筛选' : '_全部'
+    a.download = `students${tag}_${stamp}.xlsx`
     a.click()
     URL.revokeObjectURL(url)
-  } catch (e) {}
+    ElMessage.success(tag === '_筛选' ? '已按当前筛选导出' : '已导出全部学生')
+  } catch (e) { ElMessage.error('导出失败') }
 }
 
 onMounted(() => {

@@ -44,10 +44,10 @@
         :show-overflow-tooltip="true"
       >
         <template #default="{ row }">
-          <span v-if="col.formatter">{{ col.formatter(row[col.prop], row) }}</span>
-          <el-tag v-else-if="col.type === 'tag'" size="small" :type="col.tagType?.(row) || ''">
-            {{ row[col.prop] || '—' }}
+          <el-tag v-if="col.type === 'tag'" size="small" :type="col.tagType?.(row) || ''">
+            {{ col.formatter ? col.formatter(row[col.prop], row) : (row[col.prop] || '—') }}
           </el-tag>
+          <span v-else-if="col.formatter">{{ col.formatter(row[col.prop], row) }}</span>
           <span v-else>{{ formatCell(col, row) }}</span>
         </template>
       </el-table-column>

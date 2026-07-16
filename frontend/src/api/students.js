@@ -30,8 +30,8 @@ export const getStudentFilters = () => http.get('/students/filters')
 export const listStudentClasses = () => http.get('/students/classes')
 
 /** 导出学生 Excel */
-export const exportStudents = () =>
-  http.get('/students/export', { responseType: 'blob' })
+export const exportStudents = (params = {}) =>
+  http.get('/students/export', { params, responseType: 'blob' })
 
 /** 学生信息完整度检查 */
 export const getStudentCompleteness = (id) => http.get(`/students/${id}/completeness`)

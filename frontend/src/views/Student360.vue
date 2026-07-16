@@ -43,7 +43,11 @@
             <span>👨‍👩‍👧 家长电话 {{ student.parent_phone || '—' }}</span>
             <span>📍 生源地 {{ student.birth_source || '—' }}</span>
             <br>
-            <span>🪪 身份证 <b>{{ maskedIdCard }}</b></span>
+            <span>🪪 身份证 <b>{{ showRealIdCard ? (student.id_card || '—') : maskedIdCard }}</b>
+              <el-button v-if="student.id_card" link type="primary" size="small" @click="showRealIdCard = !showRealIdCard" style="margin-left:4px">
+                {{ showRealIdCard ? '🙈 隐藏' : '👁 查看' }}
+              </el-button>
+            </span>
             <span v-if="student.is_off_campus">🏠 <el-tag size="small" type="warning">外宿</el-tag> {{ student.off_campus_address || '—' }}</span>
             <span v-else>🛏️ 宿舍 {{ student.campus || '—' }}·{{ student.dorm_building || '—' }}·{{ student.dorm_room || '—' }}</span>
           </div>
@@ -332,6 +336,7 @@ const tabs = [
 
 const currentTabComponent = computed(() => tabs.find(t => t.key === activeTab.value)?.comp)
 
+const showRealIdCard = ref(false)
 const maskedIdCard = computed(() => {
   const v = student.value?.id_card || ''
   if (!v || v.length < 10) return '—'

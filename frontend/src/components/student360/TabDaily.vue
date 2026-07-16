@@ -115,8 +115,13 @@ const lvCols = [
   { prop: 'end_date', label: '结束', width: 110 },
   { prop: 'destination', label: '去向', minWidth: 140 },
   { prop: 'approval_status', label: '审批状态', width: 110, type: 'tag',
-    tagType: (r) => r.approval_status === '已批准' ? 'success' :
-      r.approval_status === '未批准' ? 'danger' : 'warning' },
+    formatter: (v) => ({ pending: '待审批', approved: '已批准', rejected: '未批准' })[v] || v || '—',
+    tagType: (r) => {
+      const v = r.approval_status
+      if (v === '已批准' || v === 'approved') return 'success'
+      if (v === '未批准' || v === 'rejected') return 'danger'
+      return 'warning'
+    } },
   { prop: 'approver', label: '审批人', width: 100 },
   { prop: 'notes', label: '备注', minWidth: 140 }
 ]

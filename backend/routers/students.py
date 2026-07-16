@@ -202,6 +202,9 @@ def export_students(
     keyword: str = Query(''),
     class_name: str = Query(''),
     major: str = Query(''),
+    gender: str = Query(''),
+    political_status: str = Query(''),
+    birth_source: str = Query(''),
     db: Session = Depends(get_db)
 ):
     """导出学生 Excel"""
@@ -218,6 +221,12 @@ def export_students(
         query = query.filter(ClassModel.class_name == class_name)
     if major:
         query = query.filter(Major.major_name == major)
+    if gender:
+        query = query.filter(Student.gender == gender)
+    if political_status:
+        query = query.filter(Student.political_status == political_status)
+    if birth_source:
+        query = query.filter(Student.birth_source.ilike(f'%{birth_source}%'))
     
     rows = query.all()
     

@@ -65,8 +65,20 @@
             <el-option v-for="m in majorsFiltered" :key="m.id" :label="m.major_name" :value="m.id" />
           </el-select>
           <el-button type="primary" :icon="Plus" @click="openClass(null)">新增班级</el-button>
+          <el-popconfirm
+            :title="`确认批量删除 ${classSelection.length} 个班级？该操作会级联影响学生归属。`"
+            @confirm="batchDelClasses"
+            v-if="classSelection.length > 0"
+          >
+            <template #reference>
+              <el-button type="danger" :icon="Delete" style="margin-left: 8px">
+                批量删除 ({{ classSelection.length }})
+              </el-button>
+            </template>
+          </el-popconfirm>
         </div>
-        <el-table :data="classes" stripe border v-loading="loading.class">
+        <el-table :data="classes" stripe border v-loading="loading.class" @selection-change="onClassSelectionChange" ref="classTableRef">
+          <el-table-column type="selection" width="50" :selectable="() => true" />
           <el-table-column label="ID" prop="id" width="80" />
           <el-table-column label="班级名称" prop="class_name" width="180" />
           <el-table-column label="所属专业" prop="major_name" width="160" />
@@ -164,7 +176,7 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Delete} from '@element-plus/icons-vue'
 import {
   listGrades, createGrade, updateGrade, deleteGrade,
   listMajors, createMajor, updateMajor, deleteMajor,
@@ -343,6 +355,24 @@ const submitClass = async () => {
 const delClass = async (row) => {
   await deleteClass(row.id)
   ElMessage.success('已删除')
+  loadClasses()
+  orgStore.loadTree(true)
+}
+
+const classTableRef = ref(null)
+const classSelection = ref([])
+const onClassSelectionChange = (rows) => { classSelection.value = rows }
+const batchDelClasses = async () => {
+  const items = classSelection.value.slice()
+  if (!items.length) return
+  let ok = 0, fail = 0
+  for (const c of items) {
+    try { await deleteClass(c.id); ok++ } catch (e) { fail++ }
+  }
+  if (fail === 0) ElMessage.success(`成功删除 ${ok} 个班级`)
+  else ElMessage.warning(`成功 ${ok} 个，失败 ${fail} 个（可能有学生关联未清理）`)
+  classSelection.value = []
+  if (classTableRef.value) classTableRef.value.clearSelection()
   loadClasses()
   orgStore.loadTree(true)
 }
