@@ -138,7 +138,8 @@ def seed_large_dataset():
         # 班级：每年级每专业 3 班 = 48 班
         classes = []
         for (gn, mn), mobj in majors.items():
-            year_short = gn[:2]
+            # 从 '2022 级' 取 '22'（含年份，避免四年级班名撞车）
+            year_short = gn[2:4]
             major_code = {'计算机科学与技术':'计科','软件工程':'软工','网络空间安全':'网安','人工智能':'智能'}[mn]
             for ci in range(1, 4):
                 cname = f'{major_code}{year_short}0{ci}班'
