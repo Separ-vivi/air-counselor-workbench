@@ -209,7 +209,7 @@ async function onSave() {
     } else {
       // 后端 POST /weekly-summaries 未提供手写创建接口 → 走 update fallback：先 generate 后编辑
       // 简化：直接 PUT 一个新记录不可行；这里改用先 generate 再覆盖
-      const { data: gen } = await summariesApi.generate({})
+      const gen = await summariesApi.generate({})
       await summariesApi.update(gen.id, form.value)
       ElMessage.success('已创建（基于自动生成模板覆盖）')
     }

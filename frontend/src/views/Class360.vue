@@ -205,6 +205,39 @@ onMounted(loadHeader)
 
 <style scoped>
 .c360-body { display: flex; gap: 16px; align-items: flex-start; }
+.side-tabs {
+  width: 180px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--color-card-bg, #ffffff);
+  border: 1px solid var(--color-card-border, #eaeaea);
+  border-radius: var(--radius-card, 12px);
+  padding: 8px;
+  box-shadow: var(--shadow-card, 0 2px 8px rgba(0,0,0,0.04));
+  position: sticky;
+  top: 12px;
+}
+.side-tab-item {
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #555;
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+  white-space: nowrap;
+}
+.side-tab-item:hover {
+  background: rgba(74, 122, 140, 0.08);
+  color: #4A7A8C;
+}
+.side-tab-item.active {
+  background: rgba(74, 122, 140, 0.15);
+  color: #4A7A8C;
+  font-weight: 600;
+}
 .tab-main {
   flex: 1;
   min-width: 0;
