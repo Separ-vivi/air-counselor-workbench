@@ -95,19 +95,46 @@ def ensure_schema_up_to_date(engine, base):
 
 
 def hard_reset(engine, base):
-    """Drop 全部业务表 → 重建 → 由调用方决定是否 seed。
-    加强版：先按依赖倒序 DELETE，再 drop_all + create_all，避免 SQLite drop_all 因 FK 静默失败导致"部分清空"。
+    """三重保险彻底重建：
+    1. 按依赖倒序 DELETE（清除数据）
+    2. 从 sqlite_master 读出所有真实表，逐个 DROP TABLE（含历史残留表）
+    3. create_all 重建所有 model 定义的表
+    避免 SQLAlchemy drop_all 在 SQLite + FK 场景下的静默失败。
     """
-    logger.warning('[schema] hard_reset: DELETE(reversed) + drop_all + create_all')
-    with engine.begin() as conn:
-        for tbl in reversed(base.metadata.sorted_tables):
+    logger.warning('[schema] hard_reset: DELETE + DROP(from sqlite_master) + create_all')
+    # 第一层：DELETE 兜底
+    try:
+        with engine.begin() as conn:
+            for tbl in reversed(base.metadata.sorted_tables):
+                try:
+                    conn.execute(text(f'DELETE FROM "{tbl.name}"'))
+                except OperationalError as e:
+                    logger.warning(f'[schema] hard_reset DELETE {tbl.name} 失败: {e}')
+    except Exception as e:
+        logger.warning(f'[schema] hard_reset DELETE 阶段异常: {e}')
+    # 第二层：从 sqlite_master 拉真实表清单，逐个 DROP（含历史残留）
+    dropped = 0
+    try:
+        with engine.begin() as conn:
             try:
-                conn.execute(text(f'DELETE FROM "{tbl.name}"'))
-            except OperationalError as e:
-                logger.warning(f'[schema] hard_reset DELETE {tbl.name} 失败: {e}')
-    base.metadata.drop_all(bind=engine)
+                conn.execute(text('PRAGMA foreign_keys=OFF'))
+            except Exception:
+                pass
+            result = conn.execute(text(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            ))
+            real_tables = [row[0] for row in result]
+            for t in real_tables:
+                try:
+                    conn.execute(text(f'DROP TABLE IF EXISTS "{t}"'))
+                    dropped += 1
+                except Exception as e:
+                    logger.warning(f'[schema] hard_reset DROP {t} 失败: {e}')
+    except Exception as e:
+        logger.warning(f'[schema] hard_reset DROP 阶段异常: {e}')
+    # 第三层：重新建表
     base.metadata.create_all(bind=engine)
-    logger.info('[schema] hard_reset 完成，全表已清空重建')
+    logger.info(f'[schema] hard_reset 完成：DROP {dropped} 张真实表，CREATE {len(base.metadata.tables)} 张 model 表')
     return True
 
 
