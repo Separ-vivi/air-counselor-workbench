@@ -72,7 +72,7 @@
           <el-card shadow="never" class="op-card">
             <div class="op-title">🧹 清空业务数据</div>
             <div class="op-desc">
-              清空所有学生、成绩、预警等业务表，保留组织架构（学院/专业/班级）和系统设置。
+              清空所有业务数据（学生/成绩/预警/活动/心理/家校/记事/校历 + 年级/专业/班级）。仅保留 系统设置 / 知识库 / FAQ / 模板。
               <br><b style="color:#f56c6c">此操作不可逆，请先备份。</b>
             </div>
             <el-button type="warning" @click="onClearBusiness" :loading="loadingClear">清空业务数据</el-button>
@@ -82,8 +82,8 @@
           <el-card shadow="never" class="op-card">
             <div class="op-title">💥 一键重建数据库</div>
             <div class="op-desc">
-              删除所有表并重建。相当于全新安装。
-              <br><b style="color:#f56c6c">此操作会清空所有数据（含组织架构），不可恢复！</b>
+              删除所有表并重建为【空数据库】，不灌演示数据。如需 300+ 演示学生，请另点"生成测试数据"。
+              <br><b style="color:#f56c6c">此操作不可恢复！</b>
             </div>
             <el-button type="danger" @click="onReinit" :loading="loadingReinit">重建数据库</el-button>
           </el-card>
@@ -169,7 +169,7 @@ async function onSeedLarge() {
       loadingSeed.value = false
       try {
         await ElMessageBox.confirm(
-          res.message || `数据库已有 ${res.student_count} 名学生。追加会补齐到 300+，不会清空组织架构。要完全清空重建请点"重建数据库"。`,
+          res.message || `数据库已有 ${res.student_count} 名学生。追加会尝试补齐到 300+（撞学号会跳过）。要完全清空重来请先点"清空业务数据"或"重建数据库"。`,
           '已有数据',
           { type: 'warning', confirmButtonText: '继续追加', cancelButtonText: '取消（改用重建）' }
         )
@@ -196,15 +196,15 @@ async function onSeedLarge() {
 async function onClearBusiness() {
   try {
     await ElMessageBox.confirm(
-      '确认清空所有业务数据？（学生/成绩/预警/活动/心理/家校…全部清空，组织架构保留）',
-      '清空业务数据',
+      '将清空【所有业务数据】：学生、成绩、预警、活动、心理、家校、记事、校历倒计时、以及年级/专业/班级组织架构。\n\n仅保留：系统设置 / 知识库 / FAQ / 文档模板。\n\n此操作不可撤销，是否继续？',
+      '清空所有业务数据',
       { type: 'warning', confirmButtonText: '确认清空', confirmButtonClass: 'el-button--danger' }
     )
   } catch { return }
   loadingClear.value = true
   try {
     const res = await system.clearBusiness()
-    ElMessage.success(`✅ 清空完成：${res?.message || 'OK'}`)
+    ElMessage.success(`✅ 清空完成：${res?.note || res?.message || 'OK'}`)
     await loadHealth()
   } catch (e) {
     ElMessage.error('清空失败：' + (e?.message || e))
@@ -216,7 +216,7 @@ async function onClearBusiness() {
 async function onReinit() {
   try {
     await ElMessageBox.confirm(
-      '⚠️ 危险操作：将删除所有表并重建（含组织架构），当前所有数据会永久丢失！确认继续吗？',
+      '⚠️ 危险操作：删除所有表并重建为【空数据库】（不灌任何演示数据），仅保留 系统设置/知识库/FAQ/模板。\n\n若需演示数据，重建后请另点"生成测试数据"。\n\n此操作不可撤销，是否继续？',
       '重建数据库',
       { type: 'error', confirmButtonText: '确认重建', confirmButtonClass: 'el-button--danger' }
     )
@@ -231,9 +231,7 @@ async function onReinit() {
       ElMessage.warning('重建完成但 seed 有问题，请查看控制台')
       console.warn('reinit result:', res)
     } else {
-      const added = res?.stats?.students || res?.stats?.count || 0
-      const h = res?.holidays?.added || 0
-      ElMessage.success(`✅ 重建完成 · 学生 ${added} · 节假日 ${h}`)
+      ElMessage.success('✅ 重建完成，当前为空数据库。如需演示数据请点"生成测试数据"')
     }
     await loadHealth()
   } catch (e) {

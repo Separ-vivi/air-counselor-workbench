@@ -54,16 +54,17 @@ def system_health(db: Session = Depends(get_db)):
 
 
 @router.post('/reinit')
-def system_reinit(seed_size: str = 'large'):
+def system_reinit(seed_size: str = 'none'):
     """
-    危险操作：drop 全部表 + 重建 + 灌 seed。
-    seed_size: small=原示例种子, large=生成 300+ 学生全域数据
+    危险操作：drop 全部表 + 重建为空表。
+    默认 seed_size=none（不灌任何数据）；如需灌演示数据请单独调 /system/seed-large 或前端"生成测试数据"按钮。
     """
     from schema_migrations import hard_reset
     logger.warning(f"[system] 执行 reinit, seed_size={seed_size}")
     hard_reset(engine, Base)
-    stats = {}
+    stats = {'mode': 'empty', 'note': '所有表已 drop+create，当前为空表'}
     seed_err = None
+    # 兼容老前端：如显式传 seed_size=large 才灌 seed
     if seed_size == 'large':
         try:
             from seed_large import seed_large_dataset
@@ -72,7 +73,7 @@ def system_reinit(seed_size: str = 'large'):
             logger.exception('[system] seed_large 失败')
             seed_err = f'{type(e).__name__}: {e}'
             stats = {'mode': 'large', 'error': seed_err}
-    else:
+    elif seed_size == 'small':
         try:
             from seed_data import seed_if_empty
             seed_if_empty()
@@ -81,21 +82,14 @@ def system_reinit(seed_size: str = 'large'):
             logger.exception('[system] seed_small 失败')
             seed_err = f'{type(e).__name__}: {e}'
             stats = {'mode': 'small', 'error': seed_err}
-    # 无论如何都跑一次节假日 seed（幂等）
-    holiday_stats = {}
-    try:
-        from seed_holidays import seed_holidays
-        holiday_stats = seed_holidays(overwrite=True)
-    except Exception as e:
-        logger.warning(f'[system] seed_holidays 失败: {e}')
-        holiday_stats = {'error': str(e)}
     return {
         'ok': seed_err is None,
         'reinit': True,
         'seed_size': seed_size,
         'stats': stats,
-        'holidays': holiday_stats,
+        'holidays': {},
         'error': seed_err,
+        'note': '重建为空数据库；如需演示数据请点"生成测试数据"',
     }
 
 
@@ -176,6 +170,7 @@ def clear_business_data():
         StudentWorkStudy, StudentHonor, StudentDormVisit, StudentLeave,
         StudentDiscipline, StudentDormChat, StudentAttendanceException,
         StudentStatusChange, Project, ProjectStudent,
+        Grade, Major, ClassModel, Note, Countdown,
     )
     from sqlalchemy import text as sql_text
     deleted = {}
@@ -192,6 +187,7 @@ def clear_business_data():
 
     # 按依赖顺序删（子表→Student→组织表）
     clear_order = [
+        # 子表：引用 Student 的记录
         GeneratedDocument, ActivitySignup, ProjectStudent, Project,
         StudentHardship, StudentGrant, StudentScholarship, StudentLoan,
         StudentWorkStudy, StudentHonor, StudentDormVisit, StudentLeave,
@@ -200,7 +196,13 @@ def clear_business_data():
         PartyProgress, PsychologyRecord, FamilyContact,
         StudentCadreRecord, EmploymentRecord, WarningRecord, GradeRecord,
         Activity, PartyStudy, ClassMeeting, WeeklySummary,
-        ClassTeacher, Student, Tag,
+        ClassTeacher,
+        # 用户笔记与校历
+        Note, Countdown,
+        # 学生
+        Student, Tag,
+        # 组织架构（真·清光，air 要求）
+        ClassModel, Major, Grade,
     ]
     for m in clear_order:
         db = SessionLocal()
@@ -218,5 +220,5 @@ def clear_business_data():
         'ok': True,
         'deleted': deleted,
         'errors': errors,
-        'note': '业务数据已清空（保留 年级/专业/班级/设置/知识库/FAQ/模板）'
+        'note': '所有业务数据已清空（含年级/专业/班级），仅保留 系统设置/知识库/FAQ/模板'
     }

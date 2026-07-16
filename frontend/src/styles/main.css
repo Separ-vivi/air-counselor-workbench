@@ -146,10 +146,42 @@ a:hover {
 .el-button--primary {
   background-color: var(--color-sidebar) !important;
   border-color: var(--color-sidebar) !important;
+  color: #fff !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.5px;
 }
 .el-button--primary:hover {
   background-color: var(--color-sidebar-hover) !important;
   border-color: var(--color-sidebar-hover) !important;
+}
+/* size=small 的 primary 按钮：加高对比度、稍浅底色，避免小字糊 */
+.el-button--primary.el-button--small {
+  background-color: #5D8FA0 !important;
+  border-color: #5D8FA0 !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  font-weight: 500 !important;
+}
+.el-button--primary.el-button--small:hover {
+  background-color: #7AA8B8 !important;
+  border-color: #7AA8B8 !important;
+}
+/* link/text 风格的 primary 按钮：加下划线 hover、深色字 */
+.el-button.is-link.el-button--primary,
+.el-button.is-text.el-button--primary {
+  color: #3B6A7C !important;
+  font-weight: 500 !important;
+}
+.el-button.is-link.el-button--primary:hover,
+.el-button.is-text.el-button--primary:hover {
+  color: #5D8FA0 !important;
+  text-decoration: underline;
+}
+/* danger link 按钮（删除）：明显红色 */
+.el-button.is-link.el-button--danger,
+.el-button.is-text.el-button--danger {
+  color: #d9534f !important;
+  font-weight: 500 !important;
 }
 .el-card {
   border-radius: var(--radius-card) !important;
