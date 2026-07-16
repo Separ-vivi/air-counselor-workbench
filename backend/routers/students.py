@@ -122,8 +122,25 @@ def list_students(
     if tag_id:
         query = query.filter(Student.tags.any(Tag.id == tag_id))
 
-    # 排序
-    sort_column = getattr(Student, sort_by, Student.updated_at)
+    # 排序（白名单）
+    SORT_WHITELIST = {
+        'student_no': Student.student_no,
+        'name': Student.name,
+        'gender': Student.gender,
+        'political_status': Student.political_status,
+        'birth_source': Student.birth_source,
+        'phone': Student.phone,
+        'email': Student.email,
+        'id_card': Student.id_card,
+        'campus': Student.campus,
+        'dorm_building': Student.dorm_building,
+        'dorm_room': Student.dorm_room,
+        'class_name': ClassModel.class_name,
+        'major': Major.major_name,
+        'created_at': Student.created_at,
+        'updated_at': Student.updated_at,
+    }
+    sort_column = SORT_WHITELIST.get(sort_by, Student.updated_at)
     if order == 'asc':
         query = query.order_by(sort_column.asc())
     else:
@@ -144,12 +161,22 @@ def list_students(
             'student_no': r.student_no,
             'name': r.name,
             'class_name': r.class_obj.class_name if r.class_obj else '',
+            'class_id': r.class_id,
             'major': major_name,
             'gender': r.gender,
             'political_status': r.political_status,
             'phone': r.phone,
             'email': r.email,
+            'parent_phone': getattr(r, 'parent_phone', None),
+            'birth_date': r.birth_date.isoformat() if getattr(r, 'birth_date', None) else None,
             'birth_source': r.birth_source,
+            'id_card': getattr(r, 'id_card', None),
+            'campus': getattr(r, 'campus', None),
+            'dorm_building': getattr(r, 'dorm_building', None),
+            'dorm_room': getattr(r, 'dorm_room', None),
+            'is_off_campus': getattr(r, 'is_off_campus', False),
+            'off_campus_address': getattr(r, 'off_campus_address', None),
+            'notes': getattr(r, 'notes', None),
             'tags': tags_list,
             'created_at': r.created_at.isoformat() if r.created_at else None,
             'updated_at': r.updated_at.isoformat() if r.updated_at else None,
@@ -247,7 +274,10 @@ def create_student(data: StudentCreate, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(400, f'学号 {data.student_no} 已存在')
     
-    student = Student(**data.dict())
+    # 只取 Student model 存在的字段
+    model_cols = {c.name for c in Student.__table__.columns}
+    payload = {k: v for k, v in data.dict().items() if k in model_cols}
+    student = Student(**payload)
     db.add(student)
     db.commit()
     db.refresh(student)
@@ -345,10 +375,19 @@ def get_student(student_id: int, db: Session = Depends(get_db)):
         'class_id': student.class_id,
         'major': major_name,
         'gender': student.gender,
+        'birth_date': student.birth_date,
         'political_status': student.political_status,
         'phone': student.phone,
         'email': student.email,
+        'parent_phone': getattr(student, 'parent_phone', None),
         'birth_source': student.birth_source,
+        'id_card': getattr(student, 'id_card', None),
+        'campus': getattr(student, 'campus', None),
+        'dorm_building': getattr(student, 'dorm_building', None),
+        'dorm_room': getattr(student, 'dorm_room', None),
+        'is_off_campus': getattr(student, 'is_off_campus', False),
+        'off_campus_address': getattr(student, 'off_campus_address', None),
+        'notes': getattr(student, 'notes', None),
         'tags': tags_list,
         'created_at': student.created_at.isoformat() if student.created_at else None,
         'updated_at': student.updated_at.isoformat() if student.updated_at else None,
@@ -363,8 +402,10 @@ def update_student(student_id: int, data: StudentUpdate, db: Session = Depends(g
         raise HTTPException(404, '学生不存在')
     
     update_data = data.dict(exclude_unset=True)
+    model_cols = {col.name for col in Student.__table__.columns}
     for key, value in update_data.items():
-        setattr(student, key, value)
+        if key in model_cols:
+            setattr(student, key, value)
     
     db.commit()
     return {'ok': True}

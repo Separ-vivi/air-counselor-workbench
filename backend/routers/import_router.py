@@ -17,25 +17,35 @@ router = APIRouter(prefix='/api/import', tags=['智能导入'])
 
 # ============ 列名同义词映射表 ============
 STUDENT_COLUMN_SYNONYMS = {
-    'student_no': ['学号', '学生编号', '学生号', '编号', 'student_no', 'student_id', '学号 ', '学生编号 '],
-    'name': ['姓名', '学生姓名', '名字', '名', 'name', '学生名', '姓名 '],
-    'gender': ['性别', '男女', 'sex', 'gender', '性别 '],
-    'major': ['专业', '所学专业', '专业名称', 'major', '院系', '学院', '专业 '],
-    'class_name': ['班级', '所在班级', '班级号', '班级名称', 'class_name', '班名', '班级 '],
-    'birth_date': ['出生日期', '出生年月', '生日', 'birth_date', 'birthday', '出生年月 '],
-    'political_status': ['政治面貌', '政治身份', 'political_status', '政治面貌 '],
-    'phone': ['联系电话', '手机号', '电话', 'phone', 'tel', '手机号码', '联系电话 '],
+    'student_no': ['学号', '学生编号', '学生号', '编号', 'student_no', 'student_id'],
+    'name': ['姓名', '学生姓名', '名字', '名', 'name', '学生名'],
+    'gender': ['性别', '男女', 'sex', 'gender'],
+    'major': ['专业', '所学专业', '专业名称', 'major', '院系', '学院'],
+    'class_name': ['班级', '所在班级', '班级号', '班级名称', 'class_name', '班名'],
+    'birth_date': ['出生日期', '出生年月', '生日', 'birth_date', 'birthday'],
+    'political_status': ['政治面貌', '政治身份', 'political_status'],
+    'phone': ['联系电话', '手机号', '电话', 'phone', 'tel', '手机号码'],
     'parent_phone': ['家长电话', '紧急联系电话', '家庭联系方式', '家长联系方式', 'parent_phone'],
-    'email': ['邮箱', '电子邮箱', 'email', '邮件', '电子邮箱 '],
-    'family_situation': ['家庭情况', '家庭状况', '家庭经济', 'family_situation'],
-    'birth_source': ['生源地', '籍贯', '生源省份', '生源', 'birth_source', '生源地 '],
+    'email': ['邮箱', '电子邮箱', 'email', '邮件'],
+    'birth_source': ['生源地', '籍贯', '生源省份', '生源', 'birth_source'],
+    'id_card': ['身份证', '身份证号', '身份证号码', '证件号', 'id_card', 'idcard', 'id_number'],
+    'campus': ['校区', 'campus'],
+    'dorm_building': ['宿舍楼', '宿舍', '楼栋', 'dorm_building'],
+    'dorm_room': ['宿舍号', '房间号', '寝室号', '门牌号', 'dorm_room', 'room'],
+    'is_off_campus': ['是否外宿', '外宿', 'off_campus', 'is_off_campus'],
+    'off_campus_address': ['外宿地址', '校外住址', 'off_campus_address'],
     'notes': ['备注', '说明', 'notes', 'remark'],
 }
 
 GRADE_COLUMN_SYNONYMS = {
     'student_no': ['学号', '学生编号', '学生号', '编号', 'student_no'],
     'name': ['姓名', '学生姓名', '名字', 'name'],
-    'semester': ['学期', '开课学期', 'semester'],
+    'semester': ['学期', '开课学期', '学年学期', 'semester', 'term'],
+    'course_name': ['课程名', '课程名称', '课程', '科目', '科目名称', '课名', 'course', 'course_name'],
+    'score': ['分数', '成绩', '得分', '总分', '考试成绩', 'score', 'total_score'],
+    'gpa': ['绩点', 'GPA', 'gpa', '学分绩点'],
+    'credit': ['学分', 'credit', 'credits'],
+    'is_repair': ['重修', '是否重修', 'is_repair', 'is_makeup', '补修', '是否补修'],
 }
 
 PARTY_COLUMN_SYNONYMS = {
@@ -53,8 +63,11 @@ DB_FIELD_NAMES = {
     'student_no': '学号', 'name': '姓名', 'gender': '性别', 'major': '专业',
     'class_name': '班级', 'birth_date': '出生日期', 'political_status': '政治面貌',
     'phone': '联系电话', 'parent_phone': '家长电话', 'email': '邮箱',
-    'family_situation': '家庭情况', 'birth_source': '生源地', 'notes': '备注',
+    'birth_source': '生源地', 'notes': '备注',
+    'id_card': '身份证号', 'campus': '校区', 'dorm_building': '宿舍楼',
+    'dorm_room': '房间号', 'is_off_campus': '是否外宿', 'off_campus_address': '外宿地址',
     'semester': '学期', 'course_name': '课程名', 'score': '分数', 'gpa': '绩点', 'credit': '学分',
+    'is_repair': '是否重修',
     'stage': '阶段', 'stage_date': '阶段日期', 'contact_person': '联系人',
 }
 

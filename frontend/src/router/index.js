@@ -27,6 +27,9 @@ const routes = [
   { path: '/module/meetings',   name: 'mMeetings',   component: () => import('@/views/modules/MeetingsModule.vue'),   meta: { title: '班会管理' } },
   { path: '/module/teachers',   name: 'mTeachers',   component: () => import('@/views/modules/TeachersModule.vue'),   meta: { title: '班主任' } },
 
+  // 系统设置
+  { path: '/system',           name: 'system',           component: () => import('@/views/SystemSettings.vue'),     meta: { title: '系统设置' } },
+
   { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
 ]
 

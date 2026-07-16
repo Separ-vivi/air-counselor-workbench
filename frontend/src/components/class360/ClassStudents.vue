@@ -121,6 +121,7 @@ const otherCadres = computed(() => {
 })
 
 async function load() {
+  if (!props.cid || Number.isNaN(Number(props.cid))) return
   loading.value = true
   try {
     const [stu, con] = await Promise.all([

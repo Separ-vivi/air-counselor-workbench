@@ -71,12 +71,26 @@
             <el-link type="primary" @click="$router.push(`/students/${row.id}`)">{{ row.name }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column label="性别" prop="gender" width="70" />
-        <el-table-column label="班级" prop="class_name" min-width="160" show-overflow-tooltip />
-        <el-table-column label="专业" prop="major" min-width="140" show-overflow-tooltip />
-        <el-table-column label="政治面貌" prop="political_status" width="110" />
-        <el-table-column label="生源地" prop="birth_source" width="120" show-overflow-tooltip />
-        <el-table-column label="电话" prop="phone" width="130" />
+        <el-table-column label="性别" prop="gender" width="70" sortable="custom" />
+        <el-table-column label="班级" prop="class_name" min-width="160" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="专业" prop="major" min-width="140" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="政治面貌" prop="political_status" width="110" sortable="custom" />
+        <el-table-column label="生源地" prop="birth_source" width="140" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="身份证号" prop="id_card" width="180" sortable="custom">
+          <template #default="{ row }">
+            <span v-if="row.id_card && row.id_card.length >= 10">{{ row.id_card.slice(0,6) }}********{{ row.id_card.slice(-4) }}</span>
+            <span v-else style="color:#c0c4cc">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="校区" prop="campus" width="90" sortable="custom" />
+        <el-table-column label="宿舍" min-width="150" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-tag v-if="row.is_off_campus" size="small" type="warning">外宿</el-tag>
+            <span v-else-if="row.dorm_building || row.dorm_room">{{ row.dorm_building }}·{{ row.dorm_room }}</span>
+            <span v-else style="color:#c0c4cc">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="电话" prop="phone" width="130" sortable="custom" />
         <el-table-column label="操作" fixed="right" width="180">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="$router.push(`/students/${row.id}`)">档案</el-button>
@@ -165,7 +179,40 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="生源地">
-              <el-input v-model="form.birth_source" placeholder="省份/城市" />
+              <el-input v-model="form.birth_source" placeholder="如 福州市·鼓楼区" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="身份证号">
+              <el-input v-model="form.id_card" placeholder="18位身份证" maxlength="18" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="校区">
+              <el-select v-model="form.campus" clearable placeholder="选择校区" style="width: 100%">
+                <el-option label="铜盘校区" value="铜盘校区" />
+                <el-option label="旗山校区" value="旗山校区" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="宿舍楼">
+              <el-input v-model="form.dorm_building" placeholder="如 3号楼" :disabled="form.is_off_campus" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="房间号">
+              <el-input v-model="form.dorm_room" placeholder="如 401" :disabled="form.is_off_campus" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="外宿">
+              <el-switch v-model="form.is_off_campus" active-text="外宿" inactive-text="住校" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24" v-if="form.is_off_campus">
+            <el-form-item label="外宿地址">
+              <el-input v-model="form.off_campus_address" placeholder="详细地址" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
@@ -232,6 +279,12 @@ const defaultForm = () => ({
   email: '',
   parent_phone: '',
   birth_source: '',
+  id_card: '',
+  campus: '',
+  dorm_building: '',
+  dorm_room: '',
+  is_off_campus: false,
+  off_campus_address: '',
   notes: ''
 })
 const form = reactive(defaultForm())

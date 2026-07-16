@@ -1,5 +1,12 @@
 <template>
   <div class="c360-wrap">
+    <div class="inline-back-bar">
+      <el-button link @click="inlineGoBack" class="back-inline-btn">
+        <el-icon><component :is="_InlineArrowLeft" /></el-icon>
+        <span style="margin-left:4px;font-weight:500">返回</span>
+      </el-button>
+      <span class="inline-title">班级 360</span>
+    </div>
     <div v-if="loadingHeader" class="empty-hint">
       <div class="icon">⏳</div>
       <div>加载班级数据中…</div>
@@ -56,7 +63,7 @@
 
         <div class="tab-main">
           <keep-alive>
-            <component :is="currentTabComponent" :cid="cid" :class-info="classInfo" :summary="summary" />
+            <component v-if="!Number.isNaN(cid)" :is="currentTabComponent" :cid="cid" :class-info="classInfo" :summary="summary" />
           </keep-alive>
         </div>
       </div>
@@ -69,6 +76,13 @@
 </template>
 
 <script setup>
+import { ArrowLeft as _InlineArrowLeft } from '@element-plus/icons-vue'
+import { useRouter as _useRouterInline } from 'vue-router'
+const _routerInline = _useRouterInline()
+function inlineGoBack() {
+  if (window.history.length > 1) _routerInline.back()
+  else _routerInline.push('/dashboard')
+}
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getClassSummary, getClassStudents } from '@/api/class360.js'
@@ -89,7 +103,12 @@ import ClassPartyBranch        from '@/components/class360/ClassPartyBranch.vue'
 const route = useRoute()
 const orgStore = useOrgStore()
 
-const cid = computed(() => Number(route.params.id))
+const cid = computed(() => {
+  const raw = route.params.id
+  if (raw === undefined || raw === null || raw === 'undefined' || raw === '') return NaN
+  const n = Number(raw)
+  return Number.isNaN(n) ? NaN : n
+})
 const classInfo = ref(null)
 const summary = ref(null)
 const summaryErr = ref(false)
@@ -142,6 +161,7 @@ function buildFallback(cid) {
 }
 
 async function loadHeader() {
+  if (Number.isNaN(cid.value)) return
   loadingHeader.value = true
   summaryErr.value = false
   try {
@@ -194,4 +214,20 @@ onMounted(loadHeader)
   padding: 16px;
   box-shadow: var(--shadow-card);
 }
+
+.inline-back-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 4px 6px 4px;
+  border-bottom: 1px dashed rgba(74, 122, 140, .18);
+  margin-bottom: 12px;
+}
+.back-inline-btn {
+  color: #4A7A8C;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: rgba(74, 122, 140, .08);
+  font-size: 14px;
+}
+.back-inline-btn:hover { background: rgba(74, 122, 140, .18); }
+.inline-title { color: #666; font-size: 13px; }
 </style>

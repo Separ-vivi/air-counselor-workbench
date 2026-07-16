@@ -1,5 +1,12 @@
 <template>
   <div class="s360-wrap">
+    <div class="inline-back-bar">
+      <el-button link @click="inlineGoBack" class="back-inline-btn">
+        <el-icon><component :is="_InlineArrowLeft" /></el-icon>
+        <span style="margin-left:4px;font-weight:500">返回</span>
+      </el-button>
+      <span class="inline-title">学生 360</span>
+    </div>
     <div v-if="loading" class="empty-hint">
       <div class="icon">⏳</div>
       <div>加载学生 360 数据中…</div>
@@ -32,6 +39,10 @@
             <span>📱 {{ student.phone || '—' }}</span>
             <span>👨‍👩‍👧 家长电话 {{ student.parent_phone || '—' }}</span>
             <span>📍 生源地 {{ student.birth_source || '—' }}</span>
+            <br>
+            <span>🪪 身份证 <b>{{ maskedIdCard }}</b></span>
+            <span v-if="student.is_off_campus">🏠 <el-tag size="small" type="warning">外宿</el-tag> {{ student.off_campus_address || '—' }}</span>
+            <span v-else>🛏️ 宿舍 {{ student.campus || '—' }}·{{ student.dorm_building || '—' }}·{{ student.dorm_room || '—' }}</span>
           </div>
           <div class="status-lights">
             <span class="status-chip" :class="warningClass">
@@ -110,6 +121,27 @@
               />
             </el-select>
           </el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="身份证号">
+            <el-input v-model="basicForm.id_card" placeholder="18位身份证" maxlength="18" />
+          </el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="校区">
+            <el-select v-model="basicForm.campus" clearable placeholder="选择校区" style="width:100%">
+              <el-option label="铜盘校区" value="铜盘校区" />
+              <el-option label="旗山校区" value="旗山校区" />
+            </el-select>
+          </el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="宿舍楼">
+            <el-input v-model="basicForm.dorm_building" placeholder="如 3号楼" :disabled="basicForm.is_off_campus" />
+          </el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="房间号">
+            <el-input v-model="basicForm.dorm_room" placeholder="如 401" :disabled="basicForm.is_off_campus" />
+          </el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="外宿">
+            <el-switch v-model="basicForm.is_off_campus" active-text="外宿" inactive-text="住校" />
+          </el-form-item></el-col>
+          <el-col :span="24" v-if="basicForm.is_off_campus"><el-form-item label="外宿地址">
+            <el-input v-model="basicForm.off_campus_address" placeholder="详细地址" />
+          </el-form-item></el-col>
           <el-col :span="24"><el-form-item label="备注">
             <el-input v-model="basicForm.notes" type="textarea" :rows="2" />
           </el-form-item></el-col>
@@ -124,6 +156,13 @@
 </template>
 
 <script setup>
+import { ArrowLeft as _InlineArrowLeft } from '@element-plus/icons-vue'
+import { useRouter as _useRouterInline } from 'vue-router'
+const _routerInline = _useRouterInline()
+function inlineGoBack() {
+  if (window.history.length > 1) _routerInline.back()
+  else _routerInline.push('/dashboard')
+}
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -146,7 +185,12 @@ import TabTimeline    from '@/components/student360/TabTimeline.vue'
 const route = useRoute()
 const orgStore = useOrgStore()
 
-const sid = computed(() => Number(route.params.id))
+const sid = computed(() => {
+  const raw = route.params.id
+  if (raw === undefined || raw === null || raw === 'undefined' || raw === '') return NaN
+  const n = Number(raw)
+  return Number.isNaN(n) ? NaN : n
+})
 const student = ref(null)
 const summary = ref(null)
 const loading = ref(false)
@@ -169,6 +213,11 @@ const tabs = [
 
 const currentTabComponent = computed(() => tabs.find(t => t.key === activeTab.value)?.comp)
 
+const maskedIdCard = computed(() => {
+  const v = student.value?.id_card || ''
+  if (!v || v.length < 10) return '—'
+  return v.slice(0, 6) + '********' + v.slice(-4)
+})
 const warningClass = computed(() =>
   summary.value?.warning_status === 'red' ? 'red' :
   summary.value?.warning_status === 'yellow' ? 'yellow' : 'green'
@@ -238,7 +287,7 @@ function editBasic() {
 async function saveBasic() {
   savingBasic.value = true
   try {
-    // StudentBase schema 只接受一小组字段
+    // StudentUpdate schema 支持的字段
     const payload = {
       student_no: basicForm.value.student_no,
       name: basicForm.value.name,
@@ -250,6 +299,12 @@ async function saveBasic() {
       email: basicForm.value.email,
       parent_phone: basicForm.value.parent_phone,
       birth_source: basicForm.value.birth_source,
+      id_card: basicForm.value.id_card || '',
+      campus: basicForm.value.campus || '',
+      dorm_building: basicForm.value.dorm_building || '',
+      dorm_room: basicForm.value.dorm_room || '',
+      is_off_campus: !!basicForm.value.is_off_campus,
+      off_campus_address: basicForm.value.off_campus_address || '',
       notes: basicForm.value.notes
     }
     await updateBasic(sid.value, payload)
@@ -277,4 +332,20 @@ async function saveBasic() {
   padding: 16px;
   box-shadow: var(--shadow-card);
 }
+
+.inline-back-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 4px 6px 4px;
+  border-bottom: 1px dashed rgba(74, 122, 140, .18);
+  margin-bottom: 12px;
+}
+.back-inline-btn {
+  color: #4A7A8C;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: rgba(74, 122, 140, .08);
+  font-size: 14px;
+}
+.back-inline-btn:hover { background: rgba(74, 122, 140, .18); }
+.inline-title { color: #666; font-size: 13px; }
 </style>

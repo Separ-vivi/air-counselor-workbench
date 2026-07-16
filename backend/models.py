@@ -73,7 +73,14 @@ class Student(Base):
     phone = Column(String(50), default='')
     email = Column(String(100), default='')
     parent_phone = Column(String(50), default='')
-    birth_source = Column(String(100), default='')  # 生源地
+    birth_source = Column(String(150), default='')  # 生源地：省·市·县
+    id_card = Column(String(30), default='', index=True)  # 身份证号
+    # 宿舍信息
+    campus = Column(String(50), default='')  # 校区（铜盘/旗山/其他）
+    dorm_building = Column(String(50), default='')  # 宿舍楼
+    dorm_room = Column(String(50), default='')  # 房间号
+    is_off_campus = Column(Boolean, default=False)  # 是否外宿
+    off_campus_address = Column(String(200), default='')  # 外宿地址（选填）
     notes = Column(Text, default='')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)

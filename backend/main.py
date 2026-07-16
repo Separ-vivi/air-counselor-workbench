@@ -81,6 +81,13 @@ FRONTEND_DIST = os.path.join(BASE_DIR, 'frontend', 'dist')
 Base.metadata.create_all(bind=engine)
 logger.info("数据库表已创建/确认")
 
+# Schema 自愈：把 model 新增的字段 ALTER 到已存在的表
+from schema_migrations import ensure_schema_up_to_date
+try:
+    ensure_schema_up_to_date(engine, Base)
+except Exception as e:
+    logger.error(f"schema 自愈失败: {e}")
+
 app = FastAPI(title='高校辅导员工作平台', version='1.0.0')
 
 # CORS 配置
@@ -106,6 +113,7 @@ from routers.import_router import router as import_router
 from routers.student360 import router as student360_router
 from routers.class360 import router as class360_router
 from routers.organization import router as organization_router
+from routers.system import router as system_router
 
 app.include_router(students_router)
 app.include_router(tags_router)
@@ -120,7 +128,7 @@ app.include_router(import_router)
 app.include_router(student360_router)
 app.include_router(class360_router)
 app.include_router(organization_router)
-app.include_router(organization_router)
+app.include_router(system_router)
 
 
 @app.on_event('startup')

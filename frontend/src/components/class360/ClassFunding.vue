@@ -122,6 +122,7 @@ const hardshipTag = (l) => {
 }
 
 const fetchData = async () => {
+  if (!props.cid || Number.isNaN(Number(props.cid))) return
   loading.value = true
   try {
     const res = await getClassFunding(props.cid)

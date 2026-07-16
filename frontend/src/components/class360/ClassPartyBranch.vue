@@ -71,6 +71,7 @@ const loading = ref(false)
 const activeGroup = ref('party')
 
 async function load() {
+  if (!props.cid || Number.isNaN(Number(props.cid))) return
   loading.value = true
   try {
     data.value = await getClassPartyBranch(props.cid)

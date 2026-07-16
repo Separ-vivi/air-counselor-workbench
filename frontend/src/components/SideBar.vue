@@ -33,6 +33,8 @@
         <el-menu-item index="/module/meetings">📋 班会</el-menu-item>
         <el-menu-item index="/module/teachers">🧑‍🏫 班主任</el-menu-item>
       </el-sub-menu>
+
+      <el-menu-item index="/system"><el-icon><Setting /></el-icon><span>系统设置</span></el-menu-item>
     </el-menu>
 
     <div class="footer-hint">

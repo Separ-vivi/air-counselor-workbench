@@ -50,6 +50,7 @@ function statusType(s) {
 }
 
 async function load() {
+  if (!props.cid || Number.isNaN(Number(props.cid))) return
   loading.value = true
   try {
     rows.value = (await getClassFeaturedActivities(props.cid)) || []

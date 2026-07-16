@@ -33,11 +33,20 @@ class StudentCreate(BaseModel):
     gender: str = ''
     major: str = ''
     class_name: str = ''
+    class_id: Optional[int] = None
     birth_date: str = ''
     political_status: str = ''
     family_situation: str = ''
     phone: str = ''
     email: str = ''
+    parent_phone: str = ''
+    birth_source: str = ''
+    id_card: str = ''
+    campus: str = ''
+    dorm_building: str = ''
+    dorm_room: str = ''
+    is_off_campus: bool = False
+    off_campus_address: str = ''
     notes: str = ''
     tag_ids: List[int] = []
 
@@ -47,11 +56,20 @@ class StudentUpdate(BaseModel):
     gender: Optional[str] = None
     major: Optional[str] = None
     class_name: Optional[str] = None
+    class_id: Optional[int] = None
     birth_date: Optional[str] = None
     political_status: Optional[str] = None
     family_situation: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
+    parent_phone: Optional[str] = None
+    birth_source: Optional[str] = None
+    id_card: Optional[str] = None
+    campus: Optional[str] = None
+    dorm_building: Optional[str] = None
+    dorm_room: Optional[str] = None
+    is_off_campus: Optional[bool] = None
+    off_campus_address: Optional[str] = None
     notes: Optional[str] = None
     tag_ids: Optional[List[int]] = None
 

@@ -116,3 +116,15 @@ export const tags = {
   addToStudent: (tagId, sid) => http.post(`/tags/${tagId}/students/${sid}`),
   removeFromStudent: (tagId, sid) => http.delete(`/tags/${tagId}/students/${sid}`)
 }
+
+/** 系统数据管理（V3-A 新增） */
+export const system = {
+  health: () => http.get('/system/health'),
+  reinit: () => http.post('/system/reinit'),
+  seedLarge: () => http.post('/system/seed-large'),
+  backupUrl: () => '/api/system/backup',
+  restore: (formData) => http.post('/system/restore', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  clearBusiness: () => http.post('/system/clear-business')
+}

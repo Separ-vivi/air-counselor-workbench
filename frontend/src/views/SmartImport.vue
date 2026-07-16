@@ -170,7 +170,7 @@ const fieldMap = {
   ],
   grades: [
     { key: 'student_no', label: '学号', required: true },
-    { key: 'course_name', label: '课程名', required: true },
+    { key: 'course_name', label: '课程名' },
     { key: 'course_code', label: '课程代码' },
     { key: 'credit', label: '学分' },
     { key: 'score', label: '分数' },
