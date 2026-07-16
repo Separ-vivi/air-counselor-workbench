@@ -50,7 +50,7 @@ import * as echarts from 'echarts'
 import { getClassPsychology } from '@/api/class360'
 
 const props = defineProps({
-  classId: { type: [String, Number], required: true }
+  cid: { type: [String, Number], required: true }
 })
 
 const loading = ref(false)
@@ -75,7 +75,7 @@ const levelTag = (l) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await getClassPsychology(props.classId)
+    const res = await getClassPsychology(props.cid)
     records.value = Array.isArray(res) ? res : (res?.records || [])
     computeStats()
     await nextTick()
@@ -124,7 +124,7 @@ const renderChart = () => {
   })
 }
 
-watch(() => props.classId, fetchData)
+watch(() => props.cid, fetchData)
 onMounted(fetchData)
 </script>
 

@@ -1,5 +1,33 @@
 <template>
   <div>
+    <!-- 班主任 + 班干部联系方式 -->
+    <el-card v-if="contacts" shadow="never" class="contact-card">
+      <div class="contact-title">📞 班主任 &amp; 班干部联系方式</div>
+      <div class="contact-row">
+        <span class="contact-item" v-if="contacts.class_teacher?.name">
+          <el-tag type="success" size="small" effect="dark">班主任</el-tag>
+          <b>{{ contacts.class_teacher.name }}</b>
+          <span v-if="contacts.class_teacher.phone"> · 📱 {{ contacts.class_teacher.phone }}</span>
+        </span>
+        <span class="contact-item" v-if="contacts.monitor?.name">
+          <el-tag type="primary" size="small" effect="dark">班长</el-tag>
+          <b>{{ contacts.monitor.name }}</b>
+          <span v-if="contacts.monitor.phone"> · 📱 {{ contacts.monitor.phone }}</span>
+        </span>
+        <span class="contact-item" v-if="contacts.league_secretary?.name">
+          <el-tag type="warning" size="small" effect="dark">团支书</el-tag>
+          <b>{{ contacts.league_secretary.name }}</b>
+          <span v-if="contacts.league_secretary.phone"> · 📱 {{ contacts.league_secretary.phone }}</span>
+        </span>
+        <span class="contact-item" v-for="c in otherCadres" :key="c.student_id + c.position">
+          <el-tag type="info" size="small" effect="plain">{{ c.position }}</el-tag>
+          <b>{{ c.name }}</b>
+          <span v-if="c.phone"> · 📱 {{ c.phone }}</span>
+        </span>
+        <span v-if="!hasContacts" class="contact-empty">暂无班干部信息（请到"三级架构"里为班级配置班主任、班长、团支书）</span>
+      </div>
+    </el-card>
+
     <div class="panel-head">
       <div><span class="title">📋 班级花名册</span><span class="text-muted count">&nbsp;共 {{ rows.length }} 人</span></div>
       <div>
@@ -20,7 +48,21 @@
       </el-table-column>
       <el-table-column prop="gender" label="性别" width="70" />
       <el-table-column prop="political_status" label="政治面貌" min-width="120" />
+      <el-table-column label="班干部职务" min-width="140">
+        <template #default="{ row }">
+          <el-tag
+            v-for="pos in (row.cadre_positions || [])"
+            :key="pos"
+            type="info"
+            size="small"
+            effect="plain"
+            style="margin:0 4px 2px 0"
+          >{{ pos }}</el-tag>
+          <span v-if="!(row.cadre_positions?.length)" class="text-muted">—</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="phone" label="联系电话" min-width="130" />
+      <el-table-column prop="parent_phone" label="家长电话" min-width="130" />
       <el-table-column prop="warning_status" label="学业预警" width="100">
         <template #default="{ row }">
           <span class="status-chip" :class="row.warning_status">
@@ -42,7 +84,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { getClassStudents } from '@/api/class360.js'
+import { getClassStudents, getClassContacts } from '@/api/class360.js'
 
 const props = defineProps({ cid: { type: Number, required: true } })
 const rows = ref([])
@@ -65,10 +107,28 @@ function warnLabel(s) {
   return '绿灯'
 }
 
+const contacts = ref(null)
+const hasContacts = computed(() => {
+  const c = contacts.value
+  if (!c) return false
+  return !!(c.class_teacher?.name || c.monitor?.name || c.league_secretary?.name || (c.cadres || []).length)
+})
+const otherCadres = computed(() => {
+  const c = contacts.value
+  if (!c) return []
+  const skip = new Set([c.monitor?.name, c.league_secretary?.name].filter(Boolean))
+  return (c.cadres || []).filter(x => !skip.has(x.name))
+})
+
 async function load() {
   loading.value = true
   try {
-    rows.value = await getClassStudents(props.cid) || []
+    const [stu, con] = await Promise.all([
+      getClassStudents(props.cid),
+      getClassContacts(props.cid).catch(() => null)
+    ])
+    rows.value = stu || []
+    contacts.value = con
   } finally { loading.value = false }
 }
 
@@ -82,4 +142,10 @@ onMounted(load)
 .panel-head .count { font-size: 12px; }
 .panel-head > div:last-child { display:flex; gap: 8px; }
 .link { color: var(--color-sidebar); font-weight: 500; }
+.contact-card { margin-bottom: 12px; border-radius: 12px; background: #FDFAF3; }
+.contact-title { font-weight: 600; color: #4A7A8C; margin-bottom: 8px; }
+.contact-row { display: flex; flex-wrap: wrap; gap: 12px 20px; font-size: 13px; color: #303133; }
+.contact-item { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #ffffff; border-radius: 10px; border: 1px solid #E4E7ED; }
+.contact-empty { color: #909399; font-size: 13px; }
+.text-muted { color: #C0C4CC; }
 </style>

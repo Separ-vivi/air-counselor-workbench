@@ -12,7 +12,8 @@ export const grades = {
   exportWarnings: () => http.get('/grades/warnings/export', { responseType: 'blob' }),
   semesters: () => http.get('/grades/semesters'),
   recalculateWarnings: () => http.post('/grades/recalculate'),
-  exportAll: () => http.get('/grades/export', { responseType: 'blob' })
+  exportAll: () => http.get('/grades/export', { responseType: 'blob' }),
+  byClass: (cid, params = {}) => http.get(`/grades/by-class/${cid}`, { params })
 }
 
 /** 党团发展进程 */

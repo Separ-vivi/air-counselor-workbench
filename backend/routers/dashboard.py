@@ -95,7 +95,7 @@ def get_dashboard(
     recent_students = [
         {
             'id': s.id, 'name': s.name, 'student_no': s.student_no,
-            'class_name': s.class_name,
+            'class_name': s.class_obj.class_name if s.class_obj else '',
             'updated_at': s.updated_at.isoformat() if s.updated_at else None,
         }
         for s in recent_query.all()

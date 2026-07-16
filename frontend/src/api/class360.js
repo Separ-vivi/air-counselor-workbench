@@ -12,3 +12,7 @@ export const getClassPsychology = (cid) => http.get(`/class360/${cid}/psychology
 export const getClassFunding    = (cid) => http.get(`/class360/${cid}/funding`)
 export const getClassActivities = (cid) => http.get(`/class360/${cid}/activities`)
 export const getClassDaily      = (cid) => http.get(`/class360/${cid}/daily`)
+// V3-A 追加 - 联系方式 + 党团支部 + 特色活动
+export const getClassContacts           = (cid) => http.get(`/class360/${cid}/contacts`)
+export const getClassPartyBranch        = (cid) => http.get(`/class360/${cid}/party-branch`)
+export const getClassFeaturedActivities = (cid) => http.get(`/class360/${cid}/featured-activities`)

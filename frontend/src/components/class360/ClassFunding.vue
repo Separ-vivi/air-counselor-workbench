@@ -98,7 +98,7 @@ import * as echarts from 'echarts'
 import { getClassFunding } from '@/api/class360'
 
 const props = defineProps({
-  classId: { type: [String, Number], required: true }
+  cid: { type: [String, Number], required: true }
 })
 
 const loading = ref(false)
@@ -124,7 +124,7 @@ const hardshipTag = (l) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await getClassFunding(props.classId)
+    const res = await getClassFunding(props.cid)
     // 兼容 {hardship,grants,scholarships,loans,work_study} 或 array
     raw.value = Array.isArray(res) ? { hardship: res } : (res || {})
     computeStats()
@@ -176,7 +176,7 @@ const renderChart = () => {
   })
 }
 
-watch(() => props.classId, fetchData)
+watch(() => props.cid, fetchData)
 onMounted(fetchData)
 </script>
 

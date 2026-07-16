@@ -260,14 +260,33 @@ async def detect_file(file: UploadFile = File(...)):
         finally:
             db.close()
 
+    # 供前端使用：source -> target 建议映射
+    suggested_mapping = {m['file_column']: m['db_column'] for m in mapping if m.get('db_column') and not m['db_column'].startswith('course:')}
+    # 供前端使用：每列的示例值
+    samples = {}
+    for col in columns:
+        try:
+            if col in df.columns and df[col].notna().any():
+                samples[col] = str(df[col].dropna().iloc[0])
+            else:
+                samples[col] = ''
+        except Exception:
+            samples[col] = ''
+
     return {
         'import_id': import_id,
         'data_type': data_type,
         'columns': columns,
+        'headers': columns,  # 前端兼容
         'mapping': mapping,
+        'suggested_mapping': suggested_mapping,  # 前端兼容
+        'samples': samples,  # 前端兼容
         'preview_data': rows,
+        'preview': rows,  # 前端兼容
         'total_rows': len(df),
+        'valid_rows': len(df),
         'duplicate_count': duplicate_count,
+        'warnings': [],
     }
 
 
@@ -304,6 +323,58 @@ async def confirm_import(req: ConfirmRequest):
 
     try:
         if data_type == 'students':
+            # ---------- Student 直属字段（不含 class_name / major / grade / family_situation） ----------
+            STUDENT_DIRECT_FIELDS = ['gender', 'birth_date', 'political_status',
+                                     'phone', 'parent_phone', 'email', 'birth_source', 'notes']
+
+            # ---------- class_name / major / grade 用于组织层级：找到或创建 ClassModel ----------
+            from models import Grade as GradeOrg, Major, ClassModel
+
+            def resolve_class_id(row):
+                """根据 class_name / major / grade 三层信息定位或创建 ClassModel，返回 class_id"""
+                cn = str(row.get(col_map.get('class_name', ''), '')).strip() if col_map.get('class_name') else ''
+                mj = str(row.get(col_map.get('major', ''), '')).strip() if col_map.get('major') else ''
+                gd = str(row.get(col_map.get('grade', ''), '')).strip() if col_map.get('grade') else ''
+                if not cn:
+                    return None
+                # class_name 全局唯一，先直接查
+                existing = db.query(ClassModel).filter(ClassModel.class_name == cn).first()
+                if existing:
+                    return existing.id
+                # 不存在则创建组织层级：Grade -> Major -> ClassModel
+                # 从班级名中尝试提取年级信息（e.g. "计科2401" -> 2024级）
+                if not gd:
+                    m = re.search(r'(\d{2})\d{2}', cn)
+                    if m:
+                        yy = int(m.group(1))
+                        year = 2000 + yy
+                        gd = f'{year}级'
+                if not gd:
+                    gd = '未分年级'
+                if not mj:
+                    mj = '未分专业'
+                # Grade
+                grade_obj = db.query(GradeOrg).filter(GradeOrg.grade_name == gd).first()
+                if not grade_obj:
+                    start_year = 2000
+                    m = re.search(r'(\d{4})', gd)
+                    if m:
+                        start_year = int(m.group(1))
+                    grade_obj = GradeOrg(grade_name=gd, start_year=start_year)
+                    db.add(grade_obj)
+                    db.flush()
+                # Major
+                major_obj = db.query(Major).filter(Major.major_name == mj, Major.grade_id == grade_obj.id).first()
+                if not major_obj:
+                    major_obj = Major(major_name=mj, grade_id=grade_obj.id)
+                    db.add(major_obj)
+                    db.flush()
+                # ClassModel
+                new_class = ClassModel(class_name=cn, major_id=major_obj.id)
+                db.add(new_class)
+                db.flush()
+                return new_class.id
+
             for _, row in df.iterrows():
                 student_no = str(row.get(col_map.get('student_no', ''), '')).strip()
                 name = str(row.get(col_map.get('name', ''), '')).strip()
@@ -317,27 +388,33 @@ async def confirm_import(req: ConfirmRequest):
                         skipped += 1
                         continue
                     elif req.conflict_strategy == 'overwrite':
-                        for field in ['name', 'gender', 'major', 'class_name', 'birth_date',
-                                      'political_status', 'family_situation', 'phone', 'parent_phone',
-                                      'email', 'birth_source', 'notes']:
+                        # name
+                        existing.name = name
+                        # 直属字段
+                        for field in STUDENT_DIRECT_FIELDS:
                             col_name = col_map.get(field, '')
                             if col_name and col_name in row.index:
                                 val = str(row[col_name]).strip()
                                 if val:
                                     setattr(existing, field, val)
+                        # class_id
+                        cid = resolve_class_id(row)
+                        if cid:
+                            existing.class_id = cid
                         updated += 1
                     else:
                         skipped += 1
                 else:
                     student = Student(student_no=student_no, name=name)
-                    for field in ['gender', 'major', 'class_name', 'birth_date',
-                                  'political_status', 'family_situation', 'phone', 'parent_phone',
-                                  'email', 'birth_source', 'notes']:
+                    for field in STUDENT_DIRECT_FIELDS:
                         col_name = col_map.get(field, '')
                         if col_name and col_name in row.index:
                             val = str(row[col_name]).strip()
                             if val:
                                 setattr(student, field, val)
+                    cid = resolve_class_id(row)
+                    if cid:
+                        student.class_id = cid
                     db.add(student)
                     created += 1
 
@@ -419,9 +496,19 @@ async def confirm_import(req: ConfirmRequest):
     finally:
         db.close()
 
+    total = created + skipped + updated
     return {
+        'success': True,
         'created': created,
         'skipped': skipped,
         'updated': updated,
         'data_type': data_type,
+        # 前端兼容字段
+        'total': total,
+        'total_rows': total,
+        'imported': created + updated,
+        'success_count': created + updated,
+        'failed': skipped,
+        'fail_count': skipped,
+        'errors': [],
     }

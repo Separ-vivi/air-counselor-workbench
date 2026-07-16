@@ -9,7 +9,7 @@
       <el-form :inline="true">
         <el-form-item label="班级">
           <el-select v-model="filter.class_id" placeholder="全部班级" clearable filterable style="width: 220px" @change="reload">
-            <el-option v-for="c in orgStore.classes" :key="c.id" :label="c.name" :value="c.id" />
+            <el-option v-for="c in orgStore.allClasses" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="主题">
@@ -47,7 +47,7 @@
         </el-form-item>
         <el-form-item label="所属班级" prop="class_id">
           <el-select v-model="form.class_id" filterable style="width: 100%">
-            <el-option v-for="c in orgStore.classes" :key="c.id" :label="c.name" :value="c.id" />
+            <el-option v-for="c in orgStore.allClasses" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="召开日期">

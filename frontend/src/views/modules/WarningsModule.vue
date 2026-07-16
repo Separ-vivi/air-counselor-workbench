@@ -25,7 +25,7 @@
         </el-form-item>
         <el-form-item label="班级">
           <el-select v-model="filter.class_name" placeholder="全部班级" clearable filterable style="width: 200px" @change="reload">
-            <el-option v-for="c in orgStore.classes" :key="c.id" :label="c.name" :value="c.name" />
+            <el-option v-for="c in orgStore.allClasses" :key="c.id" :label="c.name" :value="c.name" />
           </el-select>
         </el-form-item>
         <el-form-item label="学生">

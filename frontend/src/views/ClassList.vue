@@ -63,14 +63,14 @@ const orgStore = useOrgStore()
 const filter = reactive({ gradeId: null, majorId: null, keyword: '' })
 
 const majorOptions = computed(() => {
-  const all = orgStore.orgTree.flatMap((g) =>
-    (g.majors || []).map((m) => ({ id: m.id, name: m.major_name, grade_id: g.id }))
-  )
+  // 用 allMajors 全量，避免和组织切换器耦合
+  const all = orgStore.allMajors
   return filter.gradeId ? all.filter((m) => m.grade_id === filter.gradeId) : all
 })
 
 const filteredClasses = computed(() => {
-  let list = orgStore.classes
+  // 用 allClasses（不受顶端组织切换器影响），只按本页 filter 过滤
+  let list = orgStore.allClasses
   if (filter.gradeId) list = list.filter((c) => c.grade_id === filter.gradeId)
   if (filter.majorId) list = list.filter((c) => c.major_id === filter.majorId)
   const kw = filter.keyword.trim()

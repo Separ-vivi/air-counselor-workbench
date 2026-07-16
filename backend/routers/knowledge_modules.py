@@ -136,12 +136,16 @@ def generate_document(data: dict, db: Session = Depends(get_db)):
     if student_id:
         stu = db.query(Student).get(student_id)
         if stu:
-            content = content.replace('{{姓名}}', stu.name)
-            content = content.replace('{{学号}}', stu.student_no)
-            content = content.replace('{{性别}}', stu.gender)
-            content = content.replace('{{专业}}', stu.major)
-            content = content.replace('{{班级}}', stu.class_name)
-            content = content.replace('{{政治面貌}}', stu.political_status)
+            cls_name = stu.class_obj.class_name if stu.class_obj else ''
+            major_name = ''
+            if stu.class_obj and stu.class_obj.major:
+                major_name = stu.class_obj.major.major_name
+            content = content.replace('{{姓名}}', stu.name or '')
+            content = content.replace('{{学号}}', stu.student_no or '')
+            content = content.replace('{{性别}}', stu.gender or '')
+            content = content.replace('{{专业}}', major_name)
+            content = content.replace('{{班级}}', cls_name)
+            content = content.replace('{{政治面貌}}', stu.political_status or '群众')
 
     doc = GeneratedDocument(
         student_id=student_id, template_id=template_id,

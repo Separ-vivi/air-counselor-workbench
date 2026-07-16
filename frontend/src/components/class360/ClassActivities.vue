@@ -54,7 +54,7 @@ import { Search } from '@element-plus/icons-vue'
 import { getClassActivities } from '@/api/class360'
 
 const props = defineProps({
-  classId: { type: [String, Number], required: true }
+  cid: { type: [String, Number], required: true }
 })
 
 const loading = ref(false)
@@ -89,7 +89,7 @@ const filteredList = computed(() => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await getClassActivities(props.classId)
+    const res = await getClassActivities(props.cid)
     list.value = Array.isArray(res) ? res : (res?.activities || [])
     computeStats()
   } finally {
@@ -106,7 +106,7 @@ const computeStats = () => {
   statCards.value[2].value = acts.size
 }
 
-watch(() => props.classId, fetchData)
+watch(() => props.cid, fetchData)
 onMounted(fetchData)
 </script>
 

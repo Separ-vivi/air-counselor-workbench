@@ -42,7 +42,7 @@
         </el-form-item>
         <el-form-item label="所带班级">
           <el-select v-model="form.class_id" filterable clearable style="width: 100%">
-            <el-option v-for="c in orgStore.classes" :key="c.id" :label="c.name" :value="c.id" />
+            <el-option v-for="c in orgStore.allClasses" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="院系">

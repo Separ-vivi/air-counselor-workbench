@@ -58,6 +58,41 @@ export const useOrgStore = defineStore('org', {
       else if (state.filterGradeId) src = src.filter(c => c.grade_id === state.filterGradeId)
       return src
     },
+    /** 【新增】不受组织切换器影响的全量班级列表（供筛选下拉用） */
+    allClasses: (state) => {
+      const src = []
+      state.orgTree.forEach(g => {
+        (g.majors || []).forEach(m => {
+          (m.classes || []).forEach(c => {
+            src.push({
+              id: c.id,
+              name: c.class_name,
+              student_count: c.student_count,
+              major_id: m.id,
+              major_name: m.major_name,
+              grade_id: g.id,
+              grade_name: g.grade_name
+            })
+          })
+        })
+      })
+      return src
+    },
+    /** 【新增】不受组织切换器影响的全量专业列表 */
+    allMajors: (state) => {
+      const src = []
+      state.orgTree.forEach(g => {
+        (g.majors || []).forEach(m => {
+          src.push({
+            id: m.id,
+            name: m.major_name,
+            grade_id: g.id,
+            grade_name: g.grade_name
+          })
+        })
+      })
+      return src
+    },
     /** 找班级名 */
     getClassName: (state) => (cid) => {
       for (const g of state.orgTree) {

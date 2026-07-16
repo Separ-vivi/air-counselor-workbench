@@ -21,13 +21,7 @@ def search_students(
     db: Session = Depends(get_db)
 ):
     """学生远程搜索 (用于关联选择器) - 支持姓名/学号/拼音首字母/班级名"""
-    if not q or not q.strip():
-        return []
-    
-    keyword = q.strip()
-    search_pattern = f"%{keyword}%"
-    
-    results = db.query(
+    query = db.query(
         Student.id,
         Student.student_no,
         Student.name,
@@ -37,14 +31,22 @@ def search_students(
         ClassModel, Student.class_id == ClassModel.id
     ).outerjoin(
         Major, ClassModel.major_id == Major.id
-    ).filter(
-        or_(
-            Student.student_no.ilike(search_pattern),
-            Student.name.ilike(search_pattern),
-            Student.pinyin_initial.ilike(search_pattern),
-            ClassModel.class_name.ilike(search_pattern),
+    )
+
+    if q and q.strip():
+        keyword = q.strip()
+        search_pattern = f"%{keyword}%"
+        query = query.filter(
+            or_(
+                Student.student_no.ilike(search_pattern),
+                Student.name.ilike(search_pattern),
+                Student.pinyin_initial.ilike(search_pattern),
+                ClassModel.class_name.ilike(search_pattern),
+            )
         )
-    ).limit(limit).all()
+
+    # 空关键词也返回前 N 个（按学号排序），供下拉初始展示
+    results = query.order_by(Student.student_no).limit(limit).all()
     
     return [
         {
@@ -141,7 +143,7 @@ def list_students(
             'id': r.id,
             'student_no': r.student_no,
             'name': r.name,
-            'class_name': r.class_name,
+            'class_name': r.class_obj.class_name if r.class_obj else '',
             'major': major_name,
             'gender': r.gender,
             'political_status': r.political_status,
@@ -200,7 +202,7 @@ def export_students(
         data.append({
             '学号': r.student_no,
             '姓名': r.name,
-            '班级': r.class_name,
+            '班级': r.class_obj.class_name if r.class_obj else '',
             '专业': major_name,
             '性别': r.gender,
             '政治面貌': r.political_status,
@@ -252,6 +254,77 @@ def create_student(data: StudentCreate, db: Session = Depends(get_db)):
     return {'id': student.id}
 
 
+@router.get('/{student_id}/completeness')
+def get_student_completeness(student_id: int, db: Session = Depends(get_db)):
+    """学生信息完整度检查 - 返回百分比 + 缺失字段清单"""
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(404, '学生不存在')
+    # 定义必检查字段（含中文名 + 权重）
+    checks = [
+        ('student_no', '学号', 10),
+        ('name', '姓名', 10),
+        ('gender', '性别', 5),
+        ('class_id', '所在班级', 10),
+        ('birth_date', '出生日期', 5),
+        ('political_status', '政治面貌', 5),
+        ('phone', '本人电话', 10),
+        ('email', '邮箱', 5),
+        ('parent_phone', '家长电话', 10),
+        ('birth_source', '生源地', 5),
+    ]
+    total_weight = sum(w for _, _, w in checks)
+    got_weight = 0
+    missing = []
+    filled = []
+    for field, label, weight in checks:
+        val = getattr(student, field, None)
+        if val is None or str(val).strip() == '':
+            missing.append({'field': field, 'label': label, 'weight': weight})
+        else:
+            got_weight += weight
+            filled.append({'field': field, 'label': label})
+    # 家庭联系 / 心理关怀 / 成绩三类关系数据也纳入检查（存在即计分）
+    rel_checks = [
+        ('family_contacts', '家庭联系人', 5),
+        ('grade_records', '成绩记录', 5),
+        ('psychology_records', '心理关怀记录', 5),
+    ]
+    for rel_name, label, weight in rel_checks:
+        total_weight += weight
+        rel = getattr(student, rel_name, None)
+        has = False
+        try:
+            if rel is not None:
+                # relationship 可能是 list 或 query
+                has = bool(list(rel)) if hasattr(rel, '__iter__') else bool(rel)
+        except Exception:
+            has = False
+        if has:
+            got_weight += weight
+            filled.append({'field': rel_name, 'label': label})
+        else:
+            missing.append({'field': rel_name, 'label': label, 'weight': weight})
+    percent = int(round(got_weight * 100 / total_weight)) if total_weight else 0
+    if percent >= 90:
+        level = 'excellent'
+    elif percent >= 70:
+        level = 'good'
+    elif percent >= 40:
+        level = 'warning'
+    else:
+        level = 'poor'
+    return {
+        'student_id': student_id,
+        'percent': percent,
+        'level': level,
+        'missing': missing,
+        'filled': filled,
+        'total_items': len(checks) + len(rel_checks),
+        'missing_count': len(missing),
+    }
+
+
 @router.get('/{student_id}')
 def get_student(student_id: int, db: Session = Depends(get_db)):
     """获取学生详情"""
@@ -268,7 +341,7 @@ def get_student(student_id: int, db: Session = Depends(get_db)):
         'id': student.id,
         'student_no': student.student_no,
         'name': student.name,
-        'class_name': student.class_name,
+        'class_name': student.class_obj.class_name if student.class_obj else '',
         'class_id': student.class_id,
         'major': major_name,
         'gender': student.gender,

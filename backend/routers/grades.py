@@ -230,7 +230,7 @@ def get_warnings(
             'semester': w.semester,
             'student_name': s.name,
             'student_no': s.student_no,
-            'class_name': s.class_name,
+            'class_name': s.class_obj.class_name if s.class_obj else '',
             'created_at': w.created_at.isoformat() if w.created_at else None,
         }
         for w, s in results
@@ -292,11 +292,15 @@ def export_grades(
     
     # 写入数据
     for grade, student in results:
+        cls_name = student.class_obj.class_name if student.class_obj else ''
+        major_name = ''
+        if student.class_obj and student.class_obj.major:
+            major_name = student.class_obj.major.major_name
         ws.append([
             student.student_no,
             student.name,
-            student.class_name,
-            student.major,
+            cls_name,
+            major_name,
             grade.semester,
             grade.course_name,
             grade.score,
@@ -351,11 +355,15 @@ def export_warnings(
             created_at_str = created_at.strftime('%Y-%m-%d %H:%M')
         else:
             created_at_str = str(created_at) if created_at else ''
+        cls_name = student.class_obj.class_name if student.class_obj else ''
+        major_name = ''
+        if student.class_obj and student.class_obj.major:
+            major_name = student.class_obj.major.major_name
         ws.append([
             student.student_no,
             student.name,
-            student.class_name,
-            student.major,
+            cls_name,
+            major_name,
             type_map.get(warning.warning_type, warning.warning_type),
             warning.description,
             warning.semester,
@@ -373,3 +381,85 @@ def export_warnings(
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={'Content-Disposition': f'attachment; filename={filename}'}
     )
+
+
+@router.get('/by-class/{class_id}')
+def get_grades_by_class(
+    class_id: int,
+    semester: str = None,
+    db: Session = Depends(get_db)
+):
+    """按班级维度查看成绩：返回本班全体学生的成绩汇总统计 + 明细"""
+    from models import ClassModel
+    cls = db.query(ClassModel).filter(ClassModel.id == class_id).first()
+    if not cls:
+        return {'class': None, 'students': [], 'grades': [], 'stats': {}}
+
+    students = db.query(Student).filter(Student.class_id == class_id).all()
+    sid_list = [s.id for s in students]
+    if not sid_list:
+        return {
+            'class': {'id': cls.id, 'class_name': cls.class_name},
+            'students': [], 'grades': [], 'stats': {'total_students': 0, 'total_courses': 0, 'avg_score': 0}
+        }
+
+    q = db.query(GradeRecord).filter(GradeRecord.student_id.in_(sid_list))
+    if semester:
+        q = q.filter(GradeRecord.semester == semester)
+    all_grades = q.all()
+
+    # 学生级别汇总
+    student_summary = []
+    sid_to_name = {s.id: (s.name, s.student_no) for s in students}
+    per_student = {}
+    for g in all_grades:
+        per_student.setdefault(g.student_id, []).append(g)
+    for s in students:
+        gs = per_student.get(s.id, [])
+        scores = [float(g.score) for g in gs if g.score is not None]
+        avg = round(sum(scores) / len(scores), 2) if scores else 0
+        fail_cnt = sum(1 for x in scores if x < 60)
+        student_summary.append({
+            'student_id': s.id,
+            'student_no': s.student_no,
+            'name': s.name,
+            'total_courses': len(gs),
+            'avg_score': avg,
+            'fail_count': fail_cnt,
+            'pass_rate': round((len(scores) - fail_cnt) / len(scores) * 100, 1) if scores else 0,
+        })
+
+    # 明细列表（供表格展示）
+    detail = []
+    for g in all_grades:
+        nm, no = sid_to_name.get(g.student_id, ('', ''))
+        detail.append({
+            'id': g.id,
+            'student_id': g.student_id,
+            'student_no': no,
+            'student_name': nm,
+            'semester': g.semester,
+            'course_code': g.course_code,
+            'course_name': g.course_name,
+            'credit': g.credit,
+            'score': g.score,
+            'grade_level': g.grade_level,
+            'is_makeup': g.is_makeup,
+        })
+
+    all_scores = [float(g.score) for g in all_grades if g.score is not None]
+    stats = {
+        'total_students': len(students),
+        'total_courses': len(all_grades),
+        'avg_score': round(sum(all_scores) / len(all_scores), 2) if all_scores else 0,
+        'pass_count': sum(1 for x in all_scores if x >= 60),
+        'fail_count': sum(1 for x in all_scores if x < 60),
+    }
+
+    return {
+        'class': {'id': cls.id, 'class_name': cls.class_name},
+        'students': student_summary,
+        'grades': detail,
+        'stats': stats,
+    }
+

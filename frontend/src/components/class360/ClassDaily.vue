@@ -84,7 +84,7 @@ import { ref, onMounted, watch } from 'vue'
 import { getClassDaily } from '@/api/class360'
 
 const props = defineProps({
-  classId: { type: [String, Number], required: true }
+  cid: { type: [String, Number], required: true }
 })
 
 const loading = ref(false)
@@ -109,7 +109,7 @@ const punishTag = (l) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await getClassDaily(props.classId)
+    const res = await getClassDaily(props.cid)
     raw.value = res || {}
     statCards.value[0].value = (raw.value.dorm_visits || []).length
     statCards.value[1].value = (raw.value.leaves || []).length
@@ -120,7 +120,7 @@ const fetchData = async () => {
   }
 }
 
-watch(() => props.classId, fetchData)
+watch(() => props.cid, fetchData)
 onMounted(fetchData)
 </script>
 

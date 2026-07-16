@@ -83,6 +83,8 @@ import ClassPsychology from '@/components/class360/ClassPsychology.vue'
 import ClassFunding    from '@/components/class360/ClassFunding.vue'
 import ClassActivities from '@/components/class360/ClassActivities.vue'
 import ClassDaily      from '@/components/class360/ClassDaily.vue'
+import ClassFeaturedActivities from '@/components/class360/ClassFeaturedActivities.vue'
+import ClassPartyBranch        from '@/components/class360/ClassPartyBranch.vue'
 
 const route = useRoute()
 const orgStore = useOrgStore()
@@ -103,6 +105,8 @@ const tabs = [
   { key: 'psychology', label: '心理关注',   icon: '💚', comp: ClassPsychology },
   { key: 'funding',    label: '资助分布',   icon: '💰', comp: ClassFunding },
   { key: 'activities', label: '活动参与',   icon: '🎨', comp: ClassActivities },
+  { key: 'featured',   label: '特色活动',   icon: '🌟', comp: ClassFeaturedActivities },
+  { key: 'branch',     label: '党团支部',   icon: '🚩', comp: ClassPartyBranch },
   { key: 'daily',      label: '班级大事记', icon: '📅', comp: ClassDaily }
 ]
 const currentTabComponent = computed(() => tabs.find(t => t.key === activeTab.value)?.comp)

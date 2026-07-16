@@ -103,7 +103,7 @@
           <el-col :span="12"><el-form-item label="所属班级">
             <el-select v-model="basicForm.class_id" filterable clearable style="width:100%">
               <el-option
-                v-for="c in orgStore.classes"
+                v-for="c in orgStore.allClasses"
                 :key="c.id"
                 :label="`${c.name} · ${c.major_name}`"
                 :value="c.id"
@@ -184,6 +184,25 @@ const hardshipClass = computed(() => {
   return 'yellow'
 })
 
+// ---- 信息完整度 ----
+const completeness = ref(null)
+const completenessDialog = ref(false)
+const completenessClass = computed(() => {
+  const lv = completeness.value?.level
+  if (lv === 'excellent') return 'green'
+  if (lv === 'good') return 'green'
+  if (lv === 'warning') return 'yellow'
+  if (lv === 'poor') return 'red'
+  return 'gray'
+})
+async function loadCompleteness() {
+  try {
+    completeness.value = await getStudentCompleteness(sid.value)
+  } catch (e) {
+    completeness.value = null
+  }
+}
+
 const politicalOptions = ['群众', '共青团员', '中共预备党员', '中共党员']
 
 async function loadHeader() {
@@ -195,6 +214,7 @@ async function loadHeader() {
     ])
     student.value = b
     summary.value = s
+    loadCompleteness()
   } catch (e) {
     student.value = null
   } finally {
@@ -236,6 +256,7 @@ async function saveBasic() {
     ElMessage.success('保存成功')
     basicDialog.value = false
     await loadHeader()
+    await loadCompleteness()
   } catch {} finally { savingBasic.value = false }
 }
 </script>

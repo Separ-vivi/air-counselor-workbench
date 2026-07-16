@@ -1,7 +1,18 @@
 <template>
   <div class="topbar-root">
-    <!-- 左：三级架构切换器 -->
+    <!-- 左：返回按钮（深入页显示） + 三级架构切换器 -->
     <div class="left-side">
+      <el-tooltip content="返回上一页">
+        <el-button
+          v-if="showBack"
+          link
+          class="back-btn"
+          @click="goBack"
+        >
+          <el-icon><ArrowLeft /></el-icon>
+          <span style="margin-left:4px">返回</span>
+        </el-button>
+      </el-tooltip>
       <OrgSelector />
     </div>
 
@@ -32,9 +43,28 @@
 
 <script setup>
 import { onMounted, onBeforeUnmount, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ArrowLeft, Search, Refresh, Setting } from '@element-plus/icons-vue'
 import { useOrgStore } from '@/stores/org.js'
 import OrgSelector from './OrgSelector.vue'
 import mitt from '@/utils/eventBus.js'
+
+const route = useRoute()
+const router = useRouter()
+
+// 判断当前是不是深入页（学生 360 / 班级 360 等），有 :id 参数即认为需要返回按钮
+const showBack = computed(() => {
+  const p = route.path || ''
+  return /^\/students\/\w+$/.test(p) || /^\/classes\/\w+$/.test(p)
+})
+
+function goBack() {
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/dashboard')
+  }
+}
 
 const orgStore = useOrgStore()
 const orgLoading = computed(() => orgStore.treeLoading)
@@ -73,7 +103,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   gap: 20px;
   flex-shrink: 0;
 }
-.left-side { flex-shrink: 0; }
+.left-side { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+.back-btn {
+  color: #4A7A8C;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(74, 122, 140, 0.06);
+  transition: background .15s;
+}
+.back-btn:hover { background: rgba(74, 122, 140, 0.14); }
 .mid-side { flex: 1; display: flex; justify-content: center; }
 .right-side { display: flex; gap: 8px; align-items: center; }
 

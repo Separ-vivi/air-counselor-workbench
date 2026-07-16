@@ -3,27 +3,25 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 from database import get_db
-from models import PartyProgress, PsychologyRecord, FamilyContact, Student
+from models import PartyProgress, PsychologyRecord, FamilyContact, Student, ClassModel
 
 router = APIRouter(prefix='/api')
 
 
 # ===== 党团发展 =====
 @router.get('/party-progress')
-def list_party_progress(student_id: Optional[int] = None, db: Session = Depends(get_db)):
-    q = db.query(PartyProgress)
-    if student_id:
-        q = q.filter(PartyProgress.student_id == student_id)
-    items = q.order_by(PartyProgress.created_at.desc()).all()
+def list_party_progress(db: Session = Depends(get_db)):
+    progress_list = db.query(PartyProgress).all()
+    class_map = {c.id: c.class_name for c in db.query(ClassModel).all()}
     result = []
-    for p in items:
+    for p in progress_list:
         stu = db.query(Student).get(p.student_id)
         result.append({
             'id': p.id, 'student_id': p.student_id, 'stage': p.stage,
             'stage_date': p.stage_date, 'contact_person': p.contact_person,
             'notes': p.notes, 'student_name': stu.name if stu else '',
             'student_no': stu.student_no if stu else '',
-            'class_name': stu.class_name if stu else '',
+            'class_name': class_map.get(stu.class_id, '') if stu else '',
         })
     return result
 
@@ -59,20 +57,47 @@ def delete_party_progress(pid: int, db: Session = Depends(get_db)):
 
 
 @router.get('/party-progress/overview')
-def party_progress_overview(class_name: Optional[str] = None, db: Session = Depends(get_db)):
-    """党团发展全景表"""
+def party_progress_overview(
+    class_id: Optional[int] = None,
+    class_name: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """党团发展全景表 - 支持按 class_id 或 class_name 筛选（含'群众'状态）"""
     stages = ['群众', '递交入党申请书', '团员', '积极分子', '发展对象', '预备党员', '正式党员']
     q = db.query(Student)
-    if class_name:
-        q = q.filter(Student.class_name == class_name)
+    if class_id is not None:
+        q = q.filter(Student.class_id == class_id)
+    elif class_name:
+        # 兼容旧调用：class_name → class_id 转换
+        target = db.query(ClassModel).filter(ClassModel.class_name == class_name).first()
+        if target:
+            q = q.filter(Student.class_id == target.id)
+        else:
+            return {'stages': stages, 'students': []}
     students = q.all()
+
+    # 预加载班级映射，避免 N+1
+    class_map = {c.id: c for c in db.query(ClassModel).all()}
+
     result = []
     for s in students:
-        progress_list = db.query(PartyProgress).filter(PartyProgress.student_id == s.id).order_by(PartyProgress.created_at.desc()).all()
-        current_stage = progress_list[0].stage if progress_list else '未记录'
+        progress_list = db.query(PartyProgress).filter(
+            PartyProgress.student_id == s.id
+        ).order_by(PartyProgress.created_at.desc()).all()
+        # 默认阶段：政治面貌里含"党员/团员/群众"就用该值，否则未记录
+        if progress_list:
+            current_stage = progress_list[0].stage
+        elif s.political_status:
+            current_stage = s.political_status
+        else:
+            current_stage = '群众'
+        cls = class_map.get(s.class_id)
         result.append({
             'student_id': s.id, 'name': s.name, 'student_no': s.student_no,
-            'class_name': s.class_name, 'current_stage': current_stage,
+            'class_id': s.class_id,
+            'class_name': cls.class_name if cls else '',
+            'current_stage': current_stage,
+            'political_status': s.political_status or '群众',
             'progress_count': len(progress_list),
         })
     return {'stages': stages, 'students': result}
@@ -124,13 +149,16 @@ def party_progress_detail(student_id: int, db: Session = Depends(get_db)):
     if current_stage_index >= 0 and current_stage_index < len(timeline):
         timeline[current_stage_index]['is_current'] = True
     
+    # 获取班级/专业名（Student 没有 class_name/major 字段，需通过 relationship）
+    cls_obj = db.query(ClassModel).get(student.class_id) if student.class_id else None
+    major_obj = cls_obj.major if cls_obj else None
     return {
         'student': {
             'id': student.id,
             'name': student.name,
             'student_no': student.student_no,
-            'class_name': student.class_name,
-            'major': student.major,
+            'class_name': cls_obj.class_name if cls_obj else '',
+            'major': major_obj.major_name if major_obj else '',
         },
         'current_stage': progress_list[-1].stage if progress_list else '未记录',
         'timeline': timeline,
@@ -150,10 +178,11 @@ def party_progress_detail(student_id: int, db: Session = Depends(get_db)):
 @router.get('/party-progress/export')
 def export_party_progress(
     stage: str = None,
+    class_id: int = None,
     class_name: str = None,
     db: Session = Depends(get_db)
 ):
-    """导出党团发展 Excel"""
+    """导出党团发展 Excel（支持按 class_id 或 class_name 筛选）"""
     from openpyxl import Workbook
     from io import BytesIO
     from fastapi.responses import StreamingResponse
@@ -162,10 +191,16 @@ def export_party_progress(
     query = db.query(PartyProgress, Student).join(Student, PartyProgress.student_id == Student.id)
     if stage:
         query = query.filter(PartyProgress.stage == stage)
-    if class_name:
-        query = query.filter(Student.class_name == class_name)
+    if class_id is not None:
+        query = query.filter(Student.class_id == class_id)
+    elif class_name:
+        target = db.query(ClassModel).filter(ClassModel.class_name == class_name).first()
+        if target:
+            query = query.filter(Student.class_id == target.id)
     
     results = query.order_by(PartyProgress.stage_date.desc()).all()
+    # 预加载班级名映射
+    class_map = {c.id: c.class_name for c in db.query(ClassModel).all()}
     
     wb = Workbook()
     ws = wb.active
@@ -191,7 +226,7 @@ def export_party_progress(
         ws.append([
             student.student_no,
             student.name,
-            student.class_name,
+            class_map.get(student.class_id, ''),
             stage_map.get(progress.stage, progress.stage),
             stage_date_str or '',
             progress.contact_person or '',
