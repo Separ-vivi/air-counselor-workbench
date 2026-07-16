@@ -36,6 +36,35 @@ def list_cadres(class_name: Optional[str] = None, db: Session = Depends(get_db))
     return result
 
 
+@router.get('/cadres/directory')
+def cadre_directory(db: Session = Depends(get_db)):
+    """班委通讯录"""
+    from models import ClassModel
+    classes = db.query(ClassModel).all()
+    result = []
+    for cls in classes:
+        # 查找该班级的学生干部
+        students_in_class = db.query(Student).filter(Student.class_id == cls.id).all()
+        student_ids = [s.id for s in students_in_class]
+        cadres = db.query(StudentCadreRecord).filter(StudentCadreRecord.student_id.in_(student_ids)).all() if student_ids else []
+        teacher = db.query(ClassTeacher).filter(ClassTeacher.class_id == cls.id).first()
+        class_data = {'class_name': cls.class_name, 'cadres': [], 'teacher': None}
+        for c in cadres:
+            stu = db.query(Student).filter(Student.id == c.student_id).first()
+            class_data['cadres'].append({
+                'position': c.position, 'student_name': stu.name if stu else '',
+                'phone': stu.phone if stu else '',
+            })
+        if teacher:
+            class_data['teacher'] = {
+                'name': teacher.name, 'phone': teacher.phone, 'office': teacher.office,
+            }
+        if class_data['cadres'] or class_data['teacher']:
+            result.append(class_data)
+    return result
+
+
+
 @router.get('/cadres/{cadre_id}')
 def get_cadre(cadre_id: int, db: Session = Depends(get_db)):
     c = db.query(StudentCadreRecord).filter(StudentCadreRecord.id == cadre_id).first()
@@ -78,34 +107,6 @@ def delete_cadre(cid: int, db: Session = Depends(get_db)):
         db.delete(c)
         db.commit()
     return {'ok': True}
-
-
-@router.get('/cadres/directory')
-def cadre_directory(db: Session = Depends(get_db)):
-    """班委通讯录"""
-    from models import ClassModel
-    classes = db.query(ClassModel).all()
-    result = []
-    for cls in classes:
-        # 查找该班级的学生干部
-        students_in_class = db.query(Student).filter(Student.class_id == cls.id).all()
-        student_ids = [s.id for s in students_in_class]
-        cadres = db.query(StudentCadreRecord).filter(StudentCadreRecord.student_id.in_(student_ids)).all() if student_ids else []
-        teacher = db.query(ClassTeacher).filter(ClassTeacher.class_id == cls.id).first()
-        class_data = {'class_name': cls.class_name, 'cadres': [], 'teacher': None}
-        for c in cadres:
-            stu = db.query(Student).filter(Student.id == c.student_id).first()
-            class_data['cadres'].append({
-                'position': c.position, 'student_name': stu.name if stu else '',
-                'phone': stu.phone if stu else '',
-            })
-        if teacher:
-            class_data['teacher'] = {
-                'name': teacher.name, 'phone': teacher.phone, 'office': teacher.office,
-            }
-        if class_data['cadres'] or class_data['teacher']:
-            result.append(class_data)
-    return result
 
 
 # ===== 班主任 =====

@@ -4,7 +4,8 @@ from models import (
     Student, Tag, GradeRecord, WarningRecord, Setting, student_tags,
     PartyProgress, PsychologyRecord, FamilyContact, StudentCadreRecord,
     ClassTeacher, EmploymentRecord, Activity, PartyStudy, ClassMeeting,
-    KnowledgeDoc, FAQ, DocumentTemplate, WeeklySummary
+    KnowledgeDoc, FAQ, DocumentTemplate, WeeklySummary,
+    Grade, Major, ClassModel,
 )
 from database import SessionLocal
 
@@ -36,6 +37,7 @@ def seed_if_empty():
             # 政治面貌
             ('党员', '政治面貌', '#F56C6C'),
             ('团员', '政治面貌', '#409EFF'),
+            ('群众', '政治面貌', '#909399'),
             ('入党积极分子', '政治面貌', '#E6A23C'),
             # 其它
             ('学生干部', '其它', '#409EFF'),
@@ -48,7 +50,44 @@ def seed_if_empty():
             db.flush()
             tags[name] = tag
 
+        # ===== 创建组织架构 =====
+        grade_2024 = Grade(grade_name='2024级', start_year=2024)
+        grade_2022 = Grade(grade_name='2022级', start_year=2022)
+        db.add_all([grade_2024, grade_2022])
+        db.flush()
+
+        majors_data = [
+            ('计算机科学与技术', grade_2022.id),
+            ('软件工程', grade_2022.id),
+            ('物联网工程', grade_2022.id),
+            ('计算机科学与技术', grade_2024.id),
+        ]
+        majors_map = {}
+        for mname, gid in majors_data:
+            m = Major(major_name=mname, grade_id=gid)
+            db.add(m); db.flush()
+            majors_map[(mname, gid)] = m
+
+        classes_data = [
+            ('计科2201班', '计算机科学与技术', grade_2022.id),
+            ('计科2202班', '计算机科学与技术', grade_2022.id),
+            ('软工2201班', '软件工程',       grade_2022.id),
+            ('物联2201班', '物联网工程',     grade_2022.id),
+            ('计科2401班', '计算机科学与技术', grade_2024.id),
+        ]
+        classes_map = {}
+        for cname, mname, gid in classes_data:
+            c = ClassModel(class_name=cname, major_id=majors_map[(mname, gid)].id)
+            db.add(c); db.flush()
+            classes_map[cname] = c
+
         # ===== 创建学生 =====
+        # 允许写入 Student 的字段白名单（其余字段自动过滤或合并到 notes）
+        STUDENT_FIELDS = {
+            'student_no', 'name', 'gender', 'class_id', 'birth_date',
+            'political_status', 'phone', 'email', 'parent_phone',
+            'birth_source', 'notes', 'pinyin_initial'
+        }
         students_data = [
             {
                 'student_no': '2022010101', 'name': '张明', 'gender': '男',
@@ -85,16 +124,96 @@ def seed_if_empty():
             {
                 'student_no': '2022010103', 'name': '刘婷', 'gender': '女',
                 'major': '计算机科学与技术', 'class_name': '计科2201班',
-                'birth_date': '2003-07-28', 'political_status': '团员',
+                'birth_date': '2003-07-28', 'political_status': '共青团员',
                 'family_situation': '单亲家庭，母亲打零工，已获助学金',
                 'phone': '13800001003', 'email': 'liuting@example.com',
                 'tag_names': ['家庭困难', '已获助学金', '团员', '心理稳定'],
+            },
+            # === 追加：覆盖群众/预备党员/2024级新生 ===
+            {
+                'student_no': '2022010104', 'name': '陈涛', 'gender': '男',
+                'class_name': '计科2202班', 'birth_date': '2003-09-12',
+                'political_status': '群众',
+                'family_situation': '普通家庭，未提交入团申请',
+                'phone': '13800001004', 'email': 'chentao@example.com',
+                'tag_names': ['群众'],
+            },
+            {
+                'student_no': '2022010105', 'name': '林雪', 'gender': '女',
+                'class_name': '计科2202班', 'birth_date': '2003-12-01',
+                'political_status': '群众',
+                'family_situation': '普通家庭',
+                'phone': '13800001005', 'email': 'linxue@example.com',
+                'tag_names': ['群众', '社团活跃'],
+            },
+            {
+                'student_no': '2022020101', 'name': '孙浩', 'gender': '男',
+                'class_name': '物联2201班', 'birth_date': '2003-04-18',
+                'political_status': '中共预备党员',
+                'family_situation': '城市家庭',
+                'phone': '13800003001', 'email': 'sunhao@example.com',
+                'tag_names': ['学生干部', '进步明显'],
+            },
+            {
+                'student_no': '2022020102', 'name': '周琳', 'gender': '女',
+                'class_name': '物联2201班', 'birth_date': '2004-02-25',
+                'political_status': '共青团员',
+                'family_situation': '农村家庭',
+                'phone': '13800003002', 'email': 'zhoulin@example.com',
+                'tag_names': ['团员', '专业前10%'],
+            },
+            {
+                'student_no': '2022030101', 'name': '吴磊', 'gender': '男',
+                'class_name': '软工2201班', 'birth_date': '2003-06-30',
+                'political_status': '共青团员',
+                'family_situation': '城市家庭',
+                'phone': '13800004001', 'email': 'wulei@example.com',
+                'tag_names': ['团员', '社团活跃'],
+            },
+            {
+                'student_no': '2024010101', 'name': '郑亚', 'gender': '男',
+                'class_name': '计科2401班', 'birth_date': '2006-03-14',
+                'political_status': '共青团员',
+                'family_situation': '普通家庭，2024级新生',
+                'phone': '13800005001', 'email': 'zhengya@example.com',
+                'tag_names': ['团员'],
+            },
+            {
+                'student_no': '2024010102', 'name': '黄敏', 'gender': '女',
+                'class_name': '计科2401班', 'birth_date': '2006-08-20',
+                'political_status': '群众',
+                'family_situation': '普通家庭，2024级新生',
+                'phone': '13800005002', 'email': 'huangmin@example.com',
+                'tag_names': ['群众', '需关怀'],
+            },
+            {
+                'student_no': '2024010103', 'name': '许强', 'gender': '男',
+                'class_name': '计科2401班', 'birth_date': '2006-11-05',
+                'political_status': '共青团员',
+                'family_situation': '家庭困难，2024级新生',
+                'phone': '13800005003', 'email': 'xuqiang@example.com',
+                'tag_names': ['团员', '家庭困难', '需关怀'],
             },
         ]
 
         students = {}
         for sdata in students_data:
-            tag_names = sdata.pop('tag_names')
+            tag_names = sdata.pop('tag_names', [])
+            # 把 class_name 映射到 class_id
+            cname = sdata.pop('class_name', None)
+            if cname and cname in classes_map:
+                sdata['class_id'] = classes_map[cname].id
+            # 把不属于 Student 的字段（如 major/family_situation）合并到 notes
+            sdata.pop('major', None)
+            extras = []
+            fs = sdata.pop('family_situation', '')
+            if fs:
+                extras.append(f'家庭情况: {fs}')
+            for k in list(sdata.keys()):
+                if k not in STUDENT_FIELDS:
+                    extras.append(f'{k}: {sdata.pop(k)}')
+            if extras:
+                sdata['notes'] = (sdata.get('notes', '') + '\n' + ' | '.join(extras)).strip()
             student = Student(**sdata)
             db.add(student)
             db.flush()
@@ -251,19 +370,19 @@ def seed_if_empty():
         ))
 
         # 学生干部
-        db.add(StudentCadreRecord(student_id=zhangming.id, class_name='计科2201班', position='班长', term='2022-2024'))
-        db.add(StudentCadreRecord(student_id=liuting.id, class_name='计科2201班', position='学习委员', term='2022-2024'))
-        db.add(StudentCadreRecord(student_id=zhaoqiang.id, class_name='软工2201班', position='团支书', term='2022-2024'))
-        db.add(StudentCadreRecord(student_id=wangfang.id, class_name='软工2201班', position='文艺委员', term='2022-2024'))
+        db.add(StudentCadreRecord(student_id=zhangming.id, position='班长', term='2022-2024'))
+        db.add(StudentCadreRecord(student_id=liuting.id, position='学习委员', term='2022-2024'))
+        db.add(StudentCadreRecord(student_id=zhaoqiang.id, position='团支书', term='2022-2024'))
+        db.add(StudentCadreRecord(student_id=wangfang.id, position='文艺委员', term='2022-2024'))
 
         # 班主任
         db.add(ClassTeacher(
-            class_name='计科2201班', name='陈教授', staff_no='T2019001',
+            class_id=classes_map['计科2201班'].id, name='陈教授', staff_no='T2019001',
             department='计算机学院', phone='13900001001', office='信息楼305',
             research_direction='人工智能'
         ))
         db.add(ClassTeacher(
-            class_name='软工2201班', name='周副教授', staff_no='T2020002',
+            class_id=classes_map['软工2201班'].id, name='周副教授', staff_no='T2020002',
             department='软件工程系', phone='13900001002', office='信息楼408',
             research_direction='软件工程'
         ))
@@ -305,12 +424,12 @@ def seed_if_empty():
 
         # 班会记录
         db.add(ClassMeeting(
-            class_name='计科2201班', meeting_date='2024-01-08',
+            class_id=classes_map['计科2201班'].id, meeting_date='2024-01-08',
             topic='期末考试动员', attendance_count=28,
             content_summary='强调考风考纪，安排复习计划'
         ))
         db.add(ClassMeeting(
-            class_name='软工2201班', meeting_date='2024-01-10',
+            class_id=classes_map['软工2201班'].id, meeting_date='2024-01-10',
             topic='新学期规划', attendance_count=25,
             content_summary='分享新学期学习目标和计划'
         ))

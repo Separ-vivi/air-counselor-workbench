@@ -231,6 +231,26 @@ def list_psychology(student_id: Optional[int] = None, db: Session = Depends(get_
     return result
 
 
+@router.get('/psychology/reminders')
+def psychology_reminders(db: Session = Depends(get_db)):
+    """下次跟进到期提醒"""
+    from datetime import datetime, timedelta
+    today = datetime.now().strftime('%Y-%m-%d')
+    items = db.query(PsychologyRecord).filter(
+        PsychologyRecord.next_follow_date != '',
+        PsychologyRecord.next_follow_date <= today
+    ).all()
+    result = []
+    for r in items:
+        stu = db.query(Student).get(r.student_id)
+        result.append({
+            'id': r.id, 'student_name': stu.name if stu else '',
+            'topic': r.topic, 'next_follow_date': r.next_follow_date,
+        })
+    return result
+
+
+
 @router.get('/psychology/{record_id}')
 def get_psychology(record_id: int, db: Session = Depends(get_db)):
     r = db.query(PsychologyRecord).get(record_id)
@@ -274,25 +294,6 @@ def delete_psychology(rid: int, db: Session = Depends(get_db)):
         db.delete(r)
         db.commit()
     return {'ok': True}
-
-
-@router.get('/psychology/reminders')
-def psychology_reminders(db: Session = Depends(get_db)):
-    """下次跟进到期提醒"""
-    from datetime import datetime, timedelta
-    today = datetime.now().strftime('%Y-%m-%d')
-    items = db.query(PsychologyRecord).filter(
-        PsychologyRecord.next_follow_date != '',
-        PsychologyRecord.next_follow_date <= today
-    ).all()
-    result = []
-    for r in items:
-        stu = db.query(Student).get(r.student_id)
-        result.append({
-            'id': r.id, 'student_name': stu.name if stu else '',
-            'topic': r.topic, 'next_follow_date': r.next_follow_date,
-        })
-    return result
 
 
 # ===== 家校沟通 =====
