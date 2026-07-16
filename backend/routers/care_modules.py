@@ -1,0 +1,358 @@
+"""党团发展 + 心理关怀 + 家校沟通 路由"""
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from typing import Optional
+from database import get_db
+from models import PartyProgress, PsychologyRecord, FamilyContact, Student
+
+router = APIRouter(prefix='/api')
+
+
+# ===== 党团发展 =====
+@router.get('/party-progress')
+def list_party_progress(student_id: Optional[int] = None, db: Session = Depends(get_db)):
+    q = db.query(PartyProgress)
+    if student_id:
+        q = q.filter(PartyProgress.student_id == student_id)
+    items = q.order_by(PartyProgress.created_at.desc()).all()
+    result = []
+    for p in items:
+        stu = db.query(Student).get(p.student_id)
+        result.append({
+            'id': p.id, 'student_id': p.student_id, 'stage': p.stage,
+            'stage_date': p.stage_date, 'contact_person': p.contact_person,
+            'notes': p.notes, 'student_name': stu.name if stu else '',
+            'student_no': stu.student_no if stu else '',
+            'class_name': stu.class_name if stu else '',
+        })
+    return result
+
+
+@router.post('/party-progress')
+def create_party_progress(data: dict, db: Session = Depends(get_db)):
+    p = PartyProgress(**data)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return {'id': p.id}
+
+
+@router.put('/party-progress/{pid}')
+def update_party_progress(pid: int, data: dict, db: Session = Depends(get_db)):
+    p = db.query(PartyProgress).get(pid)
+    if not p:
+        raise HTTPException(404, '记录不存在')
+    for k, v in data.items():
+        if hasattr(p, k):
+            setattr(p, k, v)
+    db.commit()
+    return {'ok': True}
+
+
+@router.delete('/party-progress/{pid}')
+def delete_party_progress(pid: int, db: Session = Depends(get_db)):
+    p = db.query(PartyProgress).get(pid)
+    if p:
+        db.delete(p)
+        db.commit()
+    return {'ok': True}
+
+
+@router.get('/party-progress/overview')
+def party_progress_overview(class_name: Optional[str] = None, db: Session = Depends(get_db)):
+    """党团发展全景表"""
+    stages = ['群众', '递交入党申请书', '团员', '积极分子', '发展对象', '预备党员', '正式党员']
+    q = db.query(Student)
+    if class_name:
+        q = q.filter(Student.class_name == class_name)
+    students = q.all()
+    result = []
+    for s in students:
+        progress_list = db.query(PartyProgress).filter(PartyProgress.student_id == s.id).order_by(PartyProgress.created_at.desc()).all()
+        current_stage = progress_list[0].stage if progress_list else '未记录'
+        result.append({
+            'student_id': s.id, 'name': s.name, 'student_no': s.student_no,
+            'class_name': s.class_name, 'current_stage': current_stage,
+            'progress_count': len(progress_list),
+        })
+    return {'stages': stages, 'students': result}
+
+
+@router.get('/party-progress/detail/{student_id}')
+def party_progress_detail(student_id: int, db: Session = Depends(get_db)):
+    """党团发展详情 - 时间线视图"""
+    student = db.query(Student).get(student_id)
+    if not student:
+        raise HTTPException(404, '学生不存在')
+    
+    progress_list = db.query(PartyProgress).filter(
+        PartyProgress.student_id == student_id
+    ).order_by(PartyProgress.stage_date.asc()).all()
+    
+    # 6大阶段定义
+    stage_definitions = [
+        {'key': '递交入党申请书', 'label': '递交入党申请书', 'description': '提交书面入党申请'},
+        {'key': '积极分子', 'label': '确定为入党积极分子', 'description': '经团组织推优确定'},
+        {'key': '发展对象', 'label': '确定为发展对象', 'description': '经过一年以上培养考察'},
+        {'key': '预备党员', 'label': '接收为预备党员', 'description': '支部大会讨论通过'},
+        {'key': '转正', 'label': '预备党员转正', 'description': '预备期满一年转正'},
+        {'key': '正式党员', 'label': '正式党员', 'description': '完成全部发展流程'},
+    ]
+    
+    # 构建时间线
+    timeline = []
+    progress_map = {p.stage: p for p in progress_list}
+    current_stage_index = -1
+    
+    for i, stage_def in enumerate(stage_definitions):
+        progress = progress_map.get(stage_def['key'])
+        stage_info = {
+            'stage': stage_def['key'],
+            'label': stage_def['label'],
+            'description': stage_def['description'],
+            'completed': progress is not None,
+            'date': progress.stage_date if progress else None,
+            'contact_person': progress.contact_person if progress else None,
+            'notes': progress.notes if progress else None,
+            'is_current': False,
+        }
+        if progress:
+            current_stage_index = i
+        timeline.append(stage_info)
+    
+    # 标记当前阶段
+    if current_stage_index >= 0 and current_stage_index < len(timeline):
+        timeline[current_stage_index]['is_current'] = True
+    
+    return {
+        'student': {
+            'id': student.id,
+            'name': student.name,
+            'student_no': student.student_no,
+            'class_name': student.class_name,
+            'major': student.major,
+        },
+        'current_stage': progress_list[-1].stage if progress_list else '未记录',
+        'timeline': timeline,
+        'records': [
+            {
+                'id': p.id,
+                'stage': p.stage,
+                'stage_date': p.stage_date,
+                'contact_person': p.contact_person,
+                'notes': p.notes,
+            }
+            for p in progress_list
+        ],
+    }
+
+
+@router.get('/party-progress/export')
+def export_party_progress(
+    stage: str = None,
+    class_name: str = None,
+    db: Session = Depends(get_db)
+):
+    """导出党团发展 Excel"""
+    from openpyxl import Workbook
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    from datetime import datetime
+    
+    query = db.query(PartyProgress, Student).join(Student, PartyProgress.student_id == Student.id)
+    if stage:
+        query = query.filter(PartyProgress.stage == stage)
+    if class_name:
+        query = query.filter(Student.class_name == class_name)
+    
+    results = query.order_by(PartyProgress.stage_date.desc()).all()
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '党团发展'
+    
+    # 写入表头
+    headers = ['学号', '姓名', '班级', '当前阶段', '阶段日期', '联系人', '备注']
+    ws.append(headers)
+    
+    # 写入数据
+    stage_map = {
+        'application': '递交入党申请书',
+        'activist': '入党积极分子',
+        'development': '发展对象',
+        'probation': '预备党员',
+        'regularization': '预备党员转正',
+        'full_member': '正式党员'
+    }
+    for progress, student in results:
+        stage_date_str = progress.stage_date
+        if hasattr(progress.stage_date, 'strftime'):
+            stage_date_str = progress.stage_date.strftime('%Y-%m-%d')
+        ws.append([
+            student.student_no,
+            student.name,
+            student.class_name,
+            stage_map.get(progress.stage, progress.stage),
+            stage_date_str or '',
+            progress.contact_person or '',
+            progress.notes or ''
+        ])
+    
+    # 保存到内存
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    filename = f'party_progress_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    return StreamingResponse(
+        output,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
+# ===== 心理关怀 =====
+@router.get('/psychology')
+def list_psychology(student_id: Optional[int] = None, db: Session = Depends(get_db)):
+    q = db.query(PsychologyRecord)
+    if student_id:
+        q = q.filter(PsychologyRecord.student_id == student_id)
+    items = q.order_by(PsychologyRecord.created_at.desc()).all()
+    result = []
+    for r in items:
+        stu = db.query(Student).get(r.student_id)
+        result.append({
+            'id': r.id, 'student_id': r.student_id, 'record_date': r.record_date,
+            'location': r.location, 'topic': r.topic, 'summary': r.summary,
+            'emotion_tags': r.emotion_tags, 'follow_up_plan': r.follow_up_plan,
+            'next_follow_date': r.next_follow_date,
+            'student_name': stu.name if stu else '',
+        })
+    return result
+
+
+@router.get('/psychology/{record_id}')
+def get_psychology(record_id: int, db: Session = Depends(get_db)):
+    r = db.query(PsychologyRecord).get(record_id)
+    if not r:
+        raise HTTPException(404, '记录不存在')
+    stu = db.query(Student).get(r.student_id)
+    return {
+        'id': r.id, 'student_id': r.student_id, 'record_date': r.record_date,
+        'location': r.location, 'topic': r.topic, 'summary': r.summary,
+        'emotion_tags': r.emotion_tags, 'follow_up_plan': r.follow_up_plan,
+        'next_follow_date': r.next_follow_date,
+        'student_name': stu.name if stu else '',
+    }
+
+
+@router.post('/psychology')
+def create_psychology(data: dict, db: Session = Depends(get_db)):
+    r = PsychologyRecord(**data)
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return {'id': r.id}
+
+
+@router.put('/psychology/{rid}')
+def update_psychology(rid: int, data: dict, db: Session = Depends(get_db)):
+    r = db.query(PsychologyRecord).get(rid)
+    if not r:
+        raise HTTPException(404, '记录不存在')
+    for k, v in data.items():
+        if hasattr(r, k):
+            setattr(r, k, v)
+    db.commit()
+    return {'ok': True}
+
+
+@router.delete('/psychology/{rid}')
+def delete_psychology(rid: int, db: Session = Depends(get_db)):
+    r = db.query(PsychologyRecord).get(rid)
+    if r:
+        db.delete(r)
+        db.commit()
+    return {'ok': True}
+
+
+@router.get('/psychology/reminders')
+def psychology_reminders(db: Session = Depends(get_db)):
+    """下次跟进到期提醒"""
+    from datetime import datetime, timedelta
+    today = datetime.now().strftime('%Y-%m-%d')
+    items = db.query(PsychologyRecord).filter(
+        PsychologyRecord.next_follow_date != '',
+        PsychologyRecord.next_follow_date <= today
+    ).all()
+    result = []
+    for r in items:
+        stu = db.query(Student).get(r.student_id)
+        result.append({
+            'id': r.id, 'student_name': stu.name if stu else '',
+            'topic': r.topic, 'next_follow_date': r.next_follow_date,
+        })
+    return result
+
+
+# ===== 家校沟通 =====
+@router.get('/family-contacts')
+def list_family_contacts(student_id: Optional[int] = None, db: Session = Depends(get_db)):
+    q = db.query(FamilyContact)
+    if student_id:
+        q = q.filter(FamilyContact.student_id == student_id)
+    items = q.order_by(FamilyContact.created_at.desc()).all()
+    result = []
+    for c in items:
+        stu = db.query(Student).get(c.student_id)
+        result.append({
+            'id': c.id, 'student_id': c.student_id, 'contact_date': c.contact_date,
+            'parent_name': c.parent_name, 'contact_method': c.contact_method,
+            'topic': c.topic, 'conclusion': c.conclusion,
+            'student_name': stu.name if stu else '',
+        })
+    return result
+
+
+@router.get('/family-contacts/{contact_id}')
+def get_family_contact(contact_id: int, db: Session = Depends(get_db)):
+    c = db.query(FamilyContact).get(contact_id)
+    if not c:
+        raise HTTPException(404, '记录不存在')
+    stu = db.query(Student).get(c.student_id)
+    return {
+        'id': c.id, 'student_id': c.student_id, 'contact_date': c.contact_date,
+        'parent_name': c.parent_name, 'contact_method': c.contact_method,
+        'topic': c.topic, 'conclusion': c.conclusion,
+        'student_name': stu.name if stu else '',
+    }
+
+
+@router.post('/family-contacts')
+def create_family_contact(data: dict, db: Session = Depends(get_db)):
+    c = FamilyContact(**data)
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return {'id': c.id}
+
+
+@router.put('/family-contacts/{cid}')
+def update_family_contact(cid: int, data: dict, db: Session = Depends(get_db)):
+    c = db.query(FamilyContact).get(cid)
+    if not c:
+        raise HTTPException(404, '记录不存在')
+    for k, v in data.items():
+        if hasattr(c, k):
+            setattr(c, k, v)
+    db.commit()
+    return {'ok': True}
+
+
+@router.delete('/family-contacts/{cid}')
+def delete_family_contact(cid: int, db: Session = Depends(get_db)):
+    c = db.query(FamilyContact).get(cid)
+    if c:
+        db.delete(c)
+        db.commit()
+    return {'ok': True}
