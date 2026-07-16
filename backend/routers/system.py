@@ -113,7 +113,7 @@ def seed_large_endpoint(force: bool = False):
             'ok': False,
             'need_confirm': True,
             'student_count': student_cnt,
-            'message': f'数据库已有 {student_cnt} 名学生。追加模式只会补齐到 300+，不会清空。如需完全重建请改用"重新初始化数据库"。要继续追加请重新点击。',
+            'message': f'数据库已有 {student_cnt} 名学生。请先点"重建数据库"清空，再点"生成测试数据"（追加模式已废弃，会因学号冲突生成不完整数据）。',
         }
     try:
         from seed_large import seed_large_dataset

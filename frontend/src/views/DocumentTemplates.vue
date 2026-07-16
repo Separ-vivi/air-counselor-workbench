@@ -29,8 +29,8 @@
         <div class="tpl-name">{{ t.name }}</div>
         <div class="tpl-preview">{{ t.content }}</div>
         <div class="tpl-actions">
-          <el-button link type="primary" @click="onPreview(t)">👁️ 预览</el-button>
-          <el-button link type="primary" @click="onGenerate(t)">✨ 生成文书</el-button>
+          <el-button size="small" plain type="primary" @click="onPreview(t)">👁️ 预览</el-button>
+          <el-button size="small" type="success" @click="onGenerate(t)">✨ 生成文书</el-button>
         </div>
       </div>
     </div>

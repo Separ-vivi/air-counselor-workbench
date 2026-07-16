@@ -272,7 +272,7 @@ def seed_large_dataset():
                 db.add(WarningRecord(student_id=stu.id, warning_type='yellow', description='挂科 1 门，进入学业观察', semester=student_semesters[-1]))
                 stats['warnings'] += 1
         db.bulk_save_objects(bulk_grades)
-        stats['grades'] = len(bulk_grades)
+        stats['scores'] = len(bulk_grades)
         db.commit()
 
         # 党团发展
@@ -436,11 +436,12 @@ def seed_large_dataset():
 
         # 党团学习
         stats['party_study'] = 0
-        for i in range(15):
-            ps = PartyStudy(study_type=random.choice(['主题党日','团日活动','党课学习','支部会议']), study_date=f'2024-{i%12+1:02d}-{random.randint(5,25):02d}', topic=random.choice(['学习二十大精神','党史学习教育','青年责任担当','雷锋精神传承']), content_summary='集体学习并展开研讨', report_points='')
-            ps.students = random.sample(all_students, k=random.randint(5,10))
-            db.add(ps); stats['party_study'] += 1
-        db.commit()
+        if all_students:
+            for i in range(15):
+                ps = PartyStudy(study_type=random.choice(['主题党日','团日活动','党课学习','支部会议']), study_date=f'2024-{i%12+1:02d}-{random.randint(5,25):02d}', topic=random.choice(['学习二十大精神','党史学习教育','青年责任担当','雷锋精神传承']), content_summary='集体学习并展开研讨', report_points='')
+                ps.students = random.sample(all_students, k=min(random.randint(5,10), len(all_students)))
+                db.add(ps); stats['party_study'] += 1
+            db.commit()
 
         # Setting
         for k, v in [('fail_course_threshold','2'),('gpa_drop_threshold','0.5')]:
