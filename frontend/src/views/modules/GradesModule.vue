@@ -202,7 +202,7 @@ import StudentSelect from '@/components/StudentSelect.vue'
 const router = useRouter()
 const orgStore = useOrgStore()
 
-const tab = ref('student')
+const tab = ref('class')
 
 // 按学生
 const studentId = ref(null)
@@ -277,7 +277,22 @@ onMounted(async () => {
   if (!orgStore.orgTree?.length) {
     try { await orgStore.loadTree() } catch (e) {}
   }
+  // 默认自动选第一个班，让 air 进来就有成绩数据看
+  if (!classId.value && orgStore.orgTree?.length) {
+    for (const g of orgStore.orgTree) {
+      for (const m of (g.majors || [])) {
+        if (m.classes?.length) {
+          classId.value = m.classes[0].id
+          reloadClass()
+          return
+        }
+      }
+    }
+  }
 })
+
+// classId 变化时自动重载
+watch(classId, reloadClass)
 </script>
 
 <style scoped>
