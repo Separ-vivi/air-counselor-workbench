@@ -143,7 +143,7 @@ onMounted(load)
 .panel-head .count { font-size: 12px; }
 .panel-head > div:last-child { display:flex; gap: 8px; }
 .link { color: var(--color-sidebar); font-weight: 500; }
-.contact-card { margin-bottom: 12px; border-radius: 12px; background: #FDFAF3; }
+.contact-card { margin-bottom: 12px; border-radius: 12px; background: #F5F7F9; }
 .contact-title { font-weight: 600; color: #4A7A8C; margin-bottom: 8px; }
 .contact-row { display: flex; flex-wrap: wrap; gap: 12px 20px; font-size: 13px; color: #303133; }
 .contact-item { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #ffffff; border-radius: 10px; border: 1px solid #E4E7ED; }

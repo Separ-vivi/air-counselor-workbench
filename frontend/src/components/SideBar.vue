@@ -12,7 +12,7 @@
       router
       background-color="transparent"
       text-color="#EAF3F7"
-      active-text-color="#FDFAF3"
+      active-text-color="#F5F7F9"
     >
       <el-menu-item index="/dashboard"><el-icon><DataBoard /></el-icon><span>驾驶舱</span></el-menu-item>
       <el-menu-item index="/students"><el-icon><User /></el-icon><span>学生管理</span></el-menu-item>
