@@ -83,7 +83,7 @@
         <el-table-column label="专业" prop="major" min-width="140" show-overflow-tooltip sortable="custom" />
         <el-table-column label="政治面貌" prop="political_status" width="110" sortable="custom" />
         <el-table-column label="生源地" prop="birth_source" width="140" show-overflow-tooltip sortable="custom" />
-        <el-table-column label="身份证号" prop="id_card" min-width="180" sortable="custom">
+        <el-table-column label="身份证号" prop="id_card" min-width="140" sortable="custom">
           <template #default="{ row }">
             <span v-if="row.id_card && row.id_card.length >= 10" style="font-family: monospace">
               {{ showAllIdCards ? row.id_card : (row.id_card.slice(0,6) + '********' + row.id_card.slice(-4)) }}
@@ -100,9 +100,8 @@
           </template>
         </el-table-column>
         <el-table-column label="电话" prop="phone" width="130" sortable="custom" />
-        <el-table-column label="操作" fixed="right" width="180">
+        <el-table-column label="操作" fixed="right" width="140">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="$router.push(`/students/${row.id}`)">档案</el-button>
             <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
             <el-popconfirm title="确认删除该学生？" @confirm="onDelete(row)">
               <template #reference>

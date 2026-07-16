@@ -456,3 +456,149 @@ a:hover {
   border-color: rgba(74,122,140,.40);
   color: #3B6A7C !important;
 }
+
+/* ========================================================================
+   V3-G 全站时尚化增强（air 反馈：风格要跟驾驶舱一致，时尚一点；禁止深底深字）
+   ======================================================================== */
+
+/* ---- 全站柔和渐变背景（马卡龙气泡） ---- */
+.app-content {
+  background:
+    radial-gradient(circle at 8% 6%, rgba(255, 210, 220, 0.25), transparent 38%),
+    radial-gradient(circle at 92% 10%, rgba(200, 230, 240, 0.28), transparent 42%),
+    radial-gradient(circle at 60% 96%, rgba(220, 220, 250, 0.24), transparent 46%),
+    linear-gradient(180deg, #FDFCFA 0%, #F5F7FA 100%) !important;
+}
+
+/* ---- 所有卡片：统一微毛玻璃 + 圆角 + hover 上浮 ---- */
+.el-card {
+  border-radius: 14px !important;
+  border: 1px solid rgba(220, 226, 232, 0.6) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  box-shadow: 0 2px 12px rgba(180, 190, 220, 0.10) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.el-card:hover {
+  box-shadow: 0 6px 20px rgba(180, 190, 220, 0.16) !important;
+}
+.el-card__header {
+  border-bottom: 1px solid rgba(220, 226, 232, 0.5) !important;
+  padding: 14px 20px !important;
+  font-weight: 600;
+  color: #3A4A5A;
+}
+
+/* ---- 按钮时尚化：渐变 + 微阴影 + hover 抬起 ---- */
+.el-button {
+  border-radius: 10px !important;
+  transition: transform .12s ease, box-shadow .18s ease, background .2s ease !important;
+  font-weight: 500;
+}
+.el-button:not(.is-link):not(.is-text):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 122, 140, 0.18);
+}
+.el-button--primary {
+  background: linear-gradient(135deg, #5D8FA0 0%, #4A7A8C 100%) !important;
+  border-color: transparent !important;
+  box-shadow: 0 2px 8px rgba(74, 122, 140, 0.20);
+}
+.el-button--primary:hover {
+  background: linear-gradient(135deg, #6EA0B0 0%, #5D8FA0 100%) !important;
+  box-shadow: 0 4px 14px rgba(74, 122, 140, 0.28);
+}
+.el-button--success {
+  background: linear-gradient(135deg, #82C79A 0%, #67B085 100%) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+.el-button--warning {
+  background: linear-gradient(135deg, #F0C05A 0%, #E6A23C 100%) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+.el-button--danger {
+  background: linear-gradient(135deg, #EE7773 0%, #D9534F 100%) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+.el-button--default {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(200, 210, 220, 0.8) !important;
+  color: #4A5A6A !important;
+}
+.el-button--default:hover {
+  background: rgba(230, 240, 245, 0.95) !important;
+  border-color: rgba(93, 143, 160, 0.5) !important;
+  color: #3B6A7C !important;
+}
+
+/* ---- 输入框 / 下拉 / 选择器：圆角 + 柔和边框 ---- */
+.el-input__wrapper, .el-textarea__inner, .el-select .el-input__wrapper {
+  border-radius: 10px !important;
+  box-shadow: 0 0 0 1px rgba(200, 210, 220, 0.6) inset !important;
+  transition: box-shadow .2s;
+}
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px rgba(93, 143, 160, 0.5) inset !important;
+}
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px #5D8FA0 inset !important;
+}
+
+/* ---- 弹窗 / 抽屉 ---- */
+.el-dialog {
+  border-radius: 18px !important;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(74, 122, 140, 0.22) !important;
+}
+.el-drawer {
+  border-radius: 18px 0 0 18px !important;
+}
+
+/* ---- 表格：圆角 + 表头浅色 ---- */
+.el-table {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+.el-table th.el-table__cell {
+  background: rgba(240, 245, 248, 0.85) !important;
+  color: #4A5A6A !important;
+  font-weight: 600;
+}
+
+/* ---- 标签 el-tag：圆角柔化 ---- */
+.el-tag {
+  border-radius: 6px !important;
+  font-weight: 500;
+}
+
+/* ========================================================================
+   ⚠️ 深色底禁止深色字（air 硬指令：看不清！）
+   ======================================================================== */
+
+/* effect=dark 系列的 tag 强制白字 */
+.el-tag.el-tag--dark {
+  color: #FFFFFF !important;
+}
+.el-tag.el-tag--dark.el-tag--danger  { background: #E56B67 !important; border-color: #E56B67 !important; }
+.el-tag.el-tag--dark.el-tag--warning { background: #E6A23C !important; border-color: #E6A23C !important; }
+.el-tag.el-tag--dark.el-tag--success { background: #67B085 !important; border-color: #67B085 !important; }
+.el-tag.el-tag--dark.el-tag--info    { background: #7A8A9A !important; border-color: #7A8A9A !important; }
+.el-tag.el-tag--dark.el-tag--primary { background: #5D8FA0 !important; border-color: #5D8FA0 !important; }
+
+/* 状态灯（浅底→深字：安全） */
+.status-red, .badge-danger, .badge-red   { background: #F8B4B4 !important; color: #6A2626 !important; }
+.status-yellow, .badge-warning           { background: #F9E79F !important; color: #6A4E1A !important; }
+.status-green, .badge-success            { background: #B7E4C7 !important; color: #1F5E3A !important; }
+
+/* 深色底元素兜底：一律白字 */
+[class*="--dark"], .theme-dark, .bg-dark { color: #FFFFFF !important; }
+
+/* 分页激活态：主色渐变 */
+.el-pagination.is-background .el-pager li.is-active {
+  background: linear-gradient(135deg, #5D8FA0 0%, #4A7A8C 100%) !important;
+  color: #fff !important;
+}

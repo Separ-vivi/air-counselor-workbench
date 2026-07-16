@@ -234,15 +234,19 @@ def get_weekly_summary(summary_id: int, db: Session = Depends(get_db)):
 
 @router.post('/weekly-summaries/generate')
 def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db)):
-    """自动生成周汇总
+    """自动生成周汇总（叙事型：具体时间、地点、事件、当事人）
     payload 可选字段：
       dimensions: [academic|party|psychology|aid|employment|daily|activity] 多选
       format: bullet | paragraph | mixed
       week_offset: int，0=本周，-1=上周
     """
     from datetime import datetime, timedelta
-    from models import PsychologyRecord, FamilyContact, PartyProgress, WarningRecord, ClassMeeting, WeeklySummary as WS
-    from models import Activity, StudentGrant, EmploymentRecord, GradeRecord, StudentDiscipline, StudentDormVisit
+    from models import (
+        PsychologyRecord, FamilyContact, PartyProgress, WarningRecord,
+        ClassMeeting, WeeklySummary as WS,
+        Activity, StudentGrant, EmploymentRecord, GradeRecord,
+        StudentDiscipline, StudentDormVisit, Student, ClassModel
+    )
 
     payload = payload or {}
     dims = payload.get('dimensions') or ['academic','party','psychology','aid','employment','daily','activity']
@@ -255,60 +259,188 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
     ws = week_start.strftime('%Y-%m-%d')
     we = week_end.strftime('%Y-%m-%d')
 
-    def line(label, val):
-        if fmt == 'paragraph':
-            return f'{label}{val}；'
-        if fmt == 'mixed':
-            return f'- **{label}**：{val}'
-        return f'- {label}：{val}'
+    # 学生 id → (姓名, 班级) 查询缓存
+    _stu_cache = {}
+    def _stu(sid):
+        if sid in _stu_cache:
+            return _stu_cache[sid]
+        s = db.query(Student).get(sid) if sid else None
+        if s:
+            cn = s.class_obj.class_name if s.class_obj else ''
+            _stu_cache[sid] = (s.name or '未命名', cn)
+        else:
+            _stu_cache[sid] = ('未知学生', '')
+        return _stu_cache[sid]
 
-    sections = [f'# 第{today.isocalendar()[1]}周工作汇总 ({ws} ~ {we})\n']
+    def _fmt_date(d):
+        """YYYY-MM-DD -> MM-DD 周X"""
+        if not d:
+            return '日期未记录'
+        try:
+            dt = datetime.strptime(d[:10], '%Y-%m-%d')
+            wk = ['一','二','三','四','五','六','日'][dt.weekday()]
+            return f'{dt.strftime("%m-%d")}（周{wk}）'
+        except Exception:
+            return d
 
-    # 各维度独立取数
+    def _in_week(d):
+        if not d:
+            return False
+        try:
+            return ws <= d[:10] <= we
+        except Exception:
+            return False
+
+    MAX_PER_DIM = 20
+    sections = [f'# 第 {today.isocalendar()[1]} 周工作汇总  ·  {ws} ~ {we}\n',
+                f'> 本周共 7 天，以下按业务维度回顾具体开展的工作。\n']
+
+    # ---------- 学业 ----------
     if 'academic' in dims:
-        w = db.query(WarningRecord).count()
-        g = db.query(GradeRecord).count()
-        body = '\n'.join([line('累计预警', f'{w} 条'), line('成绩记录', f'{g} 条')])
-        sections.append(f'## 学业\n{body}\n')
-    if 'party' in dims:
-        p = db.query(PartyProgress).count()
-        body = line('党团进度记录', f'{p} 条')
-        sections.append(f'## 党团\n{body}\n')
-    if 'psychology' in dims:
-        ps = db.query(PsychologyRecord).count()
-        body = line('心理谈心', f'{ps} 条')
-        sections.append(f'## 心理\n{body}\n')
-    if 'aid' in dims:
-        gr = db.query(StudentGrant).count()
-        body = line('资助/助学金', f'{gr} 条')
-        sections.append(f'## 资助\n{body}\n')
-    if 'employment' in dims:
-        em = db.query(EmploymentRecord).count()
-        body = line('就业进展', f'{em} 条')
-        sections.append(f'## 就业\n{body}\n')
-    if 'daily' in dims:
-        f_ = db.query(FamilyContact).count()
-        d_ = db.query(StudentDiscipline).count()
-        v_ = db.query(StudentDormVisit).count()
-        body = '\n'.join([line('家校沟通', f'{f_} 条'), line('违纪记录', f'{d_} 条'), line('宿舍走访', f'{v_} 次')])
-        sections.append(f'## 日常\n{body}\n')
-    if 'activity' in dims:
-        a_ = db.query(Activity).count()
-        m_ = db.query(ClassMeeting).count()
-        body = '\n'.join([line('活动记录', f'{a_} 场'), line('班会次数', f'{m_} 次')])
-        sections.append(f'## 活动\n{body}\n')
+        warns_all = db.query(WarningRecord).order_by(WarningRecord.created_at.desc()).all()
+        warns_week = [w for w in warns_all if _in_week(str(w.created_at))]
+        lines = []
+        if warns_week:
+            lines.append(f'本周新增学业预警 **{len(warns_week)}** 条：')
+            for w in warns_week[:MAX_PER_DIM]:
+                name, cn = _stu(w.student_id)
+                tag = '🔴红牌' if w.warning_type == 'red' else '🟡黄牌'
+                lines.append(f'- {_fmt_date(str(w.created_at)[:10])} · {tag} · {name}（{cn}） · {w.description or "详见预警记录"}')
+        else:
+            lines.append('本周未新增学业预警，学业风险总体平稳。')
+        # 挂科增量
+        fail_this = db.query(GradeRecord).filter(GradeRecord.score < 60).count()
+        lines.append(f'\n**学业总览**：累计挂科记录 {fail_this} 条，历史预警 {len(warns_all)} 条。')
+        sections.append('## 📚 学业跟踪\n' + '\n'.join(lines) + '\n')
 
-    if fmt == 'paragraph':
-        sections.append('\n> 输出格式：段落叙述')
-    elif fmt == 'mixed':
-        sections.append('\n> 输出格式：图文混排（后续可插入图表）')
-    else:
-        sections.append('\n> 输出格式：分点列表')
+    # ---------- 谈心谈话 ----------
+    if 'psychology' in dims:
+        recs = db.query(PsychologyRecord).all()
+        week_recs = [r for r in recs if _in_week(r.record_date)]
+        lines = []
+        if week_recs:
+            lines.append(f'本周开展谈心谈话 **{len(week_recs)}** 次：')
+            for r in week_recs[:MAX_PER_DIM]:
+                name, cn = _stu(r.student_id)
+                loc = r.location or '未记录地点'
+                topic = r.topic or '常规谈话'
+                summary = (r.summary or '').replace('\n',' ').strip()[:60]
+                follow = f'（后续 {r.next_follow_date} 再跟进）' if r.next_follow_date else ''
+                lines.append(f'- {_fmt_date(r.record_date)} · 与 **{name}**（{cn}）在 {loc} 谈心 · 主题：{topic}' +
+                             (f' · 要点：{summary}' if summary else '') + follow)
+        else:
+            lines.append('本周未记录谈心谈话，可关注情绪波动学生主动约谈。')
+        sections.append('## 💚 谈心谈话\n' + '\n'.join(lines) + '\n')
+
+    # ---------- 党团 ----------
+    if 'party' in dims:
+        recs = db.query(PartyProgress).all()
+        week_recs = [r for r in recs if _in_week(r.stage_date) or _in_week(str(r.created_at))]
+        lines = []
+        if week_recs:
+            lines.append(f'本周党团发展节点 **{len(week_recs)}** 项：')
+            for r in week_recs[:MAX_PER_DIM]:
+                name, cn = _stu(r.student_id)
+                notes = (r.notes or '').strip()[:40]
+                lines.append(f'- {_fmt_date(r.stage_date or str(r.created_at)[:10])} · {name}（{cn}）· 进入「**{r.stage}**」阶段' +
+                             (f' · 联系人：{r.contact_person}' if r.contact_person else '') +
+                             (f' · {notes}' if notes else ''))
+        else:
+            lines.append('本周无党团发展节点变动。')
+        sections.append('## 🚩 党团建设\n' + '\n'.join(lines) + '\n')
+
+    # ---------- 资助 ----------
+    if 'aid' in dims:
+        recs = db.query(StudentGrant).all()
+        week_recs = [r for r in recs if _in_week(str(r.created_at))]
+        lines = []
+        if week_recs:
+            lines.append(f'本周资助/助学金动态 **{len(week_recs)}** 条：')
+            for r in week_recs[:MAX_PER_DIM]:
+                name, cn = _stu(r.student_id)
+                lines.append(f'- {_fmt_date(str(r.created_at)[:10])} · {name}（{cn}） · {r.grant_type or "资助"} ¥{r.amount:.0f}' +
+                             (f' · {r.notes}' if r.notes else ''))
+        else:
+            lines.append('本周资助无变动，如临学期节点可发起复核。')
+        sections.append('## 💰 资助帮扶\n' + '\n'.join(lines) + '\n')
+
+    # ---------- 就业 ----------
+    if 'employment' in dims:
+        recs = db.query(EmploymentRecord).all()
+        week_recs = [r for r in recs if _in_week(r.offer_date) or _in_week(str(r.created_at))]
+        lines = []
+        if week_recs:
+            lines.append(f'本周就业进展 **{len(week_recs)}** 条：')
+            for r in week_recs[:MAX_PER_DIM]:
+                name, cn = _stu(r.student_id)
+                bits = []
+                if r.status: bits.append(r.status)
+                if r.target_industry: bits.append(r.target_industry)
+                if r.target_position: bits.append(r.target_position)
+                if r.internship_company: bits.append(f'实习→{r.internship_company}')
+                if r.salary_range: bits.append(f'薪资 {r.salary_range}')
+                lines.append(f'- {_fmt_date(r.offer_date or str(r.created_at)[:10])} · {name}（{cn}）· ' + ' / '.join(bits))
+        else:
+            lines.append('本周就业无进展，可推送校招信息或组织宣讲会。')
+        sections.append('## 🎯 就业跟踪\n' + '\n'.join(lines) + '\n')
+
+    # ---------- 日常（家校+违纪+走访） ----------
+    if 'daily' in dims:
+        lines = []
+        fc = [r for r in db.query(FamilyContact).all() if _in_week(r.contact_date)]
+        dc = [r for r in db.query(StudentDiscipline).all() if _in_week(r.discipline_date)]
+        vs = [r for r in db.query(StudentDormVisit).all() if _in_week(r.visit_date)]
+        if fc:
+            lines.append(f'**家校沟通** {len(fc)} 次：')
+            for r in fc[:MAX_PER_DIM]:
+                name, cn = _stu(r.student_id)
+                lines.append(f'- {_fmt_date(r.contact_date)} · 联系 {name}（{cn}）家长 {r.parent_name or ""} · 方式：{r.contact_method or "电话"} · 主题：{r.topic or "常规沟通"}')
+        if dc:
+            lines.append(f'\n**违纪处理** {len(dc)} 次：')
+            for r in dc[:MAX_PER_DIM]:
+                name, cn = _stu(r.student_id)
+                lines.append(f'- {_fmt_date(r.discipline_date)} · {name}（{cn}）· {r.level or ""}{r.discipline_type or "处分"} · 原因：{(r.reason or "").strip()[:40]}')
+        if vs:
+            lines.append(f'\n**宿舍走访** {len(vs)} 次：')
+            for r in vs[:MAX_PER_DIM]:
+                name, cn = _stu(r.student_id)
+                sit = (r.situation or '').strip()[:40]
+                lines.append(f'- {_fmt_date(r.visit_date)} · 走访 {name}（{cn}）· 寝室 {r.dorm_room or "?"} · 走访人：{r.visitor or "本人"}' + (f' · {sit}' if sit else ''))
+        if not (fc or dc or vs):
+            lines.append('本周日常事务平稳，无违纪、无重要家校沟通、无宿舍走访记录。')
+        sections.append('## 📖 日常事务\n' + '\n'.join(lines) + '\n')
+
+    # ---------- 活动（含班会） ----------
+    if 'activity' in dims:
+        acts = [a for a in db.query(Activity).all() if _in_week(a.activity_date)]
+        meets = [m for m in db.query(ClassMeeting).all() if _in_week(m.meeting_date)]
+        lines = []
+        if acts:
+            lines.append(f'**学院/学生活动** {len(acts)} 场：')
+            for a in acts[:MAX_PER_DIM]:
+                lines.append(f'- {_fmt_date(a.activity_date)} · **{a.title}**' +
+                             (f' · 地点：{a.location}' if a.location else '') +
+                             (f' · 类型：{a.activity_type}' if a.activity_type else '') +
+                             (f' · 状态：{a.status}' if a.status else ''))
+        if meets:
+            lines.append(f'\n**班会** {len(meets)} 次：')
+            for m in meets[:MAX_PER_DIM]:
+                cls = db.query(ClassModel).get(m.class_id) if m.class_id else None
+                cn = cls.class_name if cls else '(未指定班级)'
+                lines.append(f'- {_fmt_date(m.meeting_date)} · {cn} · 主题：{m.topic or "常规班会"} · 出勤 {m.attendance_count or 0} 人' +
+                             (f' · 结论：{(m.resolution or "").strip()[:40]}' if m.resolution else ''))
+        if not (acts or meets):
+            lines.append('本周无组织的学院活动或班会，可结合校历安排下周事项。')
+        sections.append('## 🎨 活动 & 班会\n' + '\n'.join(lines) + '\n')
+
+    # ---------- 收尾：本周关键词 ----------
+    sections.append('---\n')
+    sections.append('*本汇总由系统按数据库真实记录自动汇编，可点击"手写补充"添加更多定性描述。*')
 
     content = '\n'.join(sections)
 
     summary = WS(week_start=ws, week_end=we, content=content, summary_type='auto',
-                 title=f'第{today.isocalendar()[1]}周工作汇总')
+                 title=f'第{today.isocalendar()[1]}周工作汇总（{ws}~{we}）')
     db.add(summary)
     db.commit()
     db.refresh(summary)
