@@ -221,20 +221,46 @@ def get_warnings(
         query = query.filter(WarningRecord.semester == semester)
 
     results = query.order_by(WarningRecord.warning_type, WarningRecord.created_at.desc()).all()
-    return [
-        {
+
+    # 预先算好每个学生的挂科数和 GPA（当前学期或全部）
+    def stats_for(sid, sem):
+        q = db.query(GradeRecord).filter(GradeRecord.student_id == sid)
+        if sem:
+            q = q.filter(GradeRecord.semester == sem)
+        grades = q.all()
+        scores = [float(g.score) for g in grades if g.score is not None]
+        fc = sum(1 for x in scores if x < 60)
+        gpa_vals = [float(g.gpa) for g in grades if g.gpa is not None]
+        avg_gpa = round(sum(gpa_vals) / len(gpa_vals), 2) if gpa_vals else 0
+        return fc, avg_gpa
+
+    def level_label(wt):
+        if not wt: return ''
+        wt = str(wt)
+        if 'red' in wt.lower() or '红' in wt: return '红色'
+        if 'yellow' in wt.lower() or '黄' in wt: return '黄色'
+        if 'blue' in wt.lower() or '蓝' in wt: return '蓝色'
+        return wt
+
+    payload = []
+    for w, s in results:
+        fc, gpa_avg = stats_for(w.student_id, w.semester)
+        payload.append({
             'id': w.id,
             'student_id': w.student_id,
             'warning_type': w.warning_type,
+            'warning_level': level_label(w.warning_type),  # 前端 UI 期望
             'description': w.description,
+            'warning_reason': w.description or '',        # 前端 UI 期望
+            'fail_count': fc,
+            'gpa': gpa_avg,
             'semester': w.semester,
             'student_name': s.name,
             'student_no': s.student_no,
             'class_name': s.class_obj.class_name if s.class_obj else '',
             'created_at': w.created_at.isoformat() if w.created_at else None,
-        }
-        for w, s in results
-    ]
+        })
+    return payload
 
 
 @router.post('/recalculate', response_model=dict)
