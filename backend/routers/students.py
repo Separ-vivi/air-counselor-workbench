@@ -168,7 +168,7 @@ def list_students(
             'phone': r.phone,
             'email': r.email,
             'parent_phone': getattr(r, 'parent_phone', None),
-            'birth_date': r.birth_date.isoformat() if getattr(r, 'birth_date', None) else None,
+            'birth_date': getattr(r, 'birth_date', '') or '',
             'birth_source': r.birth_source,
             'id_card': getattr(r, 'id_card', None),
             'campus': getattr(r, 'campus', None),
