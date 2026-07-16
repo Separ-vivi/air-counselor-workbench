@@ -608,3 +608,58 @@ a:hover {
   background: linear-gradient(135deg, #5D8FA0 0%, #4A7A8C 100%) !important;
   color: #fff !important;
 }
+
+
+/* ==========================================================================
+   Link/Text 按钮兜底：透明底 + 彩色字（表格操作列必用）
+   前面 .el-button--primary/danger 加了实心底色，会把 link 变实心，
+   这里把 link/text 强制拉回"纯文字按钮"形态。
+   ========================================================================== */
+.el-button.is-link,
+.el-button.is-text,
+.el-button.is-link.el-button--primary,
+.el-button.is-link.el-button--danger,
+.el-button.is-link.el-button--success,
+.el-button.is-link.el-button--warning,
+.el-button.is-text.el-button--primary,
+.el-button.is-text.el-button--danger {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  padding: 4px 8px !important;
+  height: auto !important;
+}
+.el-button.is-link:hover,
+.el-button.is-text:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+.el-button.is-link.el-button--primary,
+.el-button.is-text.el-button--primary {
+  color: #6B5EB0 !important;
+}
+.el-button.is-link.el-button--primary:hover,
+.el-button.is-text.el-button--primary:hover {
+  background: rgba(139, 126, 199, 0.10) !important;
+  color: #4A3F8B !important;
+  text-decoration: none !important;
+}
+.el-button.is-link.el-button--danger,
+.el-button.is-text.el-button--danger {
+  color: #d9534f !important;
+}
+.el-button.is-link.el-button--danger:hover,
+.el-button.is-text.el-button--danger:hover {
+  background: rgba(217, 83, 79, 0.10) !important;
+  color: #b93832 !important;
+  text-decoration: none !important;
+}
+.el-button.is-link.el-button--success,
+.el-button.is-text.el-button--success {
+  color: #52a878 !important;
+}
+.el-button.is-link.el-button--warning,
+.el-button.is-text.el-button--warning {
+  color: #d9a441 !important;
+}
