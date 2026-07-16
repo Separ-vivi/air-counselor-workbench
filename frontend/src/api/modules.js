@@ -126,5 +126,5 @@ export const system = {
   restore: (formData) => http.post('/system/restore', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  clearBusiness: () => http.post('/system/clear-business')
+  clearBusiness: () => http.delete('/system/clear-business')
 }
