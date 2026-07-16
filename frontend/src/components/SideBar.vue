@@ -42,6 +42,13 @@
         <el-menu-item index="/summary">📊 周汇总</el-menu-item>
       </el-sub-menu>
 
+      <el-sub-menu index="helper">
+        <template #title><el-icon><Reading /></el-icon><span>辅助工具</span></template>
+        <el-menu-item index="/knowledge">📚 知识库</el-menu-item>
+        <el-menu-item index="/faqs">❓ FAQ</el-menu-item>
+        <el-menu-item index="/templates">📄 文档模板</el-menu-item>
+      </el-sub-menu>
+
       <el-menu-item index="/system"><el-icon><Setting /></el-icon><span>系统设置</span></el-menu-item>
     </el-menu>
 

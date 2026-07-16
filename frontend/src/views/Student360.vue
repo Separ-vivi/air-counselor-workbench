@@ -20,11 +20,11 @@
           <div class="name">
             {{ student.name }}
             <el-tag size="small" style="margin-left:8px" round>{{ student.gender || '—' }}</el-tag>
-            <el-button link @click="editBasic" style="margin-left:12px">
+            <el-button link type="primary" @click="editBasic" style="margin-left:12px">
               <el-icon><Edit /></el-icon>&nbsp;编辑基础信息
             </el-button>
-            <el-button link @click="onOpenPdf" style="margin-left:8px" class="action-btn-edit">
-              <span>📄 导出 PDF</span>
+            <el-button type="primary" size="small" @click="onOpenPdf" style="margin-left:10px">
+              📄 导出 PDF
             </el-button>
           </div>
           <div class="meta">
@@ -468,6 +468,11 @@ async function saveBasic() {
 .back-inline-btn:hover { background: rgba(74, 122, 140, .18); }
 .inline-title { color: #666; font-size: 13px; }
 
+.pdf-preview-hint { color: #909399; font-size: 12px; margin-top: -8px; margin-bottom: 8px; }
+</style>
+
+<!-- 打印相关必须放全局 style，scoped 会导致选择器加 data-v-xxx 后无法覆盖 SideBar/TopBar -->
+<style>
 #s360-print-area { display: none; }
 @media print {
   body.printing-s360 * { visibility: hidden !important; }
@@ -490,5 +495,4 @@ async function saveBasic() {
   #s360-print-area .print-footer { position: fixed; bottom: 10mm; left: 18mm; right: 18mm; text-align: center; color: #999; font-size: 10px; }
   @page { size: A4; margin: 0; }
 }
-.pdf-preview-hint { color: #909399; font-size: 12px; margin-top: -8px; margin-bottom: 8px; }
 </style>

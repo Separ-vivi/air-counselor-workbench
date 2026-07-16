@@ -72,7 +72,7 @@
           <el-card shadow="never" class="op-card">
             <div class="op-title">🧹 清空业务数据</div>
             <div class="op-desc">
-              清空所有业务数据（学生/成绩/预警/活动/心理/家校/记事/校历 + 年级/专业/班级）。仅保留 系统设置 / 知识库 / FAQ / 模板。
+              清空所有业务数据（学生/成绩/预警/活动/心理/家校/记事/校历 + 年级/专业/班级）。仅保留 系统设置。
               <br><b style="color:#f56c6c">此操作不可逆，请先备份。</b>
             </div>
             <el-button type="warning" @click="onClearBusiness" :loading="loadingClear">清空业务数据</el-button>
@@ -196,7 +196,7 @@ async function onSeedLarge() {
 async function onClearBusiness() {
   try {
     await ElMessageBox.confirm(
-      '将清空【所有业务数据】：学生、成绩、预警、活动、心理、家校、记事、校历倒计时、以及年级/专业/班级组织架构。\n\n仅保留：系统设置 / 知识库 / FAQ / 文档模板。\n\n此操作不可撤销，是否继续？',
+      '将清空【所有业务数据】：学生、成绩、预警、活动、心理、家校、记事、校历倒计时、以及年级/专业/班级组织架构。\n\n仅保留：系统设置。\n\n此操作不可撤销，是否继续？',
       '清空所有业务数据',
       { type: 'warning', confirmButtonText: '确认清空', confirmButtonClass: 'el-button--danger' }
     )
@@ -216,7 +216,7 @@ async function onClearBusiness() {
 async function onReinit() {
   try {
     await ElMessageBox.confirm(
-      '⚠️ 危险操作：删除所有表并重建为【空数据库】（不灌任何演示数据），仅保留 系统设置/知识库/FAQ/模板。\n\n若需演示数据，重建后请另点"生成测试数据"。\n\n此操作不可撤销，是否继续？',
+      '⚠️ 危险操作：删除所有表并重建为【空数据库】（不灌任何演示数据），仅保留 系统设置。\n\n若需演示数据，重建后请另点"生成测试数据"。\n\n此操作不可撤销，是否继续？',
       '重建数据库',
       { type: 'error', confirmButtonText: '确认重建', confirmButtonClass: 'el-button--danger' }
     )
