@@ -73,14 +73,17 @@ a:hover {
 
 .app-sidebar {
   width: 220px;
-  background: linear-gradient(180deg,
-    #C6DEF3 0%,
-    #B4D0EC 100%);
-  color: #234A6A;
-  border-right: 1px solid rgba(255, 255, 255, 0.60);
+  /* v4: iOS 磨砂金属渐变（air：更蓝 + 金属高光 + 磨砂感） */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.00) 38%, rgba(255,255,255,0.22) 100%),
+    linear-gradient(180deg, #9EC4E8 0%, #7BB0DA 45%, #669FCB 100%);
+  color: #1E3A56;
+  border-right: 1px solid rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   flex-shrink: 0;
   overflow-y: auto;
-  box-shadow: 2px 0 8px rgba(90, 130, 170, 0.06);
+  box-shadow: inset 1px 0 0 rgba(255,255,255,0.45), 2px 0 12px rgba(90,130,170,0.12);
 }
 
 .app-main {
@@ -465,13 +468,14 @@ a:hover {
    V3-G 全站时尚化增强（air 反馈：风格要跟驾驶舱一致，时尚一点；禁止深底深字）
    ======================================================================== */
 
-/* ---- v3h-hotfix1 · 全站浅蓝色系统一（air 硬指令：禁止粉色底） ---- */
+/* ---- v4 · 主背景接近白 + 气泡磨砂显性（air 硬指令：浅到接近白 + 气泡回来） ---- */
 .app-content {
   background:
-    radial-gradient(circle at 8% 6%, rgba(180, 215, 240, 0.28), transparent 40%),
-    radial-gradient(circle at 92% 10%, rgba(200, 230, 240, 0.30), transparent 44%),
-    radial-gradient(circle at 60% 96%, rgba(190, 220, 245, 0.24), transparent 48%),
-    linear-gradient(180deg, #E9F1F9 0%, #DEEAF4 100%) !important;
+    radial-gradient(circle at 10% 8%,  rgba(155, 200, 235, 0.55), transparent 44%),
+    radial-gradient(circle at 88% 12%, rgba(175, 220, 240, 0.55), transparent 48%),
+    radial-gradient(circle at 65% 95%, rgba(165, 210, 240, 0.50), transparent 52%),
+    radial-gradient(circle at 30% 60%, rgba(200, 225, 245, 0.42), transparent 46%),
+    linear-gradient(180deg, #F8FBFE 0%, #F0F7FC 100%) !important;
 }
 
 /* ---- 所有卡片：统一微毛玻璃 + 圆角 + hover 上浮 ---- */

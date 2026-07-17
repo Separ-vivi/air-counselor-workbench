@@ -172,7 +172,7 @@ function renderAvgBar() {
   if (!avgBarRef.value) return
   const cd = filteredClasses.value.map(c => ({ name: c.name, value: c.avg_score || 0, id: c.id }))
   if (!avgBarChart) avgBarChart = echarts.init(avgBarRef.value)
-  const scoreColor = (v) => v < 60 ? '#F8B4B4' : v < 75 ? '#F9E79F' : '#B7E4C7'
+  // v4: air 要求柱色和左侧人数柱一致，不再按分数分段上色
   avgBarChart.setOption({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: p => `${p[0].name}<br/>${p[0].marker} 平均成绩：<b>${p[0].value}</b> 分` },
     grid: { left: 8, right: 12, top: 20, bottom: 40, containLabel: true },
@@ -180,10 +180,10 @@ function renderAvgBar() {
     yAxis: { type: 'value', min: 0, max: 100, splitLine: { lineStyle: { type: 'dashed', color: '#E4E7ED' } }, axisLabel: { color: '#909399', fontSize: 11 } },
     series: [{
       type: 'bar', barWidth: '46%',
-      data: cd.map(x => ({ value: x.value, name: x.name, itemStyle: { color: {
+      data: cd.map((x, i) => ({ value: x.value, name: x.name, itemStyle: { color: {
         type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
         colorStops: [
-          { offset: 0, color: scoreColor(x.value) },
+          { offset: 0, color: macaronColors[i % macaronColors.length] },
           { offset: 1, color: '#FFFFFF' }
         ]
       }, borderRadius: [8, 8, 0, 0] } })),

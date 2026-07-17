@@ -64,7 +64,7 @@
           <template #header>
             <div class="card-header">
               <span>🎓 专业人数分布</span>
-              <span class="chart-sub">{{ dash.total_majors }} 个专业</span>
+              <el-button text type="primary" size="small" @click="$router.push('/classes')">查看班级</el-button>
             </div>
           </template>
           <div ref="majorPieRef" class="chart-box"></div>
@@ -74,27 +74,30 @@
         <el-card shadow="never" class="triple-card">
           <template #header>
             <div class="card-header">
-              <span>🗓️ 本周待办中心</span>
+              <span>🗓️ 本周待办</span>
               <el-button text type="primary" size="small" @click="$router.push('/calendar')">打开日历</el-button>
             </div>
           </template>
-          <el-empty v-if="!weekTodoList.length" description="本周暂无待办" :image-size="60" />
-          <div v-else class="todo-vlist">
+          <!-- v4: 7 天迷你日历，只显示日期数字 + 事件圆点标记，不显示事件详情 -->
+          <div class="mini-week-grid">
             <div
-              v-for="ev in weekTodoList"
-              :key="ev.id"
-              class="todo-vitem"
-              :style="{ borderLeftColor: evBarColor(ev.color) }"
-              @click="ev.link && $router.push(ev.link)"
+              v-for="grp in weekEventsByDay"
+              :key="grp.date"
+              class="mini-day"
+              :class="{ 'is-today': grp.date === todayStrKey }"
+              :title="grp.items.length ? grp.items.map(x=>x.title).join('\n') : '无事项'"
+              @click="$router.push('/calendar')"
             >
-              <div class="tv-left">
-                <div class="tv-date" :class="{ 'is-today': ev.date === todayStrKey }">
-                  {{ tvDateLabel(ev.date) }}
-                </div>
-              </div>
-              <div class="tv-body">
-                <div class="tv-title">{{ ev.title }}</div>
-                <div v-if="ev.meta" class="tv-meta">{{ ev.meta }}</div>
+              <div class="mini-week">{{ grp.weekdayCn }}</div>
+              <div class="mini-mmdd">{{ grp.mmdd }}</div>
+              <div class="mini-dots">
+                <span
+                  v-for="(ev, di) in grp.items.slice(0, 4)"
+                  :key="di"
+                  class="mini-dot"
+                  :style="{ background: evBarColor(ev.color) }"
+                ></span>
+                <span v-if="grp.items.length > 4" class="mini-more">+{{ grp.items.length - 4 }}</span>
               </div>
             </div>
           </div>
@@ -508,6 +511,8 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   font-size: 26px;
+  line-height: 1;                       /* v4: emoji 严格垂直居中 */
+  font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
 }
 .stat-body .stat-label {
   color: #909399;
@@ -629,32 +634,58 @@ onMounted(async () => {
 .hero-cd-days.warning { color: #E6A23C; }
 .hero-cd-days.danger { color: #F56C6C; }
 
-/* v3h-hotfix1 · 三格并排卡片 + 待办中心竖列 */
+/* v4 · 三格并排 + 待办中心 7 天迷你日历 */
 .triple-card { height: 100%; }
 .triple-card :deep(.el-card__body) { padding: 12px 16px; }
-.todo-vlist {
+
+.mini-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  padding: 4px 0;
+}
+.mini-day {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(200, 215, 230, 0.55);
+  border-radius: 8px;
+  padding: 8px 4px 6px;
+  min-height: 78px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 260px;
-  overflow-y: auto;
-}
-.todo-vitem {
-  display: flex;
-  gap: 10px;
-  padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.78);
-  border-left: 3px solid #909399;
-  border-radius: 6px;
+  align-items: center;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(60,80,100,0.04);
-  transition: transform .15s;
+  transition: transform .15s, box-shadow .15s;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
-.todo-vitem:hover { transform: translateX(2px); box-shadow: 0 2px 6px rgba(60,80,100,0.08); }
-.tv-left { flex-shrink: 0; width: 42px; }
-.tv-date { font-size: 12px; color: #7B8B9C; font-weight: 600; padding-top: 2px; }
-.tv-date.is-today { color: #C15E5E; }
-.tv-body { flex: 1; min-width: 0; }
-.tv-title { font-size: 13px; color: #303133; font-weight: 500; line-height: 1.4; word-break: break-word; }
-.tv-meta  { font-size: 11px; color: #909399; margin-top: 2px; }
+.mini-day:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(90,130,170,0.14);
+}
+.mini-day.is-today {
+  background: linear-gradient(180deg, #FFE9E4 0%, #FFD8CF 100%);
+  border-color: #F5A99A;
+  box-shadow: 0 2px 8px rgba(230,110,90,0.16);
+}
+.mini-day.is-today .mini-mmdd { color: #C15E5E; }
+.mini-week { font-size: 11px; color: #7B8B9C; font-weight: 500; }
+.mini-mmdd { font-size: 15px; color: #3B5A7A; font-weight: 700; margin: 2px 0 6px; }
+.mini-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: center;
+  align-items: center;
+}
+.mini-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.mini-more {
+  font-size: 10px;
+  color: #909399;
+  margin-left: 2px;
+}
 </style>

@@ -27,13 +27,23 @@
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
             <span>心理记录（共 {{ filteredRecords.length }} / {{ records.length }} 条）</span>
             <div style="display: flex; align-items: center; gap: 8px">
-              <el-input
+              <el-select
                 v-model="searchKw"
-                placeholder="搜索学生姓名/学号/主题"
+                placeholder="选择或搜索学生（姓名/学号/主题）"
                 clearable
+                filterable
+                allow-create
+                default-first-option
                 size="small"
-                style="width: 220px"
-              />
+                style="width: 260px"
+              >
+                <el-option
+                  v-for="opt in studentOptions"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
+                />
+              </el-select>
               <el-radio-group v-model="viewMode" size="small">
                 <el-radio-button label="table">明细表格</el-radio-button>
                 <el-radio-button label="timeline">时间轴</el-radio-button>
@@ -94,7 +104,7 @@
                     </div>
                     <div v-if="item.topic" class="psy-topic"><strong>主题：</strong>{{ item.topic }}</div>
                     <div v-if="item.summary" class="psy-summary">{{ item.summary }}</div>
-                    <div v-if="item.notes" class="psy-summary">{{ item.notes }}</div>
+                    <div v-if="item.notes && item.notes !== item.summary" class="psy-summary">{{ item.notes }}</div>
                     <div v-if="item.next_follow_date || item.next_follow_up" class="psy-meta psy-follow">
                       🕒 下次跟进：{{ item.next_follow_date || item.next_follow_up }}
                     </div>
@@ -132,6 +142,20 @@ const totalStudentCount = computed(() => {
 })
 
 // v3h-hotfix1: 学生搜索过滤
+// v4: 学生候选列表（去重，供 el-select 展示）
+const studentOptions = computed(() => {
+  const seen = new Map()
+  for (const r of records.value) {
+    const name = String(r.student_name || '').trim()
+    if (!name) continue
+    if (!seen.has(name)) {
+      const no = r.student_no ? ` · ${r.student_no}` : ''
+      seen.set(name, { value: name, label: `${name}${no}` })
+    }
+  }
+  return Array.from(seen.values())
+})
+
 const filteredRecords = computed(() => {
   const kw = String(searchKw.value || '').trim().toLowerCase()
   if (!kw) return records.value
