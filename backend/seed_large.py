@@ -282,25 +282,37 @@ def seed_large_dataset():
         db.commit()
 
         # 班主任
-        teacher_pool = [
-            ('陈教授','T2019001','机械工程学院','机械设计'),
-            ('周副教授','T2020002','机械工程学院','车辆动力学'),
-            ('林副教授','T2018003','机械工程学院','机器人控制'),
-            ('刘讲师','T2021004','机械工程学院','数控加工'),
-            ('张教授','T2015005','机械工程学院','材料成型'),
-            ('李副教授','T2017006','机械工程学院','液压传动'),
-            ('王副教授','T2019007','机械工程学院','先进制造'),
-            ('赵讲师','T2022008','机械工程学院','工程仿真'),
-        ]
+        # v3j-C c01 · 一人一班：为每个班级生成唯一 name，办公地点多样化
+        _surnames = ['陈','周','林','刘','张','李','王','赵','孙','钱','吴','郑','冯','蒋','沈','韩','杨','朱','秦','许',
+                     '何','吕','施','徐','高','夏','蔡','田','范','石','姚','谭','廖','邹','熊','金','陆','郝','孔','曹']
+        _title_pool = ['教授','副教授','讲师']
+        _direction_pool = ['机械设计','车辆动力学','机器人控制','数控加工','材料成型','液压传动',
+                           '先进制造','工程仿真','智能装备','增材制造','传感与检测','工业机器人']
+        _office_buildings = ['文远楼','格致楼','致远楼A','致远楼B','明德楼','博学楼','工科三号楼','机械楼','智造楼']
+        _used_names = set()
         stats['class_teachers'] = 0
-        for cobj in classes:
-            tp = next((x for x in teacher_pool if x[0] == cobj.class_teacher), teacher_pool[0])
-            _t_title = '教授' if '教授' in tp[0] and '副' not in tp[0] else ('副教授' if '副教授' in tp[0] else '讲师')
-            _t_email = f'{tp[1].lower()}@example.edu'
+        for i, cobj in enumerate(classes):
+            # 生成唯一姓名（姓 + 职称后缀）
+            for _try in range(50):
+                surname = random.choice(_surnames)
+                title = random.choice(_title_pool)
+                name = f'{surname}{title}'
+                if name not in _used_names:
+                    _used_names.add(name)
+                    break
+            else:
+                # 极端兜底：加编号确保唯一
+                name = f'{random.choice(_surnames)}{random.choice(_title_pool)}{i}'
+                _used_names.add(name)
+            staff_no = f'T20{random.randint(10,22):02d}{i+1:03d}'
+            email = f'{staff_no.lower()}@example.edu'
+            office = f'{random.choice(_office_buildings)}{random.randint(2,6)}0{random.randint(1,9)}'
+            direction = random.choice(_direction_pool)
+            cobj.class_teacher = name  # 回填班级表的 class_teacher 字段
             db.add(ClassTeacher(
-                class_id=cobj.id, name=tp[0], staff_no=tp[1], department=tp[2],
-                phone=gen_phone(), office=f'机械楼{random.randint(3,6)}0{random.randint(1,9)}',
-                research_direction=tp[3], title=_t_title, email=_t_email,
+                class_id=cobj.id, name=name, staff_no=staff_no, department='机械工程学院',
+                phone=gen_phone(), office=office,
+                research_direction=direction, title=title, email=email,
             ))
             stats['class_teachers'] += 1
         db.commit()

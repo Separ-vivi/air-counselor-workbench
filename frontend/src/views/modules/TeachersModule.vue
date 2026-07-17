@@ -45,6 +45,7 @@
         <el-table-column label="院系" prop="department" width="180" show-overflow-tooltip sortable="custom" />
         <el-table-column label="职称" prop="title" width="120" sortable="custom" />
         <el-table-column label="电话" prop="phone" width="140" sortable="custom" />
+        <el-table-column label="办公地点" prop="office" width="140" show-overflow-tooltip sortable="custom" />
         <el-table-column label="邮箱" prop="email" min-width="180" show-overflow-tooltip sortable="custom" />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
@@ -80,6 +81,9 @@
         </el-form-item>
         <el-form-item label="电话">
           <el-input v-model="form.phone" />
+        </el-form-item>
+        <el-form-item label="办公地点" prop="office">
+          <el-input v-model="form.office" placeholder="如：文远楼403" />
         </el-form-item>
         <el-form-item label="邮箱">
           <el-input v-model="form.email" />
@@ -164,7 +168,7 @@ const dlg = ref(false)
 const editing = ref(null)
 const saving = ref(false)
 const formRef = ref(null)
-const defaultForm = () => ({ name: '', teacher_no: '', class_id: null, department: '', title: '', phone: '', email: '', notes: '' })
+const defaultForm = () => ({ name: '', teacher_no: '', class_id: null, department: '', title: '', phone: '', office: '', email: '', notes: '' })
 const form = reactive(defaultForm())
 const rules = {
   name: [{ required: true, message: '请填写姓名', trigger: 'blur' }]
