@@ -129,11 +129,13 @@ const fetchData = async () => {
     // 兼容 {hardship,grants,scholarships,loans,work_study} 或 array
     raw.value = Array.isArray(res) ? { hardship: res } : (res || {})
     computeStats()
-    await nextTick()
-    renderChart()
   } finally {
     loading.value = false
   }
+  // v3j-C c01-hotfix1: renderChart 必须在 loading=false 之后调用，
+  // 否则 v-else 分支还未渲染 hardshipChart ref 是 null，饼图不出现
+  await nextTick()
+  renderChart()
 }
 
 const computeStats = () => {

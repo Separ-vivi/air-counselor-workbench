@@ -1,5 +1,5 @@
 """班级360 API - 班级全景视图（v3j 重写：返回明细字段与前端对齐）"""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import Optional, List
@@ -280,33 +280,62 @@ def get_class_featured_activities(class_id: int, db: Session = Depends(get_db)):
 # ==================== v3j 明细结构接口 ====================
 
 @router.get('/{class_id}/grades')
-def get_class_grades(class_id: int, db: Session = Depends(get_db)):
-    """Tab: 成绩明细 - 返回每条成绩记录（前端要明细展示）"""
-    students, stu_map, student_ids = _class_student_map(db, class_id)
-    if not student_ids:
-        return []
-    grades = db.query(GradeRecord).filter(GradeRecord.student_id.in_(student_ids)).all()
+def get_class_grades(
+    class_id: int,
+    semester: Optional[str] = Query(None, description='v3j-C c01-hotfix1: 按学期过滤，加速 400 人班级加载'),
+    db: Session = Depends(get_db)
+):
+    """Tab: 成绩明细 - 返回每条成绩记录（前端要明细展示）
+
+    v3j-C c01-hotfix1: 性能优化
+    - 用 SQL JOIN Student 一次查询代替循环 + dict lookup
+    - 直接在 SQL 层排序，去掉 Python sort
+    - 支持 semester 参数按学期过滤
+    """
+    q = db.query(
+        GradeRecord.id,
+        GradeRecord.student_id,
+        GradeRecord.semester,
+        GradeRecord.course_name,
+        GradeRecord.score,
+        GradeRecord.gpa,
+        GradeRecord.credit,
+        Student.student_no,
+        Student.name,
+    ).join(Student, Student.id == GradeRecord.student_id) \
+     .filter(Student.class_id == class_id)
+    if semester:
+        q = q.filter(GradeRecord.semester == semester)
+    q = q.order_by(Student.student_no.asc(), GradeRecord.semester.asc())
+    rows = q.all()
+    # 一次性拉 GradeRecord 的可选字段用 in_ 查询（比逐条 getattr 更快）
+    grade_ids = [r.id for r in rows]
+    ext_map = {}
+    if grade_ids:
+        for g in db.query(GradeRecord).filter(GradeRecord.id.in_(grade_ids)).all():
+            ext_map[g.id] = {
+                'course_code': getattr(g, 'course_code', '') or '',
+                'is_repair': bool(getattr(g, 'is_repair', False) or getattr(g, 'is_makeup', False)),
+                'grade_level': getattr(g, 'grade_level', '') or '',
+            }
     result = []
-    for g in grades:
-        s = stu_map.get(g.student_id)
-        if not s:
-            continue
+    for r in rows:
+        ext = ext_map.get(r.id, {})
         result.append({
-            'id': g.id,
-            'student_id': g.student_id,
-            'student_no': s.student_no,
-            'name': s.name,
-            'student_name': s.name,
-            'semester': g.semester or '',
-            'course_name': g.course_name or '',
-            'course_code': getattr(g, 'course_code', '') or '',
-            'score': g.score,
-            'gpa': g.gpa,
-            'credit': g.credit,
-            'is_repair': bool(getattr(g, 'is_repair', False) or getattr(g, 'is_makeup', False)),
-            'grade_level': getattr(g, 'grade_level', '') or '',
+            'id': r.id,
+            'student_id': r.student_id,
+            'student_no': r.student_no,
+            'name': r.name,
+            'student_name': r.name,
+            'semester': r.semester or '',
+            'course_name': r.course_name or '',
+            'course_code': ext.get('course_code', ''),
+            'score': r.score,
+            'gpa': r.gpa,
+            'credit': r.credit,
+            'is_repair': ext.get('is_repair', False),
+            'grade_level': ext.get('grade_level', ''),
         })
-    result.sort(key=lambda x: (x['student_no'] or '', x['semester'] or ''))
     return result
 
 

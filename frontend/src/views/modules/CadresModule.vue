@@ -147,7 +147,7 @@ import StudentSelect from '@/components/StudentSelect.vue'
 import { triggerDownload, stampedName } from '@/utils/download'
 
 const studentStore = useStudentStore()
-const levels = ['校级', '院级', '班级', '团支部']
+const levels = ['校级', '院级', '班级', '团支部', '党支部']  // v3j-C c01-hotfix1: 加党支部级别
 // v3j-C c01 · 职务/组织建议常量（含党支部系列）
 const positions = [
   '班长', '副班长', '团支书', '学习委员', '生活委员', '文艺委员',

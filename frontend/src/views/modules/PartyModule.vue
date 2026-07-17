@@ -241,7 +241,7 @@ watch(() => studentStore.refreshBumper, reload)
 
 const loadClasses = async () => {
   try {
-    const res = await http.get('/classes')
+    const res = await http.get('/org/classes')  // v3j-C c01-hotfix1: 修 /classes 404
     classes.value = Array.isArray(res) ? res : (res?.items || res?.data || [])
   } catch (e) { classes.value = [] }
 }
