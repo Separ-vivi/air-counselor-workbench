@@ -382,11 +382,19 @@ def delete_class_teacher(tid: int, db: Session = Depends(get_db)):
 # ===== 就业升学 =====
 def _emp_dict(e, db):
     stu = db.query(Student).filter(Student.id == e.student_id).first()
+    # v3j-C c01 · 补出 grade_name 供前端"仅毕业年级"过滤
+    grade_name = ''
+    try:
+        if stu and stu.class_obj and stu.class_obj.major and stu.class_obj.major.grade:
+            grade_name = stu.class_obj.major.grade.grade_name or ''
+    except Exception:
+        grade_name = ''
     return {
         'id': e.id, 'student_id': e.student_id,
         'student_name': stu.name if stu else '',
         'student_no': stu.student_no if stu else '',
         'class_name': _get_student_class_name(db, e.student_id),
+        'grade_name': grade_name,
         'intention_type': e.intention_type, 'target_industry': e.target_industry,
         'target_position': e.target_position, 'internship_company': e.internship_company,
         # 前端字段 alias

@@ -27,6 +27,9 @@
             <el-option v-for="s in statusList" :key="s" :label="s" :value="s" />
           </el-select>
         </el-form-item>
+        <el-form-item>
+          <el-switch v-model="onlyGraduating" active-text="仅显示毕业年级" />
+        </el-form-item>
       </el-form>
     </el-card>
 
@@ -41,7 +44,7 @@
 
     <el-card shadow="never">
       <el-table
-        :data="list"
+        :data="filteredList"
         v-loading="loading"
         stripe
         border
@@ -150,8 +153,29 @@ watch(() => filter.kw, () => {
 })
 
 const statusStats = computed(() =>
-  statusList.map((s) => ({ name: s, count: list.value.filter((r) => r.status === s).length, color: statusColor[s] || '#909399' }))
+  statusList.map((s) => ({ name: s, count: filteredList.value.filter((r) => r.status === s).length, color: statusColor[s] || '#909399' }))
 )
+
+// v3j-C c01 · 仅毕业年级过滤（默认开）
+const onlyGraduating = ref(true)
+const filteredList = computed(() => {
+  if (!onlyGraduating.value) return list.value
+  const currentYear = new Date().getFullYear()
+  const threshold = currentYear - 3  // 4 年制本科：2026 - 3 = 2023，即 grade <= 2023 视为毕业年级
+  return list.value.filter((r) => {
+    const src = r.grade_name || r.academic_year || r.class_name || ''
+    const m = String(src).match(/(\d{4})/)
+    if (m) {
+      return parseInt(m[1], 10) <= threshold
+    }
+    // 若字段里只有 2 位年份（如班级名 '机制2201班' → '22'），转成 20xx 再判断
+    const m2 = String(r.class_name || '').match(/(\d{2})0\d班?$/)
+    if (m2) {
+      return (2000 + parseInt(m2[1], 10)) <= threshold
+    }
+    return true  // 无法判定的保留（避免误伤）
+  })
+})
 
 const statusTag = (s) => {
   const m = { 已签约: 'success', 拟录用: 'primary', 升学: 'warning', 出国: '', 待业: 'danger', 其他: 'info' }
@@ -183,6 +207,15 @@ const exportSelected = async () => {
 }
 const exportAll = async () => {
   try {
+    // v3j-C c01 · 若开启"仅毕业年级"，导出使用前端过滤后的 ID 列表
+    if (onlyGraduating.value) {
+      const ids = filteredList.value.map((r) => r.id)
+      if (!ids.length) { ElMessage.warning('当前筛选下无可导出记录'); return }
+      const blob = await empApi.exportByIds(ids)
+      triggerDownload(blob, stampedName(`就业记录_毕业年级${ids.length}条`))
+      ElMessage.success(`已导出毕业年级 ${ids.length} 条`)
+      return
+    }
     const params = {}
     if (filter.student_id) params.student_id = filter.student_id
     if (filter.status) params.status = filter.status
