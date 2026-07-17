@@ -10,6 +10,8 @@ export const grades = {
   studentGrades: (sid) => http.get(`/grades/student/${sid}`),
   warnings: (params = {}) => http.get('/grades/warnings', { params }),
   exportWarnings: () => http.get('/grades/warnings/export', { responseType: 'blob' }),
+  /** v3j-B-b03 · 按 ID 列表批量导出预警 */
+  exportWarningsByIds: (ids) => http.post('/grades/warnings/export/by-ids', { ids }, { responseType: 'blob' }),
   semesters: () => http.get('/grades/semesters'),
   recalculateWarnings: () => http.post('/grades/recalculate'),
   exportAll: () => http.get('/grades/export', { responseType: 'blob' }),
@@ -26,7 +28,11 @@ export const party = {
   remove: (pid) => http.delete(`/party-progress/${pid}`),
   overview: () => http.get('/party-progress/overview'),
   detail: (sid) => http.get(`/party-progress/detail/${sid}`),
-  exportExcel: () => http.get('/party-progress/export', { responseType: 'blob' })
+  exportExcel: () => http.get('/party-progress/export', { responseType: 'blob' }),
+  /** v3j-B-b03 · 按当前搜索导出全部 */
+  exportAll: (params = {}) => http.get('/party-progress/export', { params, responseType: 'blob' }),
+  /** v3j-B-b03 · 按 ID 列表批量导出 */
+  exportByIds: (ids) => http.post('/party-progress/export-by-ids', { ids }, { responseType: 'blob' })
 }
 
 /** 党团学习记录 */
@@ -39,11 +45,16 @@ export const partyStudy = {
 
 /** 心理关怀 */
 export const psychology = {
+  /** v3j-B-b03 · 支持 search / sort_by / order 参数 */
   list: (params = {}) => http.get('/psychology', { params }),
   create: (data) => http.post('/psychology', data),
   update: (rid, data) => http.put(`/psychology/${rid}`, data),
   remove: (rid) => http.delete(`/psychology/${rid}`),
-  reminders: () => http.get('/psychology/reminders')
+  reminders: () => http.get('/psychology/reminders'),
+  /** v3j-B-b03 · 按 ID 列表批量导出 */
+  exportByIds: (ids) => http.post('/psychology/export', { ids }, { responseType: 'blob' }),
+  /** v3j-B-b03 · 按当前搜索导出全部 */
+  exportAll: (params = {}) => http.get('/psychology/export/all', { params, responseType: 'blob' })
 }
 
 /** 家庭联络 */
@@ -56,11 +67,16 @@ export const family = {
 
 /** 学生干部 */
 export const cadres = {
+  /** v3j-B-b03 · 支持 search / sort_by / order 参数 */
   list: (params = {}) => http.get('/cadres', { params }),
   directory: () => http.get('/cadres/directory'),
   create: (data) => http.post('/cadres', data),
   update: (cid, data) => http.put(`/cadres/${cid}`, data),
-  remove: (cid) => http.delete(`/cadres/${cid}`)
+  remove: (cid) => http.delete(`/cadres/${cid}`),
+  /** v3j-B-b03 · 按 ID 列表批量导出 */
+  exportByIds: (ids) => http.post('/cadres/export', { ids }, { responseType: 'blob' }),
+  /** v3j-B-b03 · 按当前搜索导出全部 */
+  exportAll: (params = {}) => http.get('/cadres/export/all', { params, responseType: 'blob' })
 }
 
 /** 活动 */
@@ -81,26 +97,41 @@ export const activities = {
 
 /** 就业信息 */
 export const employment = {
-  list: () => http.get('/employment'),
+  /** v3j-B-b03 · 支持 search / sort_by / order 参数 */
+  list: (params = {}) => http.get('/employment', { params }),
   create: (data) => http.post('/employment', data),
   update: (eid, data) => http.put(`/employment/${eid}`, data),
-  remove: (eid) => http.delete(`/employment/${eid}`)
+  remove: (eid) => http.delete(`/employment/${eid}`),
+  /** v3j-B-b03 · 按 ID 列表批量导出 */
+  exportByIds: (ids) => http.post('/employment/export', { ids }, { responseType: 'blob' }),
+  /** v3j-B-b03 · 按当前搜索导出全部 */
+  exportAll: (params = {}) => http.get('/employment/export/all', { params, responseType: 'blob' })
 }
 
 /** 班会 */
 export const classMeetings = {
+  /** v3j-B-b03 · 支持 search / sort_by / order 参数 */
   list: (params = {}) => http.get('/class-meetings', { params }),
   create: (data) => http.post('/class-meetings', data),
   update: (mid, data) => http.put(`/class-meetings/${mid}`, data),
-  remove: (mid) => http.delete(`/class-meetings/${mid}`)
+  remove: (mid) => http.delete(`/class-meetings/${mid}`),
+  /** v3j-B-b03 · 按 ID 列表批量导出 */
+  exportByIds: (ids) => http.post('/class-meetings/export', { ids }, { responseType: 'blob' }),
+  /** v3j-B-b03 · 按当前搜索导出全部 */
+  exportAll: (params = {}) => http.get('/class-meetings/export/all', { params, responseType: 'blob' })
 }
 
 /** 班主任 */
 export const classTeachers = {
-  list: () => http.get('/class-teachers'),
+  /** v3j-B-b03 · 支持 search / sort_by / order 参数 */
+  list: (params = {}) => http.get('/class-teachers', { params }),
   create: (data) => http.post('/class-teachers', data),
   update: (tid, data) => http.put(`/class-teachers/${tid}`, data),
-  remove: (tid) => http.delete(`/class-teachers/${tid}`)
+  remove: (tid) => http.delete(`/class-teachers/${tid}`),
+  /** v3j-B-b03 · 按 ID 列表批量导出 */
+  exportByIds: (ids) => http.post('/class-teachers/export', { ids }, { responseType: 'blob' }),
+  /** v3j-B-b03 · 按当前搜索导出全部 */
+  exportAll: (params = {}) => http.get('/class-teachers/export/all', { params, responseType: 'blob' })
 }
 
 /** 驾驶舱 */

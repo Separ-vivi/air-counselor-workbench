@@ -228,18 +228,47 @@ def get_semesters(db: Session = Depends(get_db)):
 def get_warnings(
     warning_type: Optional[str] = Query(None, description='预警类型: red/yellow'),
     semester: Optional[str] = Query(None, description='学期筛选'),
+    search: str = Query('', description='搜索学号/姓名/班级/预警原因'),
+    sort_by: str = Query('warning_type', description='排序字段'),
+    order: str = Query('desc', description='asc/desc'),
     db: Session = Depends(get_db)
 ):
-    """获取预警学生列表"""
+    """获取预警学生列表 (v3j-B-b03 · 支持 search + sort_by + order)"""
+    from sqlalchemy import or_ as _or
     query = db.query(WarningRecord, Student).join(
         Student, WarningRecord.student_id == Student.id
-    )
+    ).outerjoin(ClassModel, Student.class_id == ClassModel.id)
     if warning_type:
         query = query.filter(WarningRecord.warning_type == warning_type)
     if semester:
         query = query.filter(WarningRecord.semester == semester)
-
-    results = query.order_by(WarningRecord.warning_type, WarningRecord.created_at.desc()).all()
+    if search:
+        pattern = f"%{search.strip()}%"
+        query = query.filter(
+            _or(
+                Student.name.ilike(pattern),
+                Student.student_no.ilike(pattern),
+                ClassModel.class_name.ilike(pattern),
+                WarningRecord.description.ilike(pattern),
+                WarningRecord.warning_type.ilike(pattern),
+                WarningRecord.semester.ilike(pattern),
+            )
+        )
+    SORT_WHITELIST = {
+        'warning_type': WarningRecord.warning_type,
+        'warning_level': WarningRecord.warning_type,
+        'semester': WarningRecord.semester,
+        'created_at': WarningRecord.created_at,
+        'student_name': Student.name,
+        'student_no': Student.student_no,
+        'class_name': ClassModel.class_name,
+    }
+    col = SORT_WHITELIST.get(sort_by, WarningRecord.warning_type)
+    if (order or 'desc').lower() == 'asc':
+        query = query.order_by(col.asc(), WarningRecord.created_at.desc())
+    else:
+        query = query.order_by(col.desc(), WarningRecord.created_at.desc())
+    results = query.all()
 
     # 预先算好每个学生的挂科数和 GPA（当前学期或全部）
     def stats_for(sid, sem):
@@ -404,6 +433,52 @@ def export_grades_by_ids(
     wb.save(output)
     output.seek(0)
     filename = f'grades_selected_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    return StreamingResponse(
+        output,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
+@router.post('/warnings/export/by-ids')
+def export_warnings_by_ids(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """按 ID 列表批量导出预警 Excel (v3j-B-b03)"""
+    from openpyxl import Workbook
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    ids = payload.get('ids') or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(400, '请传入非空的 ids 列表')
+    results = db.query(WarningRecord, Student).join(
+        Student, WarningRecord.student_id == Student.id
+    ).outerjoin(ClassModel, Student.class_id == ClassModel.id).filter(
+        WarningRecord.id.in_(ids)
+    ).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '预警_选中'
+    ws.append(['学号', '姓名', '班级', '专业', '预警类型', '预警描述', '学期', '创建时间'])
+    type_map = {'red': '红灯', 'yellow': '黄灯', 'green': '绿灯'}
+    for warning, student in results:
+        created_at = warning.created_at
+        if hasattr(created_at, 'strftime'):
+            created_at_str = created_at.strftime('%Y-%m-%d %H:%M')
+        else:
+            created_at_str = str(created_at) if created_at else ''
+        cls_name = student.class_obj.class_name if student.class_obj else ''
+        major_name = ''
+        if student.class_obj and student.class_obj.major:
+            major_name = student.class_obj.major.major_name
+        ws.append([
+            student.student_no, student.name, cls_name, major_name,
+            type_map.get(warning.warning_type, warning.warning_type),
+            warning.description, warning.semester, created_at_str,
+        ])
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    filename = f'warnings_selected_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     return StreamingResponse(
         output,
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

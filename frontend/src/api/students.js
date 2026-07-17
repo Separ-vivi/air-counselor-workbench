@@ -39,3 +39,7 @@ export const getStudentCompleteness = (id) => http.get(`/students/${id}/complete
 /** 按 ID 列表批量导出（v3j-B-b02 · 多选批量导出） */
 export const exportStudentsByIds = (ids) =>
   http.post('/students/export', { ids }, { responseType: 'blob' })
+
+/** v3j-B-b03 · 学生 360 完整档案批量导出（宽表，含成绩/活动/心理/预警/教师/干部/党团等全维度） */
+export const exportStudentsFull = (ids) =>
+  http.post('/students/export/full', { ids }, { responseType: 'blob' })

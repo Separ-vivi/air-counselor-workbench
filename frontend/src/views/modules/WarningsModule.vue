@@ -5,12 +5,21 @@
       <div>
         <el-button :icon="Refresh" @click="reload">刷新</el-button>
         <el-button type="primary" :icon="Refresh" :loading="recalcing" @click="doRecalc">重新计算</el-button>
-        <el-button :icon="Download" @click="exportExcel">导出</el-button>
+        <el-button
+          type="success"
+          :icon="Download"
+          :disabled="!checkedRows.length"
+          @click="exportSelected"
+        >导出选中（{{ checkedRows.length }}）</el-button>
+        <el-button :icon="Download" @click="exportAll">导出全部</el-button>
       </div>
     </div>
 
     <el-card shadow="never" style="margin-bottom: 16px">
       <el-form :inline="true">
+        <el-form-item label="搜索">
+          <el-input v-model="filter.kw" placeholder="姓名/学号/预警原因" clearable style="width: 220px" />
+        </el-form-item>
         <el-form-item label="学期">
           <el-select v-model="filter.semester" placeholder="全部学期" clearable filterable style="width: 180px" @change="reload">
             <el-option v-for="s in semesters" :key="s" :label="s" :value="s" />
@@ -62,25 +71,35 @@
     </el-row>
 
     <el-card shadow="never">
-      <el-table :data="filteredRows" stripe border v-loading="loading" max-height="600">
-        <el-table-column label="学生" prop="student_name" width="110">
+      <el-table
+        :data="filteredRows"
+        stripe
+        border
+        v-loading="loading"
+        max-height="600"
+        row-key="id"
+        @selection-change="onSelectionChange"
+        @sort-change="onSort"
+      >
+        <el-table-column type="selection" width="45" reserve-selection />
+        <el-table-column label="学生" prop="student_name" width="110" sortable="custom">
           <template #default="{ row }">
             <el-link type="primary" @click="$router.push(`/students/${row.student_id || row.id}`)">
               {{ row.student_name || row.name }}
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column label="学号" prop="student_no" width="140" />
-        <el-table-column label="班级" prop="class_name" min-width="160" show-overflow-tooltip />
-        <el-table-column label="预警等级" prop="warning_level" width="110">
+        <el-table-column label="学号" prop="student_no" width="140" sortable="custom" />
+        <el-table-column label="班级" prop="class_name" min-width="160" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="预警等级" prop="warning_level" width="110" sortable="custom">
           <template #default="{ row }">
             <el-tag :type="levelTag(row.warning_level)" size="small">{{ row.warning_level || '-' }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="预警原因" prop="warning_reason" min-width="200" show-overflow-tooltip />
-        <el-table-column label="不及格门数" prop="fail_count" width="110" align="center" />
-        <el-table-column label="GPA" prop="gpa" width="90" />
-        <el-table-column label="学期" prop="semester" width="120" />
+        <el-table-column label="不及格门数" prop="fail_count" width="110" align="center" sortable="custom" />
+        <el-table-column label="GPA" prop="gpa" width="90" sortable="custom" />
+        <el-table-column label="学期" prop="semester" width="120" sortable="custom" />
       </el-table>
     </el-card>
   </div>
@@ -94,6 +113,7 @@ import { grades as gradesApi } from '@/api/modules'
 import { useOrgStore } from '@/stores/org'
 import { useStudentStore } from '@/stores/student'
 import StudentSelect from '@/components/StudentSelect.vue'
+import { triggerDownload, stampedName } from '@/utils/download'
 
 const orgStore = useOrgStore()
 const studentStore = useStudentStore()
@@ -102,8 +122,25 @@ const list = ref([])
 const semesters = ref([])
 const loading = ref(false)
 const recalcing = ref(false)
-const filter = reactive({ semester: '', level: '', class_name: '', student_id: null })
+const filter = reactive({ semester: '', level: '', class_name: '', student_id: null, kw: '' })
 
+// v3j-B-b03 · 排序 + 搜索 + 多选
+const sortBy = ref('warning_level')
+const sortOrder = ref('desc')
+const checkedRows = ref([])
+const onSelectionChange = (rows) => { checkedRows.value = rows }
+const onSort = ({ prop, order }) => {
+  sortBy.value = prop || 'warning_level'
+  sortOrder.value = order === 'ascending' ? 'asc' : (order === 'descending' ? 'desc' : 'desc')
+  reload()
+}
+let _searchTimer = null
+watch(() => filter.kw, () => {
+  clearTimeout(_searchTimer)
+  _searchTimer = setTimeout(() => reload(), 300)
+})
+
+// 客户端二次过滤：level/class_name/student_id 三个筛选保持前端过滤（后端 search 已含所有关键字）
 const filteredRows = computed(() => {
   let rs = list.value
   if (filter.level) rs = rs.filter((r) => (r.warning_level || '').includes(filter.level.slice(0, 1)) || r.warning_level === filter.level)
@@ -136,6 +173,9 @@ const reload = async () => {
   try {
     const params = {}
     if (filter.semester) params.semester = filter.semester
+    if (filter.kw) params.search = filter.kw
+    if (sortBy.value) params.sort_by = sortBy.value
+    if (sortOrder.value) params.order = sortOrder.value
     const res = await gradesApi.warnings(params)
     list.value = Array.isArray(res) ? res : (res?.items || res?.data || [])
   } finally { loading.value = false }
@@ -157,15 +197,21 @@ const doRecalc = async () => {
   } finally { recalcing.value = false }
 }
 
-const exportExcel = async () => {
+const exportSelected = async () => {
+  if (!checkedRows.value.length) { ElMessage.warning('请先勾选要导出的预警记录'); return }
+  try {
+    const ids = checkedRows.value.map(r => r.id)
+    const blob = await gradesApi.exportWarningsByIds(ids)
+    triggerDownload(blob, stampedName(`学业预警_选中${ids.length}条`))
+    ElMessage.success(`已导出 ${ids.length} 条`)
+  } catch (e) { ElMessage.error('导出失败') }
+}
+const exportAll = async () => {
   try {
     const blob = await gradesApi.exportWarnings()
-    const url = URL.createObjectURL(new Blob([blob]))
-    const a = document.createElement('a')
-    a.href = url; a.download = `warnings_${Date.now()}.xlsx`
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch (e) {}
+    triggerDownload(blob, stampedName(`学业预警_全部`))
+    ElMessage.success('已导出全部')
+  } catch (e) { ElMessage.error('导出失败') }
 }
 
 watch(() => studentStore.refreshBumper, reload)

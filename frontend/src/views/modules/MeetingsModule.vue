@@ -2,7 +2,16 @@
   <div class="module-page">
     <div class="page-header">
       <h2>📋 班会管理</h2>
-      <el-button type="primary" :icon="Plus" @click="openCreate(null)">新增班会</el-button>
+      <div>
+        <el-button
+          type="success"
+          :icon="Download"
+          :disabled="!checkedRows.length"
+          @click="exportSelected"
+        >导出选中（{{ checkedRows.length }}）</el-button>
+        <el-button :icon="Download" @click="exportAll">导出全部</el-button>
+        <el-button type="primary" :icon="Plus" @click="openCreate(null)">新增班会</el-button>
+      </div>
     </div>
 
     <el-card shadow="never" style="margin-bottom: 16px">
@@ -12,20 +21,30 @@
             <el-option v-for="c in orgStore.allClasses" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="主题">
-          <el-input v-model="filter.theme" placeholder="主题关键字" clearable style="width: 200px" @keyup.enter="reload" @clear="reload" />
+        <el-form-item label="搜索">
+          <el-input v-model="filter.theme" placeholder="主题/主持人/记录人/班级" clearable style="width: 240px" />
         </el-form-item>
       </el-form>
     </el-card>
 
     <el-card shadow="never">
-      <el-table :data="list" v-loading="loading" stripe border max-height="600">
-        <el-table-column label="班会主题" prop="theme" min-width="200" show-overflow-tooltip />
-        <el-table-column label="所属班级" prop="class_name" width="180" show-overflow-tooltip />
-        <el-table-column label="召开日期" prop="meeting_date" width="130" />
-        <el-table-column label="主持人" prop="host" width="120" />
-        <el-table-column label="出席人数" prop="attendance_count" width="100" align="center" />
-        <el-table-column label="记录人" prop="recorder" width="120" />
+      <el-table
+        :data="list"
+        v-loading="loading"
+        stripe
+        border
+        max-height="600"
+        row-key="id"
+        @selection-change="onSelectionChange"
+        @sort-change="onSort"
+      >
+        <el-table-column type="selection" width="45" reserve-selection />
+        <el-table-column label="班会主题" prop="theme" min-width="200" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="所属班级" prop="class_name" width="180" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="召开日期" prop="meeting_date" width="130" sortable="custom" />
+        <el-table-column label="主持人" prop="host" width="120" sortable="custom" />
+        <el-table-column label="出席人数" prop="attendance_count" width="100" align="center" sortable="custom" />
+        <el-table-column label="记录人" prop="recorder" width="120" sortable="custom" />
         <el-table-column label="备注" prop="notes" show-overflow-tooltip />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
@@ -80,9 +99,10 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Download } from '@element-plus/icons-vue'
 import { classMeetings as mApi } from '@/api/modules'
 import { useOrgStore } from '@/stores/org'
+import { triggerDownload, stampedName } from '@/utils/download'
 
 const orgStore = useOrgStore()
 
@@ -90,15 +110,53 @@ const list = ref([])
 const loading = ref(false)
 const filter = reactive({ class_id: null, theme: '' })
 
+// v3j-B-b03 · 排序 + 搜索 + 多选
+const sortBy = ref('meeting_date')
+const sortOrder = ref('desc')
+const checkedRows = ref([])
+const onSelectionChange = (rows) => { checkedRows.value = rows }
+const onSort = ({ prop, order }) => {
+  sortBy.value = prop || 'meeting_date'
+  sortOrder.value = order === 'ascending' ? 'asc' : (order === 'descending' ? 'desc' : 'desc')
+  reload()
+}
+let _searchTimer = null
+watch(() => filter.theme, () => {
+  clearTimeout(_searchTimer)
+  _searchTimer = setTimeout(() => reload(), 300)
+})
+
 const reload = async () => {
   loading.value = true
   try {
     const params = {}
     if (filter.class_id) params.class_id = filter.class_id
-    if (filter.theme) params.theme = filter.theme
+    if (filter.theme) params.search = filter.theme
+    if (sortBy.value) params.sort_by = sortBy.value
+    if (sortOrder.value) params.order = sortOrder.value
     const res = await mApi.list(params)
     list.value = Array.isArray(res) ? res : (res?.items || [])
   } finally { loading.value = false }
+}
+
+const exportSelected = async () => {
+  if (!checkedRows.value.length) { ElMessage.warning('请先勾选要导出的班会'); return }
+  try {
+    const ids = checkedRows.value.map(r => r.id)
+    const blob = await mApi.exportByIds(ids)
+    triggerDownload(blob, stampedName(`班会_选中${ids.length}条`))
+    ElMessage.success(`已导出 ${ids.length} 条`)
+  } catch (e) { ElMessage.error('导出失败') }
+}
+const exportAll = async () => {
+  try {
+    const params = {}
+    if (filter.class_id) params.class_id = filter.class_id
+    if (filter.theme) params.search = filter.theme
+    const blob = await mApi.exportAll(params)
+    triggerDownload(blob, stampedName(`班会_全部`))
+    ElMessage.success('已导出全部')
+  } catch (e) { ElMessage.error('导出失败') }
 }
 
 const dlg = ref(false)

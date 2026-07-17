@@ -337,12 +337,47 @@ def _meeting_normalize_input(data: dict) -> dict:
 
 
 @router.get('/class-meetings')
-def list_class_meetings(class_name: Optional[str] = None, class_id: Optional[int] = None, db: Session = Depends(get_db)):
+def list_class_meetings(
+    class_name: Optional[str] = Query(None),
+    class_id: Optional[int] = Query(None),
+    theme: Optional[str] = Query(None),
+    search: str = Query('', description='搜索主题/主持人/记录人/备注'),
+    sort_by: str = Query('meeting_date', description='排序字段'),
+    order: str = Query('desc', description='asc/desc'),
+    db: Session = Depends(get_db)
+):
+    """班会列表 (v3j-B-b03 · 支持 search + sort_by + order)"""
     from models import ClassModel
     q = db.query(ClassMeeting)
     if class_id:
         q = q.filter(ClassMeeting.class_id == class_id)
-    items = q.order_by(ClassMeeting.meeting_date.desc()).all()
+    if theme:
+        q = q.filter(ClassMeeting.topic.contains(theme))
+    if search:
+        pattern = f"%{search.strip()}%"
+        q = q.filter(
+            or_(
+                ClassMeeting.topic.ilike(pattern),
+                ClassMeeting.host.ilike(pattern),
+                ClassMeeting.recorder.ilike(pattern),
+                ClassMeeting.content_summary.ilike(pattern),
+                ClassMeeting.notes.ilike(pattern),
+            )
+        )
+    SORT_WHITELIST = {
+        'meeting_date': ClassMeeting.meeting_date,
+        'theme': ClassMeeting.topic,
+        'topic': ClassMeeting.topic,
+        'host': ClassMeeting.host,
+        'recorder': ClassMeeting.recorder,
+        'attendance_count': ClassMeeting.attendance_count,
+    }
+    col = SORT_WHITELIST.get(sort_by, ClassMeeting.meeting_date)
+    if (order or 'desc').lower() == 'asc':
+        q = q.order_by(col.asc())
+    else:
+        q = q.order_by(col.desc())
+    items = q.all()
     result = []
     for m in items:
         cls_name = ''
@@ -353,6 +388,79 @@ def list_class_meetings(class_name: Optional[str] = None, class_id: Optional[int
             continue
         result.append(_meeting_dict(m, cls_name))
     return result
+
+
+def _meeting_export_workbook(items, db):
+    from openpyxl import Workbook
+    from models import ClassModel
+    class_map = {c.id: c.class_name for c in db.query(ClassModel).all()}
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '班会记录'
+    ws.append(['班会主题', '所属班级', '召开日期', '主持人', '记录人', '出席人数', '内容摘要', '备注'])
+    for m in items:
+        cls_name = class_map.get(m.class_id, '') if m.class_id else ''
+        ws.append([
+            m.topic or '', cls_name,
+            m.meeting_date or '',
+            getattr(m, 'host', '') or '',
+            getattr(m, 'recorder', '') or '',
+            m.attendance_count or 0,
+            m.content_summary or '',
+            getattr(m, 'notes', '') or '',
+        ])
+    return wb
+
+
+@router.post('/class-meetings/export')
+def export_class_meetings_by_ids(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """按 ID 列表批量导出班会 Excel (v3j-B-b03)"""
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    ids = payload.get('ids') or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(400, '请传入非空的 ids 列表')
+    items = db.query(ClassMeeting).filter(ClassMeeting.id.in_(ids)).all()
+    wb = _meeting_export_workbook(items, db)
+    out = BytesIO(); wb.save(out); out.seek(0)
+    return StreamingResponse(
+        out,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': 'attachment; filename=class_meetings_selected.xlsx'}
+    )
+
+
+@router.get('/class-meetings/export/all')
+def export_class_meetings_all(
+    search: str = Query(''),
+    class_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """按当前搜索条件导出全部班会 Excel (v3j-B-b03)"""
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    q = db.query(ClassMeeting)
+    if class_id:
+        q = q.filter(ClassMeeting.class_id == class_id)
+    if search:
+        pattern = f"%{search.strip()}%"
+        q = q.filter(
+            or_(
+                ClassMeeting.topic.ilike(pattern),
+                ClassMeeting.host.ilike(pattern),
+                ClassMeeting.recorder.ilike(pattern),
+                ClassMeeting.content_summary.ilike(pattern),
+                ClassMeeting.notes.ilike(pattern),
+            )
+        )
+    items = q.order_by(ClassMeeting.meeting_date.desc()).all()
+    wb = _meeting_export_workbook(items, db)
+    out = BytesIO(); wb.save(out); out.seek(0)
+    return StreamingResponse(
+        out,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': 'attachment; filename=class_meetings_all.xlsx'}
+    )
 
 
 @router.get('/class-meetings/{meeting_id}')

@@ -305,6 +305,188 @@ def export_students_by_ids(
     )
 
 
+@router.post('/export/full')
+def export_students_full(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db)
+):
+    """学生 360 完整档案批量导出 (v3j-B-b03)。
+    宽表：一行一个学生，列涵盖基础信息 + 成绩汇总 + 活动 + 心理 + 预警 + 教师 + 干部 + 党团 等所有维度。
+    """
+    from openpyxl import Workbook
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    from datetime import datetime as _dt
+    from models import (
+        WarningRecord, PartyProgress, PsychologyRecord, FamilyContact,
+        StudentCadreRecord, ActivitySignup, EmploymentRecord,
+        StudentHardship, StudentHonor, ClassTeacher,
+        StudentLeave, StudentDiscipline, StudentStatusChange
+    )
+
+    ids = payload.get('ids') or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(400, '请传入非空的 ids 列表')
+
+    rows = db.query(Student).outerjoin(
+        ClassModel, Student.class_id == ClassModel.id
+    ).outerjoin(
+        Major, ClassModel.major_id == Major.id
+    ).filter(Student.id.in_(ids)).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '学生360完整档案'
+
+    headers = [
+        # 基础信息
+        '学号', '姓名', '性别', '出生日期', '政治面貌', '手机号', '邮箱',
+        '家长电话', '生源地', '身份证号', '校区', '宿舍楼', '寝室号', '班级', '专业',
+        # 成绩汇总
+        '总课程数', '及格数', '不及格数', '平均分', '平均GPA',
+        # 活动
+        '活动参与数',
+        # 心理
+        '心理关注等级', '心理最新测评日期', '累计咨询次数', '下次跟进',
+        # 预警
+        '预警等级', '预警学期', '预警原因',
+        # 教师评价 (班主任)
+        '班主任姓名', '班主任电话', '班主任邮箱',
+        # 干部履历（拼接多条）
+        '干部履历',
+        # 党团
+        '党团进程当前阶段', '阶段日期',
+        # 就业
+        '就业状态', '就业单位', '就业岗位',
+        # 荣誉/资助
+        '荣誉数', '资助等级',
+        # 违纪/请假/异动
+        '违纪次数', '请假次数', '学籍异动次数',
+        # 家校
+        '家校沟通次数',
+        # 备注
+        '备注',
+    ]
+    ws.append(headers)
+
+    for stu in rows:
+        cls_name = stu.class_obj.class_name if stu.class_obj else ''
+        major_name = stu.class_obj.major.major_name if (stu.class_obj and stu.class_obj.major) else ''
+
+        # 成绩
+        grades = db.query(GradeRecord).filter(GradeRecord.student_id == stu.id).all()
+        scores = [float(g.score) for g in grades if g.score is not None]
+        gpas = [float(g.gpa) for g in grades if g.gpa is not None]
+        total_courses = len(grades)
+        fail_cnt = sum(1 for s in scores if s < 60)
+        pass_cnt = total_courses - fail_cnt
+        avg_score = round(sum(scores) / len(scores), 2) if scores else 0
+        avg_gpa = round(sum(gpas) / len(gpas), 2) if gpas else 0
+
+        # 活动
+        act_cnt = db.query(ActivitySignup).filter(ActivitySignup.student_id == stu.id).count()
+
+        # 心理
+        psy = db.query(PsychologyRecord).filter(
+            PsychologyRecord.student_id == stu.id
+        ).order_by(PsychologyRecord.record_date.desc()).first()
+        psy_level = psy.attention_level if psy else ''
+        psy_date = psy.record_date if psy else ''
+        psy_counsel = psy.counseling_count if psy else 0
+        psy_next = psy.next_follow_date if psy else ''
+
+        # 预警
+        warn = db.query(WarningRecord).filter(
+            WarningRecord.student_id == stu.id
+        ).order_by(WarningRecord.created_at.desc()).first()
+        warn_level = ''
+        warn_sem = ''
+        warn_desc = ''
+        if warn:
+            wt = (warn.warning_type or '').lower()
+            if 'red' in wt or '红' in warn.warning_type:
+                warn_level = '红色'
+            elif 'yellow' in wt or '黄' in warn.warning_type:
+                warn_level = '黄色'
+            elif 'blue' in wt or '蓝' in warn.warning_type:
+                warn_level = '蓝色'
+            else:
+                warn_level = warn.warning_type or ''
+            warn_sem = warn.semester or ''
+            warn_desc = warn.description or ''
+
+        # 班主任 (教师评价)
+        teacher = db.query(ClassTeacher).filter(ClassTeacher.class_id == stu.class_id).first() if stu.class_id else None
+        t_name = teacher.name if teacher else ''
+        t_phone = teacher.phone if teacher else ''
+        t_email = getattr(teacher, 'email', '') if teacher else ''
+
+        # 干部履历
+        cadres = db.query(StudentCadreRecord).filter(StudentCadreRecord.student_id == stu.id).all()
+        cadre_str = '; '.join([
+            f"{c.position}({c.level or '-'}/{c.start_date or '-'}~{c.end_date or '-'})"
+            for c in cadres
+        ])
+
+        # 党团
+        party = db.query(PartyProgress).filter(
+            PartyProgress.student_id == stu.id
+        ).order_by(PartyProgress.stage_date.desc()).first()
+        party_stage = party.stage if party else '群众'
+        party_date = party.stage_date if party else ''
+
+        # 就业
+        emp = db.query(EmploymentRecord).filter(
+            EmploymentRecord.student_id == stu.id
+        ).order_by(EmploymentRecord.id.desc()).first()
+        emp_status = emp.status if emp else '未登记'
+        emp_company = (emp.internship_company or emp.target_industry) if emp else ''
+        emp_position = emp.target_position if emp else ''
+
+        # 荣誉/资助
+        honor_cnt = db.query(StudentHonor).filter(StudentHonor.student_id == stu.id).count()
+        hardship = db.query(StudentHardship).filter(StudentHardship.student_id == stu.id).first()
+        hardship_level = hardship.hardship_level if hardship else '无'
+
+        # 违纪/请假/异动
+        disc_cnt = db.query(StudentDiscipline).filter(StudentDiscipline.student_id == stu.id).count()
+        leave_cnt = db.query(StudentLeave).filter(StudentLeave.student_id == stu.id).count()
+        status_cnt = db.query(StudentStatusChange).filter(StudentStatusChange.student_id == stu.id).count()
+
+        # 家校
+        family_cnt = db.query(FamilyContact).filter(FamilyContact.student_id == stu.id).count()
+
+        ws.append([
+            stu.student_no, stu.name, stu.gender or '', stu.birth_date or '',
+            stu.political_status or '', stu.phone or '', stu.email or '',
+            stu.parent_phone or '', stu.birth_source or '', stu.id_card or '',
+            stu.campus or '', stu.dorm_building or '', stu.dorm_room or '',
+            cls_name, major_name,
+            total_courses, pass_cnt, fail_cnt, avg_score, avg_gpa,
+            act_cnt,
+            psy_level, psy_date, psy_counsel, psy_next,
+            warn_level, warn_sem, warn_desc,
+            t_name, t_phone, t_email,
+            cadre_str,
+            party_stage, party_date,
+            emp_status, emp_company, emp_position,
+            honor_cnt, hardship_level,
+            disc_cnt, leave_cnt, status_cnt,
+            family_cnt,
+            stu.notes or '',
+        ])
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    filename = f'students_full_{_dt.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    return StreamingResponse(
+        output,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
 @router.get('/filters')
 def get_filters(db: Session = Depends(get_db)):
     """获取筛选选项"""

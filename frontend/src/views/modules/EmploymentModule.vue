@@ -2,11 +2,23 @@
   <div class="module-page">
     <div class="page-header">
       <h2>💼 就业管理</h2>
-      <el-button type="primary" :icon="Plus" @click="openCreate(null)">新增记录</el-button>
+      <div>
+        <el-button
+          type="success"
+          :icon="Download"
+          :disabled="!checkedRows.length"
+          @click="exportSelected"
+        >导出选中（{{ checkedRows.length }}）</el-button>
+        <el-button :icon="Download" @click="exportAll">导出全部</el-button>
+        <el-button type="primary" :icon="Plus" @click="openCreate(null)">新增记录</el-button>
+      </div>
     </div>
 
     <el-card shadow="never" style="margin-bottom: 16px">
       <el-form :inline="true">
+        <el-form-item label="搜索">
+          <el-input v-model="filter.kw" placeholder="学生姓名/学号/单位/岗位" clearable style="width: 240px" />
+        </el-form-item>
         <el-form-item label="学生">
           <StudentSelect v-model="filter.student_id" style="width: 260px" @change="reload" />
         </el-form-item>
@@ -28,22 +40,32 @@
     </el-row>
 
     <el-card shadow="never">
-      <el-table :data="filteredList" v-loading="loading" stripe border max-height="600">
-        <el-table-column label="学生" prop="student_name" width="110">
+      <el-table
+        :data="list"
+        v-loading="loading"
+        stripe
+        border
+        max-height="600"
+        row-key="id"
+        @selection-change="onSelectionChange"
+        @sort-change="onSort"
+      >
+        <el-table-column type="selection" width="45" reserve-selection />
+        <el-table-column label="学生" prop="student_name" width="110" sortable="custom">
           <template #default="{ row }">
             <el-link type="primary" @click="$router.push(`/students/${row.student_id}`)">{{ row.student_name }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column label="学号" prop="student_no" width="140" />
-        <el-table-column label="班级" prop="class_name" min-width="140" show-overflow-tooltip />
-        <el-table-column label="就业状态" prop="status" width="130">
+        <el-table-column label="学号" prop="student_no" width="140" sortable="custom" />
+        <el-table-column label="班级" prop="class_name" min-width="140" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="就业状态" prop="status" width="130" sortable="custom">
           <template #default="{ row }">
             <el-tag :type="statusTag(row.status)" size="small">{{ row.status || '-' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="单位/院校" prop="company" min-width="200" show-overflow-tooltip />
-        <el-table-column label="岗位/专业" prop="position" min-width="140" show-overflow-tooltip />
-        <el-table-column label="签约日期" prop="sign_date" width="130" />
+        <el-table-column label="单位/院校" prop="company" min-width="200" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="岗位/专业" prop="position" min-width="140" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="签约日期" prop="sign_date" width="130" sortable="custom" />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openCreate(row)">编辑</el-button>
@@ -97,10 +119,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Download } from '@element-plus/icons-vue'
 import { employment as empApi } from '@/api/modules'
 import { useStudentStore } from '@/stores/student'
 import StudentSelect from '@/components/StudentSelect.vue'
+import { triggerDownload, stampedName } from '@/utils/download'
 
 const studentStore = useStudentStore()
 const statusList = ['已签约', '拟录用', '升学', '出国', '待业', '其他']
@@ -108,13 +131,22 @@ const statusColor = { 已签约: '#67C23A', 拟录用: '#409EFF', 升学: '#E6A2
 
 const list = ref([])
 const loading = ref(false)
-const filter = reactive({ student_id: null, status: '' })
+const filter = reactive({ student_id: null, status: '', kw: '' })
 
-const filteredList = computed(() => {
-  let rs = list.value
-  if (filter.student_id) rs = rs.filter((r) => r.student_id === filter.student_id)
-  if (filter.status) rs = rs.filter((r) => r.status === filter.status)
-  return rs
+// v3j-B-b03 · 排序 + 搜索 + 多选
+const sortBy = ref('sign_date')
+const sortOrder = ref('desc')
+const checkedRows = ref([])
+const onSelectionChange = (rows) => { checkedRows.value = rows }
+const onSort = ({ prop, order }) => {
+  sortBy.value = prop || 'sign_date'
+  sortOrder.value = order === 'ascending' ? 'asc' : (order === 'descending' ? 'desc' : 'desc')
+  reload()
+}
+let _searchTimer = null
+watch(() => filter.kw, () => {
+  clearTimeout(_searchTimer)
+  _searchTimer = setTimeout(() => reload(), 300)
 })
 
 const statusStats = computed(() =>
@@ -129,9 +161,36 @@ const statusTag = (s) => {
 const reload = async () => {
   loading.value = true
   try {
-    const res = await empApi.list()
+    const params = {}
+    if (filter.student_id) params.student_id = filter.student_id
+    if (filter.status) params.status = filter.status
+    if (filter.kw) params.search = filter.kw
+    if (sortBy.value) params.sort_by = sortBy.value
+    if (sortOrder.value) params.order = sortOrder.value
+    const res = await empApi.list(params)
     list.value = Array.isArray(res) ? res : (res?.items || [])
   } finally { loading.value = false }
+}
+
+const exportSelected = async () => {
+  if (!checkedRows.value.length) { ElMessage.warning('请先勾选要导出的就业记录'); return }
+  try {
+    const ids = checkedRows.value.map(r => r.id)
+    const blob = await empApi.exportByIds(ids)
+    triggerDownload(blob, stampedName(`就业记录_选中${ids.length}条`))
+    ElMessage.success(`已导出 ${ids.length} 条`)
+  } catch (e) { ElMessage.error('导出失败') }
+}
+const exportAll = async () => {
+  try {
+    const params = {}
+    if (filter.student_id) params.student_id = filter.student_id
+    if (filter.status) params.status = filter.status
+    if (filter.kw) params.search = filter.kw
+    const blob = await empApi.exportAll(params)
+    triggerDownload(blob, stampedName(`就业记录_全部`))
+    ElMessage.success('已导出全部')
+  } catch (e) { ElMessage.error('导出失败') }
 }
 
 const dlg = ref(false)

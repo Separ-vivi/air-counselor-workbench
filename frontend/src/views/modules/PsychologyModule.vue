@@ -4,12 +4,22 @@
       <h2>💚 心理关怀</h2>
       <div>
         <el-button :icon="Bell" @click="loadReminders">提醒 ({{ reminders.length }})</el-button>
+        <el-button
+          type="success"
+          :icon="Download"
+          :disabled="!checkedRows.length"
+          @click="exportSelected"
+        >导出选中（{{ checkedRows.length }}）</el-button>
+        <el-button :icon="Download" @click="exportAll">导出全部</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreate(null)">新增记录</el-button>
       </div>
     </div>
 
     <el-card shadow="never" style="margin-bottom: 16px">
       <el-form :inline="true">
+        <el-form-item label="搜索">
+          <el-input v-model="filter.kw" placeholder="学生姓名/学号/备注" clearable style="width: 220px" />
+        </el-form-item>
         <el-form-item label="学生">
           <StudentSelect v-model="filter.student_id" style="width: 260px" @change="reload" />
         </el-form-item>
@@ -26,22 +36,32 @@
     </el-alert>
 
     <el-card shadow="never">
-      <el-table :data="list" v-loading="loading" stripe border max-height="600">
-        <el-table-column label="学生" prop="student_name" width="110">
+      <el-table
+        :data="list"
+        v-loading="loading"
+        stripe
+        border
+        max-height="600"
+        row-key="id"
+        @selection-change="onSelectionChange"
+        @sort-change="onSort"
+      >
+        <el-table-column type="selection" width="45" reserve-selection />
+        <el-table-column label="学生" prop="student_name" width="110" sortable="custom">
           <template #default="{ row }">
             <el-link type="primary" @click="$router.push(`/students/${row.student_id}`)">{{ row.student_name }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column label="学号" prop="student_no" width="140" />
-        <el-table-column label="班级" prop="class_name" min-width="140" show-overflow-tooltip />
-        <el-table-column label="关注等级" prop="attention_level" width="120">
+        <el-table-column label="学号" prop="student_no" width="140" sortable="custom" />
+        <el-table-column label="班级" prop="class_name" min-width="140" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="关注等级" prop="attention_level" width="120" sortable="custom">
           <template #default="{ row }">
             <el-tag :type="lvTag(row.attention_level)" size="small">{{ row.attention_level || '-' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="测评日期" prop="assessment_date" width="130" />
-        <el-table-column label="咨询次数" prop="counseling_count" width="100" align="center" />
-        <el-table-column label="下次跟进" prop="next_follow_up" width="130" />
+        <el-table-column label="测评日期" prop="assessment_date" width="130" sortable="custom" />
+        <el-table-column label="咨询次数" prop="counseling_count" width="100" align="center" sortable="custom" />
+        <el-table-column label="下次跟进" prop="next_follow_up" width="130" sortable="custom" />
         <el-table-column label="备注" prop="notes" show-overflow-tooltip />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
@@ -90,10 +110,11 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Bell } from '@element-plus/icons-vue'
+import { Plus, Bell, Download } from '@element-plus/icons-vue'
 import { psychology as psyApi } from '@/api/modules'
 import { useStudentStore } from '@/stores/student'
 import StudentSelect from '@/components/StudentSelect.vue'
+import { triggerDownload, stampedName } from '@/utils/download'
 
 const studentStore = useStudentStore()
 
@@ -101,7 +122,23 @@ const levels = ['一级关注', '二级关注', '三级关注', '普通']
 const list = ref([])
 const reminders = ref([])
 const loading = ref(false)
-const filter = reactive({ student_id: null, attention_level: '' })
+const filter = reactive({ student_id: null, attention_level: '', kw: '' })
+
+// v3j-B-b03 · 排序 + 搜索 + 多选
+const sortBy = ref('assessment_date')
+const sortOrder = ref('desc')
+const checkedRows = ref([])
+const onSelectionChange = (rows) => { checkedRows.value = rows }
+const onSort = ({ prop, order }) => {
+  sortBy.value = prop || 'assessment_date'
+  sortOrder.value = order === 'ascending' ? 'asc' : (order === 'descending' ? 'desc' : 'desc')
+  reload()
+}
+let _searchTimer = null
+watch(() => filter.kw, () => {
+  clearTimeout(_searchTimer)
+  _searchTimer = setTimeout(() => reload(), 300)
+})
 
 const lvTag = (l) => {
   if (!l) return ''
@@ -117,9 +154,33 @@ const reload = async () => {
     const params = {}
     if (filter.student_id) params.student_id = filter.student_id
     if (filter.attention_level) params.attention_level = filter.attention_level
+    if (filter.kw) params.search = filter.kw
+    if (sortBy.value) params.sort_by = sortBy.value
+    if (sortOrder.value) params.order = sortOrder.value
     const res = await psyApi.list(params)
     list.value = Array.isArray(res) ? res : (res?.items || [])
   } finally { loading.value = false }
+}
+
+const exportSelected = async () => {
+  if (!checkedRows.value.length) { ElMessage.warning('请先勾选要导出的心理档案'); return }
+  try {
+    const ids = checkedRows.value.map(r => r.id)
+    const blob = await psyApi.exportByIds(ids)
+    triggerDownload(blob, stampedName(`心理关怀_选中${ids.length}条`))
+    ElMessage.success(`已导出 ${ids.length} 条`)
+  } catch (e) { ElMessage.error('导出失败') }
+}
+const exportAll = async () => {
+  try {
+    const params = {}
+    if (filter.student_id) params.student_id = filter.student_id
+    if (filter.attention_level) params.attention_level = filter.attention_level
+    if (filter.kw) params.search = filter.kw
+    const blob = await psyApi.exportAll(params)
+    triggerDownload(blob, stampedName(`心理关怀_全部`))
+    ElMessage.success('已导出全部')
+  } catch (e) { ElMessage.error('导出失败') }
 }
 
 const loadReminders = async () => {
