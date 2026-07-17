@@ -41,23 +41,25 @@
     <el-table v-loading="loading" :data="filtered" border stripe size="small" height="520">
       <el-table-column type="index" width="55" label="#" />
       <el-table-column prop="student_no" label="学号" width="130" />
-      <el-table-column prop="name" label="姓名" min-width="100">
+      <el-table-column prop="name" label="姓名" min-width="130">
         <template #default="{ row }">
-          <router-link :to="`/students/${row.id}`" class="link">{{ row.name }}</router-link>
+          <span v-if="cadreIcon(row)" :title="(row.cadre_positions || []).join('、')" class="cadre-icon">{{ cadreIcon(row) }}</span>
+          <router-link :to="`/students/${row.id}`" class="link" :class="{ 'is-cadre': (row.cadre_positions || []).length }">{{ row.name }}</router-link>
         </template>
       </el-table-column>
       <el-table-column prop="gender" label="性别" width="70" />
       <el-table-column prop="political_status" label="政治面貌" min-width="120" />
-      <el-table-column label="班干部职务" min-width="140">
+      <el-table-column label="班干部职务" min-width="180">
         <template #default="{ row }">
           <el-tag
             v-for="pos in (row.cadre_positions || [])"
             :key="pos"
-            type="info"
+            :type="cadreTagType(pos)"
             size="small"
-            effect="plain"
-            style="margin:0 4px 2px 0"
-          >{{ pos }}</el-tag>
+            effect="dark"
+            round
+            style="margin:0 4px 2px 0; font-weight:600"
+          >{{ cadreIconOf(pos) }} {{ pos }}</el-tag>
           <span v-if="!(row.cadre_positions?.length)" class="text-muted">—</span>
         </template>
       </el-table-column>
@@ -107,6 +109,41 @@ function warnLabel(s) {
   return '绿灯'
 }
 
+// 班干部职务 → 图标 / tag 颜色
+function cadreIconOf(pos) {
+  if (!pos) return ''
+  if (pos.includes('班长')) return '👑'
+  if (pos.includes('团支书') || pos.includes('团支部')) return '🎗️'
+  if (pos.includes('学习')) return '📘'
+  if (pos.includes('生活')) return '🏠'
+  if (pos.includes('文艺')) return '🎨'
+  if (pos.includes('体育')) return '🏃'
+  if (pos.includes('宣传')) return '📢'
+  if (pos.includes('心理')) return '💗'
+  if (pos.includes('组织')) return '🧩'
+  if (pos.includes('纪律')) return '⚖️'
+  return '⭐'
+}
+function cadreTagType(pos) {
+  if (!pos) return 'info'
+  if (pos.includes('班长')) return 'danger'          // 班长 - 红（最突出）
+  if (pos.includes('团支书') || pos.includes('团支部')) return 'warning'  // 团支书 - 橙
+  if (pos.includes('学习')) return 'primary'
+  if (pos.includes('心理')) return 'danger'
+  return 'success'
+}
+// 学生首要职务图标：班长 > 团支书 > 其他
+function cadreIcon(row) {
+  const list = row.cadre_positions || []
+  if (!list.length) return ''
+  const priority = ['班长', '团支书', '学习', '生活', '文艺', '体育', '宣传', '心理', '组织', '纪律']
+  for (const key of priority) {
+    const hit = list.find(p => p.includes(key))
+    if (hit) return cadreIconOf(hit)
+  }
+  return '⭐'
+}
+
 const contacts = ref(null)
 const hasContacts = computed(() => {
   const c = contacts.value
@@ -149,4 +186,15 @@ onMounted(load)
 .contact-item { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #ffffff; border-radius: 10px; border: 1px solid #E4E7ED; }
 .contact-empty { color: #909399; font-size: 13px; }
 .text-muted { color: #C0C4CC; }
+.cadre-icon {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 14px;
+  vertical-align: -1px;
+}
+.link.is-cadre {
+  color: #C7503C;
+  font-weight: 700;
+  border-bottom: 2px dashed rgba(199, 80, 60, 0.35);
+}
 </style>

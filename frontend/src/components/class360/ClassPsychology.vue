@@ -89,10 +89,12 @@ const fetchData = async () => {
     const res = await getClassPsychology(props.cid)
     records.value = Array.isArray(res) ? res : (res?.records || [])
     computeStats()
+  } finally {
+    // 关键：renderChart 必须在 loading=false 之后
+    // 否则 v-else 里的 chartRef 还没挂载, renderChart 里 chartRef.value=null 直接 return, 饼图永远画不出来
+    loading.value = false
     await nextTick()
     renderChart()
-  } finally {
-    loading.value = false
   }
 }
 
@@ -113,6 +115,11 @@ const computeStats = () => {
 
 const renderChart = () => {
   if (!chartRef.value) return
+  // 切班级时 chartRef 会重新挂载, 老的 chartIns 绑的 DOM 已经不在了, 必须 dispose 重建
+  if (chartIns && chartIns.getDom() !== chartRef.value) {
+    chartIns.dispose()
+    chartIns = null
+  }
   if (!chartIns) chartIns = echarts.init(chartRef.value)
   const data = [
     { name: '一级重点关注', value: statCards.value[1].value, itemStyle: { color: '#F56C6C' } },
