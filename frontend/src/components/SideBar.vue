@@ -69,8 +69,8 @@
 .sidebar-root {
   width: 220px;
   height: 100vh;
-  /* 单层中饱和蓝渐变, 收敛底部不再泛白到 #C4DDEE */
-  background: linear-gradient(180deg, #5A9DD1 0%, #78B4DE 40%, #A0C9E7 100%);
+  /* v4-hotfix8: air 要求"介于 hotfix5 与 V3 侧栏之间, 两色蓝渐变不带白" - 起点加深一档接近 V3 饱和感, 终点仍明显蓝调不泛白 */
+  background: linear-gradient(180deg, #4E93CE 0%, #78B4DE 100%);
   color: #0E2A44;
   /* 边框改冷调蓝细边, 不再是白 */
   border-right: 1px solid rgba(150, 190, 225, 0.5);
