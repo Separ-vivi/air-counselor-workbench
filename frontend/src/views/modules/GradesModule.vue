@@ -6,9 +6,9 @@
         <el-button
           type="success"
           :icon="Download"
-          :disabled="!selected.length"
+          :disabled="!currentChecked.length"
           @click="exportSelected"
-        >导出选中（{{ selected.length }}）</el-button>
+        >导出选中（{{ currentChecked.length }}）</el-button>
         <el-button :icon="Download" @click="exportAll">导出全部</el-button>
         <el-button type="primary" :icon="View" @click="$router.push('/module/warnings')">学业预警看板</el-button>
       </div>
@@ -73,7 +73,16 @@
           <template #header>
             <span>成绩明细 · 共 {{ filteredList.length }} 条</span>
           </template>
-          <el-table :data="filteredList" stripe border v-loading="loading" max-height="600">
+          <el-table
+            :data="filteredList"
+            stripe
+            border
+            v-loading="loading"
+            max-height="600"
+            row-key="id"
+            @selection-change="onStudentSelectionChange"
+          >
+            <el-table-column type="selection" width="45" reserve-selection />
             <el-table-column label="学期" prop="semester" width="140" sortable />
             <el-table-column label="课程代码" prop="course_code" width="120" sortable />
             <el-table-column label="课程名" prop="course_name" min-width="200" show-overflow-tooltip sortable />
@@ -188,7 +197,7 @@
             border
             max-height="400"
             row-key="id"
-            @selection-change="onSelectionChange"
+            @selection-change="onClassSelectionChange"
           >
             <el-table-column type="selection" width="45" reserve-selection />
             <el-table-column label="学号" prop="student_no" width="130" sortable />
@@ -219,6 +228,7 @@ import { ElMessage } from 'element-plus'
 import { grades as gradesApi } from '@/api/modules'
 import { useOrgStore } from '@/stores/org'
 import StudentSelect from '@/components/StudentSelect.vue'
+import { triggerDownload, stampedName } from '@/utils/download'
 
 const router = useRouter()
 const orgStore = useOrgStore()
@@ -243,27 +253,27 @@ const filteredList = computed(() => {
   return rs
 })
 
-// v3j-B-b02 · 多选批量导出（针对班级视图的成绩明细 GradeRecord 表）
-const selected = ref([])
-const onSelectionChange = (rows) => { selected.value = rows }
+// v3j-B-b03-batch02 · 学生视图 & 班级视图 多选（分开 ref 避免撞）
+const checkedStudentRows = ref([])
+const checkedClassRows = ref([])
+const onStudentSelectionChange = (rows) => { checkedStudentRows.value = rows }
+const onClassSelectionChange = (rows) => { checkedClassRows.value = rows }
+const currentChecked = computed(() => tab.value === 'student' ? checkedStudentRows.value : checkedClassRows.value)
+
 const exportSelected = async () => {
-  if (!selected.value.length) {
+  const rows = currentChecked.value
+  if (!rows.length) {
     ElMessage.warning('请先勾选要导出的成绩记录')
     return
   }
   try {
-    const ids = selected.value.map(r => r.id).filter(Boolean)
+    const ids = rows.map(r => r.id).filter(Boolean)
     if (!ids.length) {
       ElMessage.warning('选中记录缺少 ID，无法导出')
       return
     }
     const blob = await gradesApi.exportByIds(ids)
-    const url = URL.createObjectURL(new Blob([blob]))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `成绩明细_选中${ids.length}条_${Date.now()}.xlsx`
-    a.click()
-    URL.revokeObjectURL(url)
+    triggerDownload(blob, stampedName(`成绩明细_选中${ids.length}条`))
     ElMessage.success(`已导出 ${ids.length} 条成绩记录`)
   } catch (e) { ElMessage.error('导出失败') }
 }
@@ -319,12 +329,9 @@ const goStudent = (sid) => {
 const exportAll = async () => {
   try {
     const blob = await gradesApi.exportAll()
-    const url = URL.createObjectURL(new Blob([blob]))
-    const a = document.createElement('a')
-    a.href = url; a.download = `grades_${Date.now()}.xlsx`
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch (e) {}
+    triggerDownload(blob, stampedName(`成绩明细_全部`))
+    ElMessage.success('已导出全部')
+  } catch (e) { ElMessage.error('导出失败') }
 }
 
 watch(studentId, reload)
