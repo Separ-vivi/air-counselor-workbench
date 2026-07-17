@@ -259,23 +259,39 @@ def export_party_progress(
     stage: str = None,
     class_id: int = None,
     class_name: str = None,
+    student_id: int = None,
+    search: str = '',
     db: Session = Depends(get_db)
 ):
-    """导出党团发展 Excel（支持按 class_id 或 class_name 筛选）"""
+    """导出党团发展 Excel（v3j-B b03-batch02 · 支持 search / student_id / stage / class_id / class_name 筛选）"""
     from openpyxl import Workbook
     from io import BytesIO
     from fastapi.responses import StreamingResponse
     from datetime import datetime
+    from sqlalchemy import or_
     
     query = db.query(PartyProgress, Student).join(Student, PartyProgress.student_id == Student.id)
     if stage:
         query = query.filter(PartyProgress.stage == stage)
+    if student_id is not None:
+        query = query.filter(PartyProgress.student_id == student_id)
     if class_id is not None:
         query = query.filter(Student.class_id == class_id)
     elif class_name:
         target = db.query(ClassModel).filter(ClassModel.class_name == class_name).first()
         if target:
             query = query.filter(Student.class_id == target.id)
+    if search:
+        pattern = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                Student.name.ilike(pattern),
+                Student.student_no.ilike(pattern),
+                PartyProgress.stage.ilike(pattern),
+                PartyProgress.contact_person.ilike(pattern),
+                PartyProgress.notes.ilike(pattern),
+            )
+        )
     
     results = query.order_by(PartyProgress.stage_date.desc()).all()
     # 预加载班级名映射
