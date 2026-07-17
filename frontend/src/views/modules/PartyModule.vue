@@ -3,13 +3,22 @@
     <div class="page-header">
       <h2>🚩 党团发展</h2>
       <div>
-        <el-button :icon="Download" @click="exportExcel">导出</el-button>
+        <el-button
+          type="success"
+          :icon="Download"
+          :disabled="!checkedRows.length"
+          @click="exportSelected"
+        >导出选中（{{ checkedRows.length }}）</el-button>
+        <el-button :icon="Download" @click="exportAll">导出全部</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreate(null)">新增记录</el-button>
       </div>
     </div>
 
     <el-card shadow="never" style="margin-bottom: 16px">
       <el-form :inline="true">
+        <el-form-item label="搜索">
+          <el-input v-model="filter.kw" placeholder="学号/姓名/阶段/联系人/备注" clearable style="width: 240px" />
+        </el-form-item>
         <el-form-item label="学生">
           <StudentSelect v-model="filter.student_id" style="width: 260px" @change="reload" />
         </el-form-item>
@@ -34,21 +43,31 @@
     </el-row>
 
     <el-card shadow="never">
-      <el-table :data="list" v-loading="loading" stripe border max-height="600" :default-sort="{ prop: 'stage_date', order: 'descending' }">
-        <el-table-column label="学生" prop="student_name" width="120" sortable>
+      <el-table
+        :data="list"
+        v-loading="loading"
+        stripe
+        border
+        max-height="600"
+        row-key="id"
+        @selection-change="onSelectionChange"
+        @sort-change="onSort"
+      >
+        <el-table-column type="selection" width="45" reserve-selection />
+        <el-table-column label="学生" prop="student_name" width="120" sortable="custom">
           <template #default="{ row }">
             <el-link type="primary" @click="$router.push(`/students/${row.student_id}`)">{{ row.student_name }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column label="学号" prop="student_no" width="140" sortable />
-        <el-table-column label="班级" prop="class_name" min-width="140" show-overflow-tooltip sortable />
-        <el-table-column label="发展阶段" prop="stage" width="150" sortable :sort-by="row => stageOrder(row.stage)">
+        <el-table-column label="学号" prop="student_no" width="140" sortable="custom" />
+        <el-table-column label="班级" prop="class_name" min-width="140" show-overflow-tooltip />
+        <el-table-column label="发展阶段" prop="stage" width="150" sortable="custom">
           <template #default="{ row }">
             <el-tag :type="stageTag(row.stage)" size="small">{{ row.stage }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="阶段日期" prop="stage_date" width="130" sortable />
-        <el-table-column label="联系人" prop="contact_person" width="120" sortable />
+        <el-table-column label="阶段日期" prop="stage_date" width="130" sortable="custom" />
+        <el-table-column label="联系人" prop="contact_person" width="120" sortable="custom" />
         <el-table-column label="备注" prop="notes" show-overflow-tooltip />
         <el-table-column label="操作" fixed="right" width="140">
           <template #default="{ row }">
@@ -98,6 +117,7 @@ import { Plus, Download } from '@element-plus/icons-vue'
 import { party as partyApi } from '@/api/modules'
 import { useStudentStore } from '@/stores/student'
 import StudentSelect from '@/components/StudentSelect.vue'
+import { triggerDownload, stampedName } from '@/utils/download'
 
 const studentStore = useStudentStore()
 
@@ -108,10 +128,24 @@ const stageColor = { '递交入党申请书': '#909399', '入党积极分子': '
 
 const list = ref([])
 const loading = ref(false)
-const filter = reactive({ student_id: null, stage: '' })
+const filter = reactive({ student_id: null, stage: '', kw: '' })
 
-const stageOrderMap = { '递交入党申请书': 1, '入党积极分子': 2, '发展对象': 3, '预备党员': 4, '正式党员': 5 }
-const stageOrder = (s) => stageOrderMap[s] || 0
+// v3j-B-b03 · 排序 + 搜索 + 多选
+const sortBy = ref('stage_date')
+const sortOrder = ref('desc')
+const checkedRows = ref([])
+const onSelectionChange = (rows) => { checkedRows.value = rows }
+const onSort = ({ prop, order }) => {
+  sortBy.value = prop || 'stage_date'
+  sortOrder.value = order === 'ascending' ? 'asc' : (order === 'descending' ? 'desc' : 'desc')
+  reload()
+}
+let _searchTimer = null
+watch(() => filter.kw, () => {
+  clearTimeout(_searchTimer)
+  _searchTimer = setTimeout(() => reload(), 300)
+})
+
 const stageTag = (s) => {
   const m = { '递交入党申请书': 'info', '入党积极分子': 'primary', '发展对象': 'warning', '预备党员': 'danger', '正式党员': 'success' }
   return m[s] || ''
@@ -120,15 +154,40 @@ const stageStats = computed(() =>
   stages.map((s) => ({ stage: s, count: list.value.filter((r) => r.stage === s).length, color: stageColor[s] }))
 )
 
+const buildParams = () => {
+  const params = {}
+  if (filter.student_id) params.student_id = filter.student_id
+  if (filter.stage) params.stage = filter.stage
+  if (filter.kw) params.search = filter.kw
+  return params
+}
+
 const reload = async () => {
   loading.value = true
   try {
-    const params = {}
-    if (filter.student_id) params.student_id = filter.student_id
-    if (filter.stage) params.stage = filter.stage
+    const params = buildParams()
+    if (sortBy.value) params.sort_by = sortBy.value
+    if (sortOrder.value) params.order = sortOrder.value
     const res = await partyApi.list(params)
     list.value = Array.isArray(res) ? res : (res?.items || [])
   } finally { loading.value = false }
+}
+
+const exportSelected = async () => {
+  if (!checkedRows.value.length) { ElMessage.warning('请先勾选要导出的党团发展记录'); return }
+  try {
+    const ids = checkedRows.value.map(r => r.id)
+    const blob = await partyApi.exportByIds(ids)
+    triggerDownload(blob, stampedName(`党团发展_选中${ids.length}条`))
+    ElMessage.success(`已导出 ${ids.length} 条`)
+  } catch (e) { ElMessage.error('导出失败') }
+}
+const exportAll = async () => {
+  try {
+    const blob = await partyApi.exportAll(buildParams())
+    triggerDownload(blob, stampedName(`党团发展_全部`))
+    ElMessage.success('已导出全部')
+  } catch (e) { ElMessage.error('导出失败') }
 }
 
 const dlg = ref(false)
@@ -168,17 +227,6 @@ const onDelete = async (row) => {
   ElMessage.success('已删除')
   studentStore.bumpRefresh()
   reload()
-}
-
-const exportExcel = async () => {
-  try {
-    const blob = await partyApi.exportExcel()
-    const url = URL.createObjectURL(new Blob([blob]))
-    const a = document.createElement('a')
-    a.href = url; a.download = `party_${Date.now()}.xlsx`
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch (e) {}
 }
 
 watch(() => studentStore.refreshBumper, reload)
