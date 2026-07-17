@@ -128,9 +128,9 @@ import { triggerDownload, stampedName } from '@/utils/download'
 const studentStore = useStudentStore()
 
 const stages = [
-  '递交入党申请书', '入党积极分子', '发展对象', '预备党员', '正式党员'
+  '递交入党申请书', '入党积极分子', '发展对象', '中共预备党员', '中共党员'
 ]
-const stageColor = { '递交入党申请书': '#909399', '入党积极分子': '#409EFF', '发展对象': '#E6A23C', '预备党员': '#F56C6C', '正式党员': '#67C23A' }
+const stageColor = { '递交入党申请书': '#909399', '入党积极分子': '#409EFF', '发展对象': '#E6A23C', '中共预备党员': '#F56C6C', '中共党员': '#67C23A' }
 
 const list = ref([])
 const loading = ref(false)
@@ -154,7 +154,7 @@ watch(() => filter.kw, () => {
 })
 
 const stageTag = (s) => {
-  const m = { '递交入党申请书': 'info', '入党积极分子': 'primary', '发展对象': 'warning', '预备党员': 'danger', '正式党员': 'success' }
+  const m = { '递交入党申请书': 'info', '入党积极分子': 'primary', '发展对象': 'warning', '中共预备党员': 'danger', '中共党员': 'success' }
   return m[s] || ''
 }
 const stageStats = computed(() =>

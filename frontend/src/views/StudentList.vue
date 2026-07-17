@@ -61,7 +61,7 @@
           <el-select v-model="filters.political_status" placeholder="全部" clearable style="width: 160px" @change="reload">
             <el-option label="群众" value="群众" />
             <el-option label="共青团员" value="共青团员" />
-            <el-option label="预备党员" value="预备党员" />
+            <el-option label="中共预备党员" value="中共预备党员" />
             <el-option label="中共党员" value="中共党员" />
           </el-select>
         </el-form-item>
@@ -181,7 +181,7 @@
               <el-select v-model="form.political_status" clearable style="width: 100%">
                 <el-option label="群众" value="群众" />
                 <el-option label="共青团员" value="共青团员" />
-                <el-option label="预备党员" value="预备党员" />
+                <el-option label="中共预备党员" value="中共预备党员" />
                 <el-option label="中共党员" value="中共党员" />
               </el-select>
             </el-form-item>

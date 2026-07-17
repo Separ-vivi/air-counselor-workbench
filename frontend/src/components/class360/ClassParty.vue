@@ -101,8 +101,8 @@ const stages = [
   { key: '入党申请人', label: '入党申请人', bg: '#ECF5FF', color: '#409EFF' },
   { key: '积极分子',   label: '积极分子',   bg: '#F0F9EB', color: '#67C23A' },
   { key: '发展对象',   label: '发展对象',   bg: '#FDF6EC', color: '#E6A23C' },
-  { key: '预备党员',   label: '预备党员',   bg: '#FEF0F0', color: '#F56C6C' },
-  { key: '正式党员',   label: '正式党员',   bg: '#FCE7E7', color: '#C45656' }
+  { key: '中共预备党员', label: '中共预备党员', bg: '#FEF0F0', color: '#F56C6C' },
+  { key: '中共党员',   label: '中共党员',   bg: '#FCE7E7', color: '#C45656' }
 ]
 
 const stageCounts = computed(() => {
@@ -129,8 +129,8 @@ function percent(key) {
 }
 
 function stageTag(s) {
-  if (s === '正式党员') return 'danger'
-  if (s === '预备党员') return 'warning'
+  if (s === '中共党员') return 'danger'
+  if (s === '中共预备党员') return 'warning'
   if (s === '发展对象') return 'warning'
   if (s === '积极分子') return 'success'
   if (s === '入党申请人') return 'primary'

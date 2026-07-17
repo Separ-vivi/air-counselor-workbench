@@ -133,7 +133,7 @@ def seed_if_empty():
                 'phone': '13800001003', 'email': 'liuting@example.com',
                 'tag_names': ['家庭困难', '已获助学金', '团员', '心理稳定'],
             },
-            # === 追加：覆盖群众/预备党员/2024级新生 ===
+            # === 追加：覆盖群众/中共预备党员/2024级新生 ===
             {
                 'student_no': '2022010104', 'name': '陈涛', 'gender': '男',
                 'class_name': '计科2202班', 'birth_date': '2003-09-12',
@@ -342,8 +342,8 @@ def seed_if_empty():
         # 党团发展
         db.add(PartyProgress(student_id=zhangming.id, stage='团员', stage_date='2020-05-04', contact_person='李老师'))
         db.add(PartyProgress(student_id=zhangming.id, stage='递交入党申请书', stage_date='2022-09-15', contact_person='王老师'))
-        db.add(PartyProgress(student_id=zhaoqiang.id, stage='正式党员', stage_date='2023-12-01', contact_person='张老师'))
-        db.add(PartyProgress(student_id=zhaoqiang.id, stage='预备党员', stage_date='2022-12-01', contact_person='张老师'))
+        db.add(PartyProgress(student_id=zhaoqiang.id, stage='中共党员', stage_date='2023-12-01', contact_person='张老师'))
+        db.add(PartyProgress(student_id=zhaoqiang.id, stage='中共预备党员', stage_date='2022-12-01', contact_person='张老师'))
         db.add(PartyProgress(student_id=wangfang.id, stage='积极分子', stage_date='2023-03-15', contact_person='李老师'))
         db.add(PartyProgress(student_id=liuting.id, stage='团员', stage_date='2020-05-04', contact_person='李老师'))
 

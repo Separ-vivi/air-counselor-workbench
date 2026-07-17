@@ -146,6 +146,17 @@ async def startup():
         logger.info("Migration: party_progress.stage 已完成命名统一")
     except Exception as _e:
         logger.warning(f"Migration party_progress.stage 失败(可忽略): {_e}")
+    # v3j-C c02 · 幂等 migration：党员术语统一（预备党员→中共预备党员, 正式党员→中共党员）
+    try:
+        from sqlalchemy import text
+        with SessionLocal() as _mdb:
+            _mdb.execute(text("UPDATE party_progress SET stage='中共预备党员' WHERE stage='预备党员'"))
+            _mdb.execute(text("UPDATE party_progress SET stage='中共党员' WHERE stage='正式党员'"))
+            _mdb.execute(text("UPDATE students SET political_status='中共预备党员' WHERE political_status='预备党员'"))
+            _mdb.commit()
+        logger.info("Migration: 党员术语已统一(预备党员→中共预备党员, 正式党员→中共党员)")
+    except Exception as _e:
+        logger.warning(f"Migration 党员术语 失败(可忽略): {_e}")
     # 启动定时任务调度器
     scheduler.start()
     logger.info("定时任务调度器已启动")

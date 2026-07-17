@@ -159,7 +159,7 @@ def detect_file_type(df: pd.DataFrame, mapping: List[Dict]) -> str:
                 return 'grades'
 
     # 党团发展表特征：有阶段相关字段
-    party_keywords = ['阶段', '发展', '积极分子', '预备党员', '党员', '团员']
+    party_keywords = ['阶段', '发展', '积极分子', '预备党员', '中共预备党员', '中共党员', '党员', '团员']
     for col in df.columns:
         if any(kw in str(col) for kw in party_keywords):
             return 'party'

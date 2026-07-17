@@ -85,7 +85,7 @@ onMounted(load)
 // 5 个成员分组（对应后端返回的 5 组名单字段）
 const groups = [
   { name: 'party',     key: 'party_members',    title: '党员' },
-  { name: 'reserved',  key: 'reserved_members', title: '预备党员' },
+  { name: 'reserved',  key: 'reserved_members', title: '中共预备党员' },
   { name: 'activists', key: 'activists',        title: '积极分子' },
   { name: 'league',    key: 'league_members',   title: '团员' },
   { name: 'masses',    key: 'masses',           title: '群众' },

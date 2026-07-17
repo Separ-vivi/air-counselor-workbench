@@ -497,7 +497,7 @@ def get_filters(db: Session = Depends(get_db)):
         'classes': [c[0] for c in classes],
         'majors': [m[0] for m in majors],
         'genders': ['男', '女'],
-        'political_statuses': ['群众', '共青团员', '入党积极分子', '发展对象', '预备党员', '中共党员'],
+        'political_statuses': ['群众', '共青团员', '入党积极分子', '发展对象', '中共预备党员', '中共党员'],
         'sources': [],
     }
 

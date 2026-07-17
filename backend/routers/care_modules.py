@@ -145,7 +145,7 @@ def party_progress_overview(
     db: Session = Depends(get_db)
 ):
     """党团发展全景表 - 支持按 class_id 或 class_name 筛选（含'群众'状态）"""
-    stages = ['群众', '递交入党申请书', '团员', '积极分子', '发展对象', '预备党员', '正式党员']
+    stages = ['群众', '递交入党申请书', '团员', '积极分子', '发展对象', '中共预备党员', '中共党员']
     q = db.query(Student)
     if class_id is not None:
         q = q.filter(Student.class_id == class_id)
@@ -201,9 +201,9 @@ def party_progress_detail(student_id: int, db: Session = Depends(get_db)):
         {'key': '递交入党申请书', 'label': '递交入党申请书', 'description': '提交书面入党申请'},
         {'key': '积极分子', 'label': '确定为入党积极分子', 'description': '经团组织推优确定'},
         {'key': '发展对象', 'label': '确定为发展对象', 'description': '经过一年以上培养考察'},
-        {'key': '预备党员', 'label': '接收为预备党员', 'description': '支部大会讨论通过'},
+        {'key': '中共预备党员', 'label': '接收为中共预备党员', 'description': '支部大会讨论通过'},
         {'key': '转正', 'label': '预备党员转正', 'description': '预备期满一年转正'},
-        {'key': '正式党员', 'label': '正式党员', 'description': '完成全部发展流程'},
+        {'key': '中共党员', 'label': '中共党员', 'description': '完成全部发展流程'},
     ]
     
     # 构建时间线
@@ -313,9 +313,9 @@ def export_party_progress(
         'application': '递交入党申请书',
         'activist': '入党积极分子',
         'development': '发展对象',
-        'probation': '预备党员',
+        'probation': '中共预备党员',
         'regularization': '预备党员转正',
-        'full_member': '正式党员'
+        'full_member': '中共党员'
     }
     for progress, student in results:
         stage_date_str = progress.stage_date

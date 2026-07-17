@@ -62,7 +62,7 @@ DORM_BUILDINGS = {
 }
 OFF_CAMPUS_STREETS = ['学院路12号','大学城东街56号','紫荆里3幢','红光社区7栋','建新北路88号']
 
-POLITICAL_STATUS = ['群众','共青团员','入党积极分子','党员发展对象','预备党员','中共党员']
+POLITICAL_STATUS = ['群众','共青团员','入党积极分子','党员发展对象','中共预备党员','中共党员']
 COURSE_POOL = [
     ('高等数学 A（上）',4),('高等数学 A（下）',4),('线性代数',3),('概率论与数理统计',3),
     ('大学物理（上）',4),('大学物理（下）',4),('大学英语（一）',3),('大学英语（二）',3),
@@ -211,8 +211,8 @@ def seed_large_dataset():
                     _ld = random.randint(1, 28)
                     _ly = birth_year + random.randint(14, 16)
                     _join_league = f'{_ly}-{_lm:02d}-{_ld:02d}'
-                if _ps in ('预备党员', '中共党员'):
-                    # 预备党员/正式党员：入党时间在入学 1-3 年后
+                if _ps in ('中共预备党员', '中共党员'):
+                    # 中共预备党员/中共党员：入党时间在入学 1-3 年后
                     _pm = random.randint(1, 12)
                     _pd = random.randint(1, 28)
                     _py = grade_year + random.randint(1, 3)
@@ -258,12 +258,12 @@ def seed_large_dataset():
                 stats['cadres'] += 1
         db.commit()
 
-        # v3j-C c01 · 党支部干部 seed：党员/预备党员>=3 人的班级抽3人任党支部书记/组织委员/宣传委员
+        # v3j-C c01 · 党支部干部 seed：党员/中共预备党员>=3 人的班级抽3人任党支部书记/组织委员/宣传委员
         party_positions = ['党支部书记', '党支部组织委员', '党支部宣传委员']
         for cobj in classes:
             party_pool = [s for s in all_students
                           if s.class_id == cobj.id
-                          and s.political_status in ('中共党员', '预备党员')]
+                          and s.political_status in ('中共党员', '中共预备党员')]
             if len(party_pool) < 3:
                 continue
             picks = random.sample(party_pool, 3)
@@ -374,8 +374,8 @@ def seed_large_dataset():
         stats['party_progress'] = 0
         for stu in all_students:
             ps = stu.political_status
-            if ps == '中共党员': stages = ['递交入党申请书','入党积极分子','发展对象','预备党员','正式党员']
-            elif ps == '预备党员': stages = ['递交入党申请书','入党积极分子','发展对象','预备党员']
+            if ps == '中共党员': stages = ['递交入党申请书','入党积极分子','发展对象','中共预备党员','中共党员']
+            elif ps == '中共预备党员': stages = ['递交入党申请书','入党积极分子','发展对象','中共预备党员']
             elif ps == '党员发展对象': stages = ['递交入党申请书','入党积极分子','发展对象']
             elif ps == '入党积极分子': stages = ['递交入党申请书','入党积极分子']
             elif ps == '共青团员' and random.random() < 0.15: stages = ['递交入党申请书']

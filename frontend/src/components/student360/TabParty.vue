@@ -27,13 +27,13 @@ const rows = ref([])
 const loading = ref(false)
 
 const stageOptions = [
-  '入党申请人', '积极分子', '发展对象', '预备党员', '正式党员'
+  '入党申请人', '积极分子', '发展对象', '中共预备党员', '中共党员'
 ]
 const columns = [
   { prop: 'stage', label: '发展阶段', width: 120, type: 'tag',
     tagType: (r) =>
-      r.stage === '正式党员' ? 'success'
-      : r.stage === '预备党员' ? 'warning'
+      r.stage === '中共党员' ? 'success'
+      : r.stage === '中共预备党员' ? 'warning'
       : r.stage === '发展对象' ? 'primary' : '' },
   { prop: 'stage_date', label: '阶段日期', width: 120 },
   { prop: 'contact_person', label: '培养联系人', minWidth: 120 },
