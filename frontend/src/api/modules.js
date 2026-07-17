@@ -13,6 +13,8 @@ export const grades = {
   semesters: () => http.get('/grades/semesters'),
   recalculateWarnings: () => http.post('/grades/recalculate'),
   exportAll: () => http.get('/grades/export', { responseType: 'blob' }),
+  /** v3j-B-b02 · 按 ID 列表批量导出成绩记录 */
+  exportByIds: (ids) => http.post('/grades/export', { ids }, { responseType: 'blob' }),
   byClass: (cid, params = {}) => http.get(`/grades/by-class/${cid}`, { params })
 }
 
@@ -63,10 +65,15 @@ export const cadres = {
 
 /** 活动 */
 export const activities = {
-  list: () => http.get('/activities'),
+  /** v3j-B-b02 · 支持 search / sort_by / order 参数 */
+  list: (params = {}) => http.get('/activities', { params }),
   create: (data) => http.post('/activities', data),
   update: (aid, data) => http.put(`/activities/${aid}`, data),
   remove: (aid) => http.delete(`/activities/${aid}`),
+  /** v3j-B-b02 · 按 ID 列表批量导出 */
+  exportByIds: (ids) => http.post('/activities/export', { ids }, { responseType: 'blob' }),
+  /** v3j-B-b02 · 按当前搜索导出全部 */
+  exportAll: (params = {}) => http.get('/activities/export', { params, responseType: 'blob' }),
   listSignups: (aid) => http.get(`/activities/${aid}/signups`),
   createSignup: (aid, data) => http.post(`/activities/${aid}/signups`, data),
   updateSignup: (aid, sid, data) => http.put(`/activities/${aid}/signups/${sid}`, data)

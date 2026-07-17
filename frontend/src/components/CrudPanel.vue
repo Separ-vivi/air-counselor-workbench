@@ -42,6 +42,7 @@
         :width="col.width"
         :min-width="col.minWidth || 100"
         :show-overflow-tooltip="true"
+        :sortable="col.sortable === false ? false : true"
       >
         <template #default="{ row }">
           <el-tag v-if="col.type === 'tag'" size="small" :type="col.tagType?.(row) || ''">

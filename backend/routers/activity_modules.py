@@ -1,6 +1,7 @@
 """活动日程 + 党团学习 + 班会记录 路由"""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from typing import Optional
 from database import get_db
 from models import Activity, ActivitySignup, PartyStudy, ClassMeeting, Student
@@ -30,9 +31,119 @@ def _act_normalize_input(data: dict) -> dict:
 
 
 @router.get('/activities')
-def list_activities(db: Session = Depends(get_db)):
-    items = db.query(Activity).order_by(Activity.activity_date.desc()).all()
+def list_activities(
+    search: str = Query('', description='搜索活动名/类型/组织者/地点'),
+    sort_by: str = Query('activity_date', description='排序字段'),
+    order: str = Query('desc', description='asc/desc'),
+    db: Session = Depends(get_db)
+):
+    """活动列表 (v3j-B-b02 · 支持 search + sort_by + order)"""
+    query = db.query(Activity)
+    if search:
+        pattern = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                Activity.title.ilike(pattern),
+                Activity.activity_type.ilike(pattern),
+                Activity.organizer.ilike(pattern),
+                Activity.location.ilike(pattern),
+            )
+        )
+    SORT_WHITELIST = {
+        'activity_name': Activity.title,
+        'title': Activity.title,
+        'activity_type': Activity.activity_type,
+        'activity_date': Activity.activity_date,
+        'organizer': Activity.organizer,
+        'location': Activity.location,
+        'status': Activity.status,
+    }
+    col = SORT_WHITELIST.get(sort_by, Activity.activity_date)
+    if (order or 'desc').lower() == 'asc':
+        query = query.order_by(col.asc())
+    else:
+        query = query.order_by(col.desc())
+    items = query.all()
     return [_act_dict(a) for a in items]
+
+
+@router.post('/activities/export')
+def export_activities_by_ids(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db)
+):
+    """按 ID 列表批量导出活动 Excel (v3j-B-b02)"""
+    from openpyxl import Workbook
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+
+    ids = payload.get('ids') or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(400, '请传入非空的 ids 列表')
+
+    rows = db.query(Activity).filter(Activity.id.in_(ids)).order_by(Activity.activity_date.desc()).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '活动列表'
+    ws.append(['活动名称', '类型', '日期', '结束日期', '地点', '组织者', '状态', '说明'])
+    for a in rows:
+        ws.append([
+            a.title, a.activity_type or '', a.activity_date or '',
+            a.end_date or '', a.location or '', getattr(a, 'organizer', '') or '',
+            a.status or '', a.description or ''
+        ])
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': 'attachment; filename=activities_selected.xlsx'}
+    )
+
+
+@router.get('/activities/export')
+def export_activities_all(
+    search: str = Query(''),
+    db: Session = Depends(get_db)
+):
+    """按当前搜索条件导出全部活动 Excel (v3j-B-b02)"""
+    from openpyxl import Workbook
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+
+    query = db.query(Activity)
+    if search:
+        pattern = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                Activity.title.ilike(pattern),
+                Activity.activity_type.ilike(pattern),
+                Activity.organizer.ilike(pattern),
+                Activity.location.ilike(pattern),
+            )
+        )
+    rows = query.order_by(Activity.activity_date.desc()).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '活动列表'
+    ws.append(['活动名称', '类型', '日期', '结束日期', '地点', '组织者', '状态', '说明'])
+    for a in rows:
+        ws.append([
+            a.title, a.activity_type or '', a.activity_date or '',
+            a.end_date or '', a.location or '', getattr(a, 'organizer', '') or '',
+            a.status or '', a.description or ''
+        ])
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': 'attachment; filename=activities_all.xlsx'}
+    )
 
 
 @router.get('/activities/{activity_id}')

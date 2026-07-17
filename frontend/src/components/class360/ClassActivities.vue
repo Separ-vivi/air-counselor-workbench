@@ -29,19 +29,19 @@
           </div>
         </template>
         <el-table :data="filteredList" stripe border max-height="600">
-          <el-table-column label="学生" prop="student_name" width="120" />
-          <el-table-column label="学号" prop="student_no" width="140" />
-          <el-table-column label="活动名称" prop="activity_name" min-width="180" show-overflow-tooltip />
-          <el-table-column label="活动类型" prop="activity_type" width="130">
+          <el-table-column label="学生" prop="student_name" width="120" sortable />
+          <el-table-column label="学号" prop="student_no" width="140" sortable />
+          <el-table-column label="活动名称" prop="activity_name" min-width="180" show-overflow-tooltip sortable />
+          <el-table-column label="活动类型" prop="activity_type" width="130" sortable>
             <template #default="{ row }">
               <el-tag size="small" :type="typeTag(row.activity_type)">
                 {{ row.activity_type || '-' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="角色" prop="role" width="120" />
-          <el-table-column label="活动日期" prop="activity_date" width="130" />
-          <el-table-column label="备注" prop="notes" show-overflow-tooltip />
+          <el-table-column label="角色" prop="role" width="120" sortable />
+          <el-table-column label="活动日期" prop="activity_date" width="130" sortable />
+          <el-table-column label="备注" prop="notes" show-overflow-tooltip sortable />
         </el-table>
       </el-card>
     </template>

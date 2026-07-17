@@ -7,22 +7,22 @@
 
     <el-table v-loading="loading" :data="rows" stripe border size="small" max-height="560">
       <el-table-column type="index" width="55" label="#" />
-      <el-table-column prop="title" label="活动名称" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="activity_type" label="类型" width="120">
+      <el-table-column prop="title" label="活动名称" min-width="200" show-overflow-tooltip sortable />
+      <el-table-column prop="activity_type" label="类型" width="120" sortable>
         <template #default="{ row }">
           <el-tag v-if="row.activity_type" size="small" effect="plain">{{ row.activity_type }}</el-tag>
           <span v-else class="text-muted">—</span>
         </template>
       </el-table-column>
-      <el-table-column prop="activity_date" label="开始" width="120" />
-      <el-table-column prop="end_date" label="结束" width="120" />
-      <el-table-column prop="location" label="地点" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="status" label="状态" width="100">
+      <el-table-column prop="activity_date" label="开始" width="120" sortable />
+      <el-table-column prop="end_date" label="结束" width="120" sortable />
+      <el-table-column prop="location" label="地点" min-width="140" show-overflow-tooltip sortable />
+      <el-table-column prop="status" label="状态" width="100" sortable>
         <template #default="{ row }">
           <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="signup_count" label="本班参与" width="110" align="center">
+      <el-table-column prop="signup_count" label="本班参与" width="110" align="center" sortable>
         <template #default="{ row }">
           <b :style="{color:'#4A7A8C'}">{{ row.signup_count }}</b> 人
         </template>

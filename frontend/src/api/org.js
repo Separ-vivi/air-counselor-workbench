@@ -26,3 +26,9 @@ export const getClass     = (id) => http.get(`/org/classes/${id}`)
 export const createClass  = (data) => http.post('/org/classes', data)
 export const updateClass  = (id, data) => http.put(`/org/classes/${id}`, data)
 export const deleteClass  = (id) => http.delete(`/org/classes/${id}`)
+
+/** v3j-B-b02 · 班级批量导出 */
+export const exportClassesAll = (params = {}) =>
+  http.get('/org/classes/export', { params, responseType: 'blob' })
+export const exportClassesByIds = (ids) =>
+  http.post('/org/classes/export', { ids }, { responseType: 'blob' })

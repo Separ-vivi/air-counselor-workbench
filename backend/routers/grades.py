@@ -1,5 +1,5 @@
 """学业预警路由"""
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Body
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -358,6 +358,52 @@ def export_grades(
     output.seek(0)
     
     filename = f'grades_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    return StreamingResponse(
+        output,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
+@router.post('/export')
+def export_grades_by_ids(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db)
+):
+    """按 GradeRecord ID 列表批量导出成绩 Excel (v3j-B-b02)"""
+    from openpyxl import Workbook
+    from io import BytesIO
+
+    ids = payload.get('ids') or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(400, '请传入非空的 ids 列表')
+
+    query = db.query(GradeRecord, Student).join(Student, GradeRecord.student_id == Student.id).filter(GradeRecord.id.in_(ids))
+    results = query.all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '成绩列表'
+    ws.append(['学号', '姓名', '班级', '专业', '学期', '课程', '成绩', '绩点'])
+    for grade, student in results:
+        cls_name = student.class_obj.class_name if student.class_obj else ''
+        major_name = ''
+        if student.class_obj and student.class_obj.major:
+            major_name = student.class_obj.major.major_name
+        ws.append([
+            student.student_no,
+            student.name,
+            cls_name,
+            major_name,
+            grade.semester,
+            grade.course_name,
+            grade.score,
+            grade.gpa,
+        ])
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    filename = f'grades_selected_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     return StreamingResponse(
         output,
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

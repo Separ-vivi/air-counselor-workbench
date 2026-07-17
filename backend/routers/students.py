@@ -1,5 +1,5 @@
 """学生管理路由"""
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from typing import Optional, List
@@ -257,6 +257,51 @@ def export_students(
         output,
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={'Content-Disposition': 'attachment; filename=students_export.xlsx'}
+    )
+
+
+
+@router.post('/export')
+def export_students_by_ids(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db)
+):
+    """按 ID 列表批量导出学生 Excel (v3j-B-b02 · 批量选择导出)"""
+    ids = payload.get('ids') or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(400, '请传入非空的 ids 列表')
+
+    query = db.query(Student).outerjoin(ClassModel, Student.class_id == ClassModel.id).outerjoin(Major, ClassModel.major_id == Major.id)
+    query = query.filter(Student.id.in_(ids))
+    rows = query.all()
+
+    data = []
+    for r in rows:
+        major_name = ''
+        if r.class_obj and r.class_obj.major:
+            major_name = r.class_obj.major.major_name
+        data.append({
+            '学号': r.student_no,
+            '姓名': r.name,
+            '班级': r.class_obj.class_name if r.class_obj else '',
+            '专业': major_name,
+            '性别': r.gender,
+            '政治面貌': r.political_status,
+            '手机号': r.phone,
+            '邮箱': r.email,
+            '生源地': r.birth_source,
+        })
+
+    df = pd.DataFrame(data)
+    output = io.BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+    output.seek(0)
+
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        output,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': 'attachment; filename=students_selected.xlsx'}
     )
 
 

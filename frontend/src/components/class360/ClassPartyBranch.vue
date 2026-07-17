@@ -49,10 +49,10 @@
       >
         <el-table :data="data?.[g.key] || []" stripe border size="small" max-height="460">
           <el-table-column type="index" width="55" label="#" />
-          <el-table-column prop="student_no" label="学号" width="140" />
-          <el-table-column prop="name" label="姓名" min-width="100" />
-          <el-table-column prop="political_status" label="政治面貌" min-width="140" />
-          <el-table-column prop="phone" label="联系电话" min-width="140" />
+          <el-table-column prop="student_no" label="学号" width="140" sortable />
+          <el-table-column prop="name" label="姓名" min-width="100" sortable />
+          <el-table-column prop="political_status" label="政治面貌" min-width="140" sortable />
+          <el-table-column prop="phone" label="联系电话" min-width="140" sortable />
         </el-table>
       </el-tab-pane>
     </el-tabs>

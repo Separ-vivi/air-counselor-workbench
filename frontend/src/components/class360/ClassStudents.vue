@@ -40,15 +40,15 @@
 
     <el-table v-loading="loading" :data="filtered" border stripe size="small" height="520">
       <el-table-column type="index" width="55" label="#" />
-      <el-table-column prop="student_no" label="学号" width="130" />
-      <el-table-column prop="name" label="姓名" min-width="130">
+      <el-table-column prop="student_no" label="学号" width="130" sortable />
+      <el-table-column prop="name" label="姓名" min-width="130" sortable>
         <template #default="{ row }">
           <span v-if="cadreIcon(row)" :title="(row.cadre_positions || []).join('、')" class="cadre-icon">{{ cadreIcon(row) }}</span>
           <router-link :to="`/students/${row.id}`" class="link" :class="{ 'is-cadre': (row.cadre_positions || []).length }">{{ row.name }}</router-link>
         </template>
       </el-table-column>
-      <el-table-column prop="gender" label="性别" width="70" />
-      <el-table-column prop="political_status" label="政治面貌" min-width="120" />
+      <el-table-column prop="gender" label="性别" width="70" sortable />
+      <el-table-column prop="political_status" label="政治面貌" min-width="120" sortable />
       <el-table-column label="班干部职务" min-width="180">
         <template #default="{ row }">
           <el-tag
@@ -63,9 +63,9 @@
           <span v-if="!(row.cadre_positions?.length)" class="text-muted">—</span>
         </template>
       </el-table-column>
-      <el-table-column prop="phone" label="联系电话" min-width="130" />
-      <el-table-column prop="parent_phone" label="家长电话" min-width="130" />
-      <el-table-column prop="warning_status" label="学业预警" width="100">
+      <el-table-column prop="phone" label="联系电话" min-width="130" sortable />
+      <el-table-column prop="parent_phone" label="家长电话" min-width="130" sortable />
+      <el-table-column prop="warning_status" label="学业预警" width="100" sortable>
         <template #default="{ row }">
           <span class="status-chip" :class="row.warning_status">
             <span class="status-dot" :class="row.warning_status" />

@@ -29,8 +29,8 @@
           <span>心理记录明细（共 {{ records.length }} 条）</span>
         </template>
         <el-table :data="records" stripe border max-height="500">
-          <el-table-column label="学生" prop="student_name" width="120" />
-          <el-table-column label="学号" prop="student_no" width="140" />
+          <el-table-column label="学生" prop="student_name" width="120" sortable />
+          <el-table-column label="学号" prop="student_no" width="140" sortable />
           <el-table-column label="关注等级" width="110">
             <template #default="{ row }">
               <el-tag :type="levelTag(row.attention_level)" size="small">
@@ -38,9 +38,9 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="测评时间" prop="assessment_date" width="130" />
-          <el-table-column label="咨询次数" prop="counseling_count" width="100" align="center" />
-          <el-table-column label="备注" prop="notes" show-overflow-tooltip />
+          <el-table-column label="测评时间" prop="assessment_date" width="130" sortable />
+          <el-table-column label="咨询次数" prop="counseling_count" width="100" align="center" sortable />
+          <el-table-column label="备注" prop="notes" show-overflow-tooltip sortable />
         </el-table>
       </el-card>
     </template>

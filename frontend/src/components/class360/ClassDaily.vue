@@ -17,61 +17,61 @@
       <el-tabs v-model="activeSub" type="border-card">
         <el-tab-pane label="宿舍走访" name="dorm_visits">
           <el-table :data="raw.dorm_visits || []" stripe border max-height="500">
-            <el-table-column label="学生" prop="student_name" width="120" />
-            <el-table-column label="学号" prop="student_no" width="140" />
-            <el-table-column label="走访日期" prop="visit_date" width="130" />
-            <el-table-column label="宿舍号" prop="dorm_no" width="120" />
-            <el-table-column label="走访情况" prop="situation" show-overflow-tooltip />
-            <el-table-column label="备注" prop="notes" show-overflow-tooltip />
+            <el-table-column label="学生" prop="student_name" width="120" sortable />
+            <el-table-column label="学号" prop="student_no" width="140" sortable />
+            <el-table-column label="走访日期" prop="visit_date" width="130" sortable />
+            <el-table-column label="宿舍号" prop="dorm_no" width="120" sortable />
+            <el-table-column label="走访情况" prop="situation" show-overflow-tooltip sortable />
+            <el-table-column label="备注" prop="notes" show-overflow-tooltip sortable />
           </el-table>
         </el-tab-pane>
 
         <el-tab-pane label="请假记录" name="leaves">
           <el-table :data="raw.leaves || []" stripe border max-height="500">
-            <el-table-column label="学生" prop="student_name" width="120" />
-            <el-table-column label="学号" prop="student_no" width="140" />
-            <el-table-column label="请假类型" prop="leave_type" width="120" />
-            <el-table-column label="开始时间" prop="start_date" width="130" />
-            <el-table-column label="结束时间" prop="end_date" width="130" />
-            <el-table-column label="事由" prop="reason" show-overflow-tooltip />
+            <el-table-column label="学生" prop="student_name" width="120" sortable />
+            <el-table-column label="学号" prop="student_no" width="140" sortable />
+            <el-table-column label="请假类型" prop="leave_type" width="120" sortable />
+            <el-table-column label="开始时间" prop="start_date" width="130" sortable />
+            <el-table-column label="结束时间" prop="end_date" width="130" sortable />
+            <el-table-column label="事由" prop="reason" show-overflow-tooltip sortable />
           </el-table>
         </el-tab-pane>
 
         <el-tab-pane label="违纪记录" name="disciplines">
           <el-table :data="raw.disciplines || []" stripe border max-height="500">
-            <el-table-column label="学生" prop="student_name" width="120" />
-            <el-table-column label="学号" prop="student_no" width="140" />
-            <el-table-column label="违纪类型" prop="discipline_type" width="140" />
-            <el-table-column label="处分等级" prop="punishment_level" width="120">
+            <el-table-column label="学生" prop="student_name" width="120" sortable />
+            <el-table-column label="学号" prop="student_no" width="140" sortable />
+            <el-table-column label="违纪类型" prop="discipline_type" width="140" sortable />
+            <el-table-column label="处分等级" prop="punishment_level" width="120" sortable>
               <template #default="{ row }">
                 <el-tag size="small" :type="punishTag(row.punishment_level)">
                   {{ row.punishment_level || '-' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="日期" prop="incident_date" width="130" />
-            <el-table-column label="描述" prop="description" show-overflow-tooltip />
+            <el-table-column label="日期" prop="incident_date" width="130" sortable />
+            <el-table-column label="描述" prop="description" show-overflow-tooltip sortable />
           </el-table>
         </el-tab-pane>
 
         <el-tab-pane label="宿舍谈心" name="dorm_chats">
           <el-table :data="raw.dorm_chats || []" stripe border max-height="500">
-            <el-table-column label="学生" prop="student_name" width="120" />
-            <el-table-column label="学号" prop="student_no" width="140" />
-            <el-table-column label="谈心日期" prop="chat_date" width="130" />
-            <el-table-column label="主题" prop="topic" width="150" />
-            <el-table-column label="内容" prop="content" show-overflow-tooltip />
+            <el-table-column label="学生" prop="student_name" width="120" sortable />
+            <el-table-column label="学号" prop="student_no" width="140" sortable />
+            <el-table-column label="谈心日期" prop="chat_date" width="130" sortable />
+            <el-table-column label="主题" prop="topic" width="150" sortable />
+            <el-table-column label="内容" prop="content" show-overflow-tooltip sortable />
           </el-table>
         </el-tab-pane>
 
         <el-tab-pane label="考勤异常" name="attendance">
           <el-table :data="raw.attendance || []" stripe border max-height="500">
-            <el-table-column label="学生" prop="student_name" width="120" />
-            <el-table-column label="学号" prop="student_no" width="140" />
-            <el-table-column label="异常类型" prop="exception_type" width="130" />
-            <el-table-column label="课程" prop="course_name" width="180" show-overflow-tooltip />
-            <el-table-column label="日期" prop="date" width="130" />
-            <el-table-column label="备注" prop="notes" show-overflow-tooltip />
+            <el-table-column label="学生" prop="student_name" width="120" sortable />
+            <el-table-column label="学号" prop="student_no" width="140" sortable />
+            <el-table-column label="异常类型" prop="exception_type" width="130" sortable />
+            <el-table-column label="课程" prop="course_name" width="180" show-overflow-tooltip sortable />
+            <el-table-column label="日期" prop="date" width="130" sortable />
+            <el-table-column label="备注" prop="notes" show-overflow-tooltip sortable />
           </el-table>
         </el-tab-pane>
       </el-tabs>

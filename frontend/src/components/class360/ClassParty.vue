@@ -49,36 +49,36 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="student_no" label="学号" width="120" />
-      <el-table-column prop="name" label="姓名" width="90">
+      <el-table-column prop="student_no" label="学号" width="120" sortable />
+      <el-table-column prop="name" label="姓名" width="90" sortable>
         <template #default="{ row }">
           <router-link v-if="row.student_id" :to="`/students/${row.student_id}`" class="link">{{ row.name }}</router-link>
           <span v-else>{{ row.name || '—' }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="political_status" label="政治面貌" width="120">
+      <el-table-column prop="political_status" label="政治面貌" width="120" sortable>
         <template #default="{ row }">
           <el-tag :type="stageTag(row.stage)" size="small" effect="light">
             {{ row.political_status || row.stage || '—' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="stage" label="当前发展阶段" width="120">
+      <el-table-column prop="stage" label="当前发展阶段" width="120" sortable>
         <template #default="{ row }">
           <el-tag :type="stageTag(row.stage)" size="small">{{ row.stage || '—' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="join_league_date" label="入团时间" width="120">
+      <el-table-column prop="join_league_date" label="入团时间" width="120" sortable>
         <template #default="{ row }">{{ row.join_league_date || '—' }}</template>
       </el-table-column>
-      <el-table-column prop="join_party_date" label="入党时间" width="120">
+      <el-table-column prop="join_party_date" label="入党时间" width="120" sortable>
         <template #default="{ row }">{{ row.join_party_date || '—' }}</template>
       </el-table-column>
-      <el-table-column prop="stage_date" label="最近阶段日期" width="130">
+      <el-table-column prop="stage_date" label="最近阶段日期" width="130" sortable>
         <template #default="{ row }">{{ row.stage_date || row.join_date || '—' }}</template>
       </el-table-column>
-      <el-table-column prop="contact_person" label="联系人" width="110" />
-      <el-table-column prop="notes" label="备注" min-width="150" show-overflow-tooltip />
+      <el-table-column prop="contact_person" label="联系人" width="110" sortable />
+      <el-table-column prop="notes" label="备注" min-width="150" show-overflow-tooltip sortable />
     </el-table>
     <div v-if="rows.length" class="tip">
       💡 点击左侧箭头展开可查看该学生完整发展轨迹（stepper）

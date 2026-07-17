@@ -12,7 +12,13 @@
         </el-button>
         <el-button type="primary" :icon="Plus" @click="openCreate">新增学生</el-button>
         <el-button :icon="Upload" @click="$router.push('/smart-import')">批量导入</el-button>
-        <el-button :icon="Download" @click="exportAll">导出</el-button>
+        <el-button
+          type="success"
+          :icon="Download"
+          :disabled="!selected.length"
+          @click="exportSelected"
+        >导出选中（{{ selected.length }}）</el-button>
+        <el-button :icon="Download" @click="exportAll">导出全部</el-button>
       </div>
     </div>
 
@@ -71,7 +77,10 @@
         border
         highlight-current-row
         @sort-change="onSort"
+        @selection-change="onSelectionChange"
+        ref="tableRef"
       >
+        <el-table-column type="selection" width="55" reserve-selection />
         <el-table-column label="学号" prop="student_no" width="140" sortable="custom" />
         <el-table-column label="姓名" prop="name" width="110" sortable="custom">
           <template #default="{ row }">
@@ -247,15 +256,20 @@ import {
   createStudent,
   updateStudent,
   deleteStudent,
-  exportStudents
+  exportStudents,
+  exportStudentsByIds
 } from '@/api/students'
 import { useOrgStore } from '@/stores/org'
 import { useStudentStore } from '@/stores/student'
+import { triggerDownload, stampedName } from '@/utils/download'
 
 const orgStore = useOrgStore()
 const studentStore = useStudentStore()
 
 const list = ref([])
+const selected = ref([])
+const tableRef = ref(null)
+const onSelectionChange = (rows) => { selected.value = rows }
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
@@ -403,6 +417,19 @@ const onDelete = async (row) => {
   ElMessage.success('已删除')
   studentStore.bumpRefresh()
   reload()
+}
+
+const exportSelected = async () => {
+  if (!selected.value.length) {
+    ElMessage.warning('请先勾选要导出的学生')
+    return
+  }
+  try {
+    const ids = selected.value.map(r => r.id)
+    const blob = await exportStudentsByIds(ids)
+    triggerDownload(blob, stampedName(`学生名单_选中${ids.length}人`))
+    ElMessage.success(`已导出 ${ids.length} 名学生`)
+  } catch (e) { ElMessage.error('导出失败') }
 }
 
 const exportAll = async () => {

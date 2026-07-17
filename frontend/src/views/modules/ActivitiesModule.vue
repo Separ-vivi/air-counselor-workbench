@@ -2,7 +2,16 @@
   <div class="module-page">
     <div class="page-header">
       <h2>🎨 活动管理</h2>
-      <el-button type="primary" :icon="Plus" @click="openCreate(null)">新增活动</el-button>
+      <div>
+        <el-button
+          type="success"
+          :icon="Download"
+          :disabled="!selected.length"
+          @click="exportSelected"
+        >导出选中（{{ selected.length }}）</el-button>
+        <el-button :icon="Download" @click="exportAll">导出全部</el-button>
+        <el-button type="primary" :icon="Plus" @click="openCreate(null)">新增活动</el-button>
+      </div>
     </div>
 
     <el-row :gutter="16">
@@ -11,25 +20,28 @@
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center">
               <span>活动列表 · 共 {{ list.length }} 条</span>
-              <el-input v-model="filterKw" placeholder="搜索活动名" clearable size="small" style="width: 160px" />
+              <el-input v-model="filterKw" placeholder="搜索活动名/类型/组织者/地点" clearable size="small" style="width: 200px" />
             </div>
           </template>
           <el-table
-            :data="filteredList"
+            :data="list"
             v-loading="loading"
             stripe
             border
             highlight-current-row
             max-height="600"
             @row-click="selectActivity"
+            @selection-change="onSelectionChange"
+            @sort-change="onSort"
           >
-            <el-table-column label="活动名称" prop="activity_name" min-width="180" show-overflow-tooltip />
-            <el-table-column label="类型" prop="activity_type" width="120">
+            <el-table-column type="selection" width="45" reserve-selection />
+            <el-table-column label="活动名称" prop="activity_name" min-width="180" show-overflow-tooltip sortable="custom" />
+            <el-table-column label="类型" prop="activity_type" width="120" sortable="custom">
               <template #default="{ row }">
                 <el-tag size="small" :type="typeTag(row.activity_type)">{{ row.activity_type }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="日期" prop="activity_date" width="120" />
+            <el-table-column label="日期" prop="activity_date" width="120" sortable="custom" />
             <el-table-column label="操作" width="140" fixed="right">
               <template #default="{ row }">
                 <el-button link type="primary" size="small" @click.stop="openCreate(row)">编辑</el-button>
@@ -143,10 +155,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Download } from '@element-plus/icons-vue'
 import { activities as actApi } from '@/api/modules'
 import { useStudentStore } from '@/stores/student'
 import StudentSelect from '@/components/StudentSelect.vue'
+import { triggerDownload, stampedName } from '@/utils/download'
 
 const studentStore = useStudentStore()
 const types = ['学术科技', '文体艺术', '志愿公益', '思政教育', '实践创新', '其他']
@@ -159,10 +172,20 @@ const selected = ref(null)
 const signups = ref([])
 const signupsLoading = ref(false)
 
-const filteredList = computed(() => {
-  if (!filterKw.value) return list.value
-  const k = filterKw.value
-  return list.value.filter((r) => (r.activity_name || '').includes(k) || (r.activity_type || '').includes(k))
+// v3j-B-b02 · 前端过滤已移除，改由后端 /activities?search=&sort_by=&order= 支持
+const sortBy = ref('activity_date')
+const sortOrder = ref('desc')
+const selected = ref([])
+const onSelectionChange = (rows) => { selected.value = rows }
+const onSort = ({ prop, order }) => {
+  sortBy.value = prop || 'activity_date'
+  sortOrder.value = order === 'ascending' ? 'asc' : (order === 'descending' ? 'desc' : 'desc')
+  reload()
+}
+let _searchTimer = null
+watch(filterKw, () => {
+  clearTimeout(_searchTimer)
+  _searchTimer = setTimeout(() => reload(), 300)
 })
 
 const typeTag = (t) => {
@@ -176,9 +199,35 @@ const typeTag = (t) => {
 const reload = async () => {
   loading.value = true
   try {
-    const res = await actApi.list()
+    const params = {}
+    if (filterKw.value) params.search = filterKw.value
+    if (sortBy.value) params.sort_by = sortBy.value
+    if (sortOrder.value) params.order = sortOrder.value
+    const res = await actApi.list(params)
     list.value = Array.isArray(res) ? res : (res?.items || [])
   } finally { loading.value = false }
+}
+
+const exportSelected = async () => {
+  if (!selected.value.length) {
+    ElMessage.warning('请先勾选要导出的活动')
+    return
+  }
+  try {
+    const ids = selected.value.map(r => r.id)
+    const blob = await actApi.exportByIds(ids)
+    triggerDownload(blob, stampedName(`活动列表_选中${ids.length}条`))
+    ElMessage.success(`已导出 ${ids.length} 条活动`)
+  } catch (e) { ElMessage.error('导出失败') }
+}
+const exportAll = async () => {
+  try {
+    const params = {}
+    if (filterKw.value) params.search = filterKw.value
+    const blob = await actApi.exportAll(params)
+    triggerDownload(blob, stampedName(`活动列表_全部`))
+    ElMessage.success('已导出全部活动')
+  } catch (e) { ElMessage.error('导出失败') }
 }
 
 const selectActivity = async (row) => {

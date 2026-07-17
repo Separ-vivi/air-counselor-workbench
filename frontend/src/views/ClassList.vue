@@ -4,6 +4,7 @@
       <h2>🎓 班级管理</h2>
       <div>
         <el-button :icon="Refresh" @click="reload">刷新组织树</el-button>
+        <el-button :icon="Download" @click="exportAll">导出全部</el-button>
         <el-button type="primary" :icon="Setting" @click="$router.push('/org')">管理组织架构</el-button>
       </div>
     </div>
@@ -22,6 +23,15 @@
         </el-form-item>
         <el-form-item label="关键字">
           <el-input v-model="filter.keyword" placeholder="班级名 / 班主任 / 班长" clearable style="width: 220px" />
+        </el-form-item>
+        <el-form-item label="排序">
+          <el-select v-model="filter.sortBy" style="width: 160px">
+            <el-option label="默认（年级/专业）" value="" />
+            <el-option label="班级名（升）" value="name_asc" />
+            <el-option label="班级名（降）" value="name_desc" />
+            <el-option label="人数（多→少）" value="count_desc" />
+            <el-option label="人数（少→多）" value="count_asc" />
+          </el-select>
         </el-form-item>
       </el-form>
     </el-card>
@@ -54,13 +64,16 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Refresh, Setting } from '@element-plus/icons-vue'
+import { Refresh, Setting, Download } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { exportClassesAll } from '@/api/org'
+import { triggerDownload, stampedName } from '@/utils/download'
 import { useOrgStore } from '@/stores/org'
 
 const router = useRouter()
 const orgStore = useOrgStore()
 
-const filter = reactive({ gradeId: null, majorId: null, keyword: '' })
+const filter = reactive({ gradeId: null, majorId: null, keyword: '', sortBy: '' })
 
 const majorOptions = computed(() => {
   // 用 allMajors 全量，避免和组织切换器耦合
@@ -82,11 +95,34 @@ const filteredClasses = computed(() => {
         (c.monitor || '').includes(kw)
     )
   }
+  // v3j-B-b02 · 前端排序（班级列表数据量小，全量已加载）
+  const sb = filter.sortBy
+  if (sb) {
+    const arr = [...list]
+    if (sb === 'name_asc')  arr.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    if (sb === 'name_desc') arr.sort((a, b) => (b.name || '').localeCompare(a.name || ''))
+    if (sb === 'count_desc') arr.sort((a, b) => (b.student_count || 0) - (a.student_count || 0))
+    if (sb === 'count_asc')  arr.sort((a, b) => (a.student_count || 0) - (b.student_count || 0))
+    return arr
+  }
   return list
 })
 
 const goClass = (id) => router.push(`/classes/${id}`)
 const reload = () => orgStore.loadTree(true)
+
+// v3j-B-b02 · 导出全部班级
+const exportAll = async () => {
+  try {
+    const params = {}
+    if (filter.gradeId) params.grade_id = filter.gradeId
+    if (filter.majorId) params.major_id = filter.majorId
+    if (filter.keyword.trim()) params.search = filter.keyword.trim()
+    const blob = await exportClassesAll(params)
+    triggerDownload(blob, stampedName('班级列表'))
+    ElMessage.success('已导出班级列表')
+  } catch (e) { ElMessage.error('导出失败') }
+}
 
 onMounted(() => {
   if (!orgStore.orgTree.length) orgStore.loadTree()

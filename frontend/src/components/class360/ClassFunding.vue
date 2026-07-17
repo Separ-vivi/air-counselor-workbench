@@ -22,69 +22,69 @@
       <el-tabs v-model="activeSub" type="border-card">
         <el-tab-pane label="困难认定" name="hardship">
           <el-table :data="raw.hardship || []" stripe border max-height="450">
-            <el-table-column label="学生" prop="student_name" width="120" />
-            <el-table-column label="学号" prop="student_no" width="140" />
-            <el-table-column label="困难等级" prop="hardship_level" width="130">
+            <el-table-column label="学生" prop="student_name" width="120" sortable />
+            <el-table-column label="学号" prop="student_no" width="140" sortable />
+            <el-table-column label="困难等级" prop="hardship_level" width="130" sortable>
               <template #default="{ row }">
                 <el-tag :type="hardshipTag(row.hardship_level)" size="small">
                   {{ row.hardship_level || '-' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="认定学年" prop="school_year" width="130" />
-            <el-table-column label="家庭情况" prop="family_situation" show-overflow-tooltip />
+            <el-table-column label="认定学年" prop="school_year" width="130" sortable />
+            <el-table-column label="家庭情况" prop="family_situation" show-overflow-tooltip sortable />
           </el-table>
         </el-tab-pane>
 
         <el-tab-pane label="国家助学金" name="grants">
           <el-table :data="raw.grants || []" stripe border max-height="450">
-            <el-table-column label="学生" prop="student_name" width="120" />
-            <el-table-column label="学号" prop="student_no" width="140" />
-            <el-table-column label="等级" prop="grant_level" width="110" />
-            <el-table-column label="金额" prop="amount" width="120">
+            <el-table-column label="学生" prop="student_name" width="120" sortable />
+            <el-table-column label="学号" prop="student_no" width="140" sortable />
+            <el-table-column label="等级" prop="grant_level" width="110" sortable />
+            <el-table-column label="金额" prop="amount" width="120" sortable>
               <template #default="{ row }">¥{{ row.amount || 0 }}</template>
             </el-table-column>
-            <el-table-column label="学年" prop="school_year" width="130" />
-            <el-table-column label="备注" prop="notes" show-overflow-tooltip />
+            <el-table-column label="学年" prop="school_year" width="130" sortable />
+            <el-table-column label="备注" prop="notes" show-overflow-tooltip sortable />
           </el-table>
         </el-tab-pane>
 
         <el-tab-pane label="奖学金" name="scholarships">
           <el-table :data="raw.scholarships || []" stripe border max-height="450">
-            <el-table-column label="学生" prop="student_name" width="120" />
-            <el-table-column label="学号" prop="student_no" width="140" />
-            <el-table-column label="奖学金" prop="scholarship_name" width="180" />
-            <el-table-column label="等级" prop="level" width="100" />
-            <el-table-column label="金额" prop="amount" width="120">
+            <el-table-column label="学生" prop="student_name" width="120" sortable />
+            <el-table-column label="学号" prop="student_no" width="140" sortable />
+            <el-table-column label="奖学金" prop="scholarship_name" width="180" sortable />
+            <el-table-column label="等级" prop="level" width="100" sortable />
+            <el-table-column label="金额" prop="amount" width="120" sortable>
               <template #default="{ row }">¥{{ row.amount || 0 }}</template>
             </el-table-column>
-            <el-table-column label="学年" prop="school_year" width="130" />
+            <el-table-column label="学年" prop="school_year" width="130" sortable />
           </el-table>
         </el-tab-pane>
 
         <el-tab-pane label="助学贷款" name="loans">
           <el-table :data="raw.loans || []" stripe border max-height="450">
-            <el-table-column label="学生" prop="student_name" width="120" />
-            <el-table-column label="学号" prop="student_no" width="140" />
-            <el-table-column label="贷款类型" prop="loan_type" width="130" />
-            <el-table-column label="金额" prop="amount" width="120">
+            <el-table-column label="学生" prop="student_name" width="120" sortable />
+            <el-table-column label="学号" prop="student_no" width="140" sortable />
+            <el-table-column label="贷款类型" prop="loan_type" width="130" sortable />
+            <el-table-column label="金额" prop="amount" width="120" sortable>
               <template #default="{ row }">¥{{ row.amount || 0 }}</template>
             </el-table-column>
-            <el-table-column label="状态" prop="status" width="120" />
-            <el-table-column label="学年" prop="school_year" />
+            <el-table-column label="状态" prop="status" width="120" sortable />
+            <el-table-column label="学年" prop="school_year" sortable />
           </el-table>
         </el-tab-pane>
 
         <el-tab-pane label="勤工助学" name="work_study">
           <el-table :data="raw.work_study || []" stripe border max-height="450">
-            <el-table-column label="学生" prop="student_name" width="120" />
-            <el-table-column label="学号" prop="student_no" width="140" />
-            <el-table-column label="岗位" prop="position" width="150" />
-            <el-table-column label="工作时长(h)" prop="hours" width="120" />
-            <el-table-column label="薪资" prop="salary" width="120">
+            <el-table-column label="学生" prop="student_name" width="120" sortable />
+            <el-table-column label="学号" prop="student_no" width="140" sortable />
+            <el-table-column label="岗位" prop="position" width="150" sortable />
+            <el-table-column label="工作时长(h)" prop="hours" width="120" sortable />
+            <el-table-column label="薪资" prop="salary" width="120" sortable>
               <template #default="{ row }">¥{{ row.salary || 0 }}</template>
             </el-table-column>
-            <el-table-column label="学年" prop="school_year" />
+            <el-table-column label="学年" prop="school_year" sortable />
           </el-table>
         </el-tab-pane>
       </el-tabs>

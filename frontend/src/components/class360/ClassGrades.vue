@@ -21,16 +21,16 @@
     </el-row>
 
     <el-table v-loading="loading" :data="rows" border stripe size="small" height="480" empty-text="暂无本班成绩记录">
-      <el-table-column prop="student_no" label="学号" width="130" />
-      <el-table-column prop="name" label="姓名" width="100">
+      <el-table-column prop="student_no" label="学号" width="130" sortable />
+      <el-table-column prop="name" label="姓名" width="100" sortable>
         <template #default="{ row }">
           <router-link v-if="row.student_id" :to="`/students/${row.student_id}`" class="link">{{ row.name }}</router-link>
           <span v-else>{{ row.name || '—' }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="semester" label="学期" width="120" />
-      <el-table-column prop="course_name" label="课程" min-width="180" />
-      <el-table-column prop="score" label="成绩" width="90">
+      <el-table-column prop="semester" label="学期" width="120" sortable />
+      <el-table-column prop="course_name" label="课程" min-width="180" sortable />
+      <el-table-column prop="score" label="成绩" width="90" sortable>
         <template #default="{ row }">
           <span :class="{ 'text-danger': row.score != null && row.score < 60 }">
             {{ row.score != null ? Number(row.score).toFixed(1) : '—' }}
@@ -38,10 +38,10 @@
         </template>
       </el-table-column>
       <el-table-column prop="gpa" label="绩点" width="80"
-        :formatter="(r) => r.gpa != null ? Number(r.gpa).toFixed(2) : '—'" />
-      <el-table-column prop="credit" label="学分" width="80" />
+        :formatter="(r) = sortable> r.gpa != null ? Number(r.gpa).toFixed(2) : '—'" />
+      <el-table-column prop="credit" label="学分" width="80" sortable />
       <el-table-column prop="is_repair" label="重修" width="80"
-        :formatter="(r) => r.is_repair ? '是' : ''" />
+        :formatter="(r) = sortable> r.is_repair ? '是' : ''" />
     </el-table>
   </div>
 </template>

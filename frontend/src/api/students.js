@@ -35,3 +35,7 @@ export const exportStudents = (params = {}) =>
 
 /** 学生信息完整度检查 */
 export const getStudentCompleteness = (id) => http.get(`/students/${id}/completeness`)
+
+/** 按 ID 列表批量导出（v3j-B-b02 · 多选批量导出） */
+export const exportStudentsByIds = (ids) =>
+  http.post('/students/export', { ids }, { responseType: 'blob' })
