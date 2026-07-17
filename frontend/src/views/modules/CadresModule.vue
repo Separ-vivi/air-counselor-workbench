@@ -81,7 +81,16 @@
           <StudentSelect v-model="form.student_id" />
         </el-form-item>
         <el-form-item label="职务" prop="position">
-          <el-input v-model="form.position" />
+          <el-select
+            v-model="form.position"
+            filterable
+            allow-create
+            default-first-option
+            placeholder="选择或输入职务"
+            style="width: 100%"
+          >
+            <el-option v-for="p in positions" :key="p" :label="p" :value="p" />
+          </el-select>
         </el-form-item>
         <el-form-item label="任职级别">
           <el-select v-model="form.level" style="width: 100%" clearable>
@@ -89,7 +98,16 @@
           </el-select>
         </el-form-item>
         <el-form-item label="所属组织">
-          <el-input v-model="form.organization" />
+          <el-select
+            v-model="form.organization"
+            filterable
+            allow-create
+            default-first-option
+            placeholder="选择或输入组织"
+            style="width: 100%"
+          >
+            <el-option v-for="o in organizations" :key="o" :label="o" :value="o" />
+          </el-select>
         </el-form-item>
         <el-form-item label="任职起始">
           <el-date-picker v-model="form.start_date" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
@@ -130,6 +148,16 @@ import { triggerDownload, stampedName } from '@/utils/download'
 
 const studentStore = useStudentStore()
 const levels = ['校级', '院级', '班级', '团支部']
+// v3j-C c01 · 职务/组织建议常量（含党支部系列）
+const positions = [
+  '班长', '副班长', '团支书', '学习委员', '生活委员', '文艺委员',
+  '体育委员', '宣传委员', '心理委员', '组织委员', '纪律委员',
+  '学生会主席', '团委副书记',
+  '党支部书记', '党支部组织委员', '党支部宣传委员', '党支部纪检委员'
+]
+const organizations = [
+  '班委会', '团支部', '党支部', '院学生会', '校学生会', '院团委', '校团委'
+]
 const list = ref([])
 const directory = ref([])
 const loading = ref(false)

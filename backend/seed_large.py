@@ -258,6 +258,29 @@ def seed_large_dataset():
                 stats['cadres'] += 1
         db.commit()
 
+        # v3j-C c01 · 党支部干部 seed：党员/预备党员>=3 人的班级抽3人任党支部书记/组织委员/宣传委员
+        party_positions = ['党支部书记', '党支部组织委员', '党支部宣传委员']
+        for cobj in classes:
+            party_pool = [s for s in all_students
+                          if s.class_id == cobj.id
+                          and s.political_status in ('中共党员', '预备党员')]
+            if len(party_pool) < 3:
+                continue
+            picks = random.sample(party_pool, 3)
+            for i, stu in enumerate(picks):
+                pos = party_positions[i]
+                _sdate = '2024-09-01'
+                _edate = '2025-08-31'
+                _email = f'{stu.student_no or stu.id}@stu.example.edu'
+                db.add(StudentCadreRecord(
+                    student_id=stu.id, position=pos, term='2024-2025',
+                    level='班级', organization='党支部',
+                    start_date=_sdate, end_date=_edate,
+                    email=_email, notes=''
+                ))
+                stats['cadres'] += 1
+        db.commit()
+
         # 班主任
         teacher_pool = [
             ('陈教授','T2019001','机械工程学院','机械设计'),
