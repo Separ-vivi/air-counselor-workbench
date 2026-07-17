@@ -93,7 +93,7 @@
         <el-table-column label="班级" prop="class_name" min-width="160" show-overflow-tooltip sortable="custom" />
         <el-table-column label="预警等级" prop="warning_level" width="110" sortable="custom">
           <template #default="{ row }">
-            <el-tag :type="levelTag(row.warning_level)" size="small">{{ row.warning_level || '-' }}</el-tag>
+            <span class="dot" :style="{ background: dotColor(row.warning_level) }"></span><span>{{ row.warning_level || '-' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="预警原因" prop="warning_reason" min-width="200" show-overflow-tooltip />
@@ -168,6 +168,16 @@ const levelTag = (l) => {
   return 'info'
 }
 
+// v3j-C c02 · 预警等级小色点配色（一级红/二级橙/三级黄，兼容"红/黄/蓝色预警"命名）
+const dotColor = (l) => {
+  if (!l) return '#C0C4CC'
+  const s = String(l)
+  if (s.includes('一级') || s.includes('红')) return '#F56C6C'
+  if (s.includes('二级') || s.includes('橙')) return '#E6A23C'
+  if (s.includes('三级') || s.includes('黄') || s.includes('蓝')) return '#909399'
+  return '#C0C4CC'
+}
+
 const reload = async () => {
   loading.value = true
   try {
@@ -229,4 +239,5 @@ onMounted(() => {
 .stat-card { border-radius: 12px; text-align: center; }
 .stat-label { color: #909399; font-size: 13px; margin-bottom: 8px; }
 .stat-value { font-size: 26px; font-weight: 600; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
 </style>
