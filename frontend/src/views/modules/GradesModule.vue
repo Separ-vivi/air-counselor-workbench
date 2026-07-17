@@ -187,6 +187,7 @@
             stripe
             border
             max-height="400"
+            row-key="id"
             @selection-change="onSelectionChange"
           >
             <el-table-column type="selection" width="45" reserve-selection />

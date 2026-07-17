@@ -62,13 +62,13 @@
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center">
               <span>
-                <template v-if="selected">🎯 {{ selected.activity_name }} · 报名/参与</template>
+                <template v-if="currentActivity">🎯 {{ currentActivity.activity_name }} · 报名/参与</template>
                 <template v-else>请选择左侧活动查看报名情况</template>
               </span>
-              <el-button v-if="selected" type="primary" size="small" :icon="Plus" @click="openSignup">添加报名</el-button>
+              <el-button v-if="currentActivity" type="primary" size="small" :icon="Plus" @click="openSignup">添加报名</el-button>
             </div>
           </template>
-          <el-empty v-if="!selected" description="点击左侧任一活动" :image-size="80" />
+          <el-empty v-if="!currentActivity" description="点击左侧任一活动" :image-size="80" />
           <el-table v-else :data="signups" v-loading="signupsLoading" stripe border max-height="530">
             <el-table-column label="学生" prop="student_name" width="120">
               <template #default="{ row }">
@@ -169,7 +169,7 @@ const roles = ['参与者', '组织者', '负责人', '志愿者', '嘉宾']
 const list = ref([])
 const filterKw = ref('')
 const loading = ref(false)
-const selected = ref(null)
+const currentActivity = ref(null)
 const signups = ref([])
 const signupsLoading = ref(false)
 
@@ -232,7 +232,7 @@ const exportAll = async () => {
 }
 
 const selectActivity = async (row) => {
-  selected.value = row
+  currentActivity.value = row
   signupsLoading.value = true
   try {
     const res = await actApi.listSignups(row.id)
@@ -272,7 +272,7 @@ const onSave = async () => {
 const onDelete = async (row) => {
   await actApi.remove(row.id)
   ElMessage.success('已删除')
-  if (selected.value?.id === row.id) { selected.value = null; signups.value = [] }
+  if (currentActivity.value?.id === row.id) { currentActivity.value = null; signups.value = [] }
   reload()
 }
 
