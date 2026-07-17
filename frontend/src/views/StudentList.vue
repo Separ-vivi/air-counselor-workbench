@@ -78,6 +78,7 @@
         highlight-current-row
         @sort-change="onSort"
         @selection-change="onSelectionChange"
+        row-key="id"
         ref="tableRef"
       >
         <el-table-column type="selection" width="55" reserve-selection />

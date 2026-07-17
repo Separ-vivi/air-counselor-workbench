@@ -30,6 +30,7 @@
             border
             highlight-current-row
             max-height="600"
+            row-key="id"
             @row-click="selectActivity"
             @selection-change="onSelectionChange"
             @sort-change="onSort"
