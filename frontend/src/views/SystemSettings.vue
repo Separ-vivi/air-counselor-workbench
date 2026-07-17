@@ -233,6 +233,8 @@ async function onReinit() {
     } else {
       ElMessage.success('✅ 重建完成，当前为空数据库。如需演示数据请点"生成测试数据"')
     }
+    // 通知全局 store 重新加载（reinit 后数据库全空，所有页面数据都要刷）
+    window.dispatchEvent(new CustomEvent('system-reinit-done'))
     await loadHealth()
   } catch (e) {
     const detail = e?.response?.data?.detail || e?.message || e

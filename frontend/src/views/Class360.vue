@@ -66,7 +66,7 @@
           <ClassStudents           v-else-if="activeTab==='students'"   :cid="cid" :class-info="classInfo" :summary="summary" />
           <ClassGrades             v-else-if="activeTab==='grades'"     :cid="cid" :class-info="classInfo" :summary="summary" />
           <ClassParty              v-else-if="activeTab==='party'"      :cid="cid" :class-info="classInfo" :summary="summary" />
-          <ClassPsychology         v-else-if="activeTab==='psychology'" :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassPsychology         v-else-if="activeTab==='psychology'" :cid="cid" :class-info="classInfo" :summary="summary" :class-student-count="classStudentCount" />
           <ClassFunding            v-else-if="activeTab==='funding'"    :cid="cid" :class-info="classInfo" :summary="summary" />
           <ClassActivities         v-else-if="activeTab==='activities'" :cid="cid" :class-info="classInfo" :summary="summary" />
           <ClassFeaturedActivities v-else-if="activeTab==='featured'"   :cid="cid" :class-info="classInfo" :summary="summary" />
@@ -209,8 +209,19 @@ async function loadHeader() {
     loadingHeader.value = false
   }
 }
+// 班级总人数（用于心理关注等级饼图动态化）
+const classStudentCount = computed(() => {
+  const n = classInfo.value?.student_count
+  if (typeof n === 'number' && n > 0) return n
+  return students.value?.length || 0
+})
+
 watch(cid, loadHeader, { immediate: false })
-onMounted(loadHeader)
+onMounted(() => {
+  loadHeader()
+  // reinit 后自动重新加载当前班级数据
+  window.addEventListener('system-reinit-done', loadHeader)
+})
 </script>
 
 <style scoped>

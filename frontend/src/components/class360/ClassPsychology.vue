@@ -16,7 +16,10 @@
 
       <el-card shadow="never" style="margin-bottom: 16px">
         <template #header>
-          <span>心理关注等级分布</span>
+          <div style="display: flex; justify-content: space-between; align-items: center">
+            <span>心理关注等级分布</span>
+            <span style="font-size: 12px; color: #909399">本班学生总数：{{ totalStudentCount }}</span>
+          </div>
         </template>
         <div ref="chartRef" style="width: 100%; height: 260px"></div>
       </el-card>
@@ -45,18 +48,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import * as echarts from 'echarts'
 import { getClassPsychology } from '@/api/class360'
 
 const props = defineProps({
-  cid: { type: [String, Number], required: true }
+  cid: { type: [String, Number], required: true },
+  classStudentCount: { type: Number, default: 0 }  // 本班学生总数（父组件传入）
 })
 
 const loading = ref(false)
 const records = ref([])
 const chartRef = ref(null)
 let chartIns = null
+
+// 本班学生总数：优先用父组件传入的 classStudentCount，fallback 到记录数
+const totalStudentCount = computed(() => {
+  if (props.classStudentCount && props.classStudentCount > 0) return props.classStudentCount
+  return records.value.length
+})
 
 const statCards = ref([
   { label: '心理档案总数', value: 0, color: '#409EFF' },
@@ -108,7 +118,7 @@ const renderChart = () => {
     { name: '一级重点关注', value: statCards.value[1].value, itemStyle: { color: '#F56C6C' } },
     { name: '二级关注', value: statCards.value[2].value, itemStyle: { color: '#E6A23C' } },
     { name: '三级关注', value: statCards.value[3].value, itemStyle: { color: '#909399' } },
-    { name: '无档案', value: Math.max(0, 32 - records.value.length), itemStyle: { color: '#DCDFE6' } }
+    { name: '无档案', value: Math.max(0, totalStudentCount.value - records.value.length), itemStyle: { color: '#DCDFE6' } }
   ]
   chartIns.setOption({
     tooltip: { trigger: 'item' },
@@ -126,6 +136,10 @@ const renderChart = () => {
 }
 
 watch(() => props.cid, fetchData)
+watch(() => props.classStudentCount, () => {
+  // 学生总数变化时，重画饼图（不重新拉数据）
+  if (records.value.length || props.classStudentCount) renderChart()
+})
 onMounted(fetchData)
 </script>
 

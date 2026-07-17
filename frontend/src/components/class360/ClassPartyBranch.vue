@@ -41,27 +41,26 @@
     </el-card>
 
     <el-tabs v-model="activeGroup" v-loading="loading">
-      <el-tab-pane :label="`党员 (${data?.party_members?.length||0})`" name="party">
-        <MemberTable :rows="data?.party_members" />
-      </el-tab-pane>
-      <el-tab-pane :label="`预备党员 (${data?.reserved_members?.length||0})`" name="reserved">
-        <MemberTable :rows="data?.reserved_members" />
-      </el-tab-pane>
-      <el-tab-pane :label="`积极分子 (${data?.activists?.length||0})`" name="activists">
-        <MemberTable :rows="data?.activists" />
-      </el-tab-pane>
-      <el-tab-pane :label="`团员 (${data?.league_members?.length||0})`" name="league">
-        <MemberTable :rows="data?.league_members" />
-      </el-tab-pane>
-      <el-tab-pane :label="`群众 (${data?.masses?.length||0})`" name="masses">
-        <MemberTable :rows="data?.masses" />
+      <el-tab-pane
+        v-for="g in groups"
+        :key="g.name"
+        :label="`${g.title} (${(data?.[g.key]||[]).length})`"
+        :name="g.name"
+      >
+        <el-table :data="data?.[g.key] || []" stripe border size="small" max-height="460">
+          <el-table-column type="index" width="55" label="#" />
+          <el-table-column prop="student_no" label="学号" width="140" />
+          <el-table-column prop="name" label="姓名" min-width="100" />
+          <el-table-column prop="political_status" label="政治面貌" min-width="140" />
+          <el-table-column prop="phone" label="联系电话" min-width="140" />
+        </el-table>
       </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, h } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { getClassPartyBranch } from '@/api/class360.js'
 
@@ -83,19 +82,14 @@ async function load() {
 watch(() => props.cid, load, { immediate: false })
 onMounted(load)
 
-// 简单 slot render 组件
-const MemberTable = {
-  props: ['rows'],
-  render() {
-    return h('el-table', { data: this.rows || [], stripe: true, border: true, size: 'small', maxHeight: 460 }, [
-      h('el-table-column', { type: 'index', width: 55, label: '#' }),
-      h('el-table-column', { prop: 'student_no', label: '学号', width: 140 }),
-      h('el-table-column', { prop: 'name', label: '姓名', minWidth: 100 }),
-      h('el-table-column', { prop: 'political_status', label: '政治面貌', minWidth: 140 }),
-      h('el-table-column', { prop: 'phone', label: '联系电话', minWidth: 140 }),
-    ])
-  }
-}
+// 5 个成员分组（对应后端返回的 5 组名单字段）
+const groups = [
+  { name: 'party',     key: 'party_members',    title: '党员' },
+  { name: 'reserved',  key: 'reserved_members', title: '预备党员' },
+  { name: 'activists', key: 'activists',        title: '积极分子' },
+  { name: 'league',    key: 'league_members',   title: '团员' },
+  { name: 'masses',    key: 'masses',           title: '群众' },
+]
 </script>
 
 <style scoped>

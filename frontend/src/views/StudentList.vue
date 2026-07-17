@@ -430,6 +430,11 @@ const exportAll = async () => {
 onMounted(() => {
   if (!orgStore.orgTree.length) orgStore.loadTree()
   reload()
+  // reinit 后自动刷新学生列表 + 组织树
+  window.addEventListener('system-reinit-done', () => {
+    orgStore.loadTree(true)
+    reload()
+  })
 })
 </script>
 

@@ -29,21 +29,25 @@ const rows = ref([])
 const activities = ref([])
 const loading = ref(false)
 
+function statusOf(row) {
+  if (row.checked_in) return '已签到'
+  if (row.signed_up) return '已报名'
+  return '未报名'
+}
+
 const columns = [
-  { prop: 'activity_name', label: '活动名称', minWidth: 180 },
+  { prop: 'activity_title', label: '活动名称', minWidth: 180,
+    formatter: (v, row) => v || row.activity_name || row.title || '—' },
+  { prop: 'activity_type', label: '类型', width: 110 },
   { prop: 'activity_date', label: '活动日期', width: 120 },
-  { prop: 'status', label: '参与状态', width: 110 },
-  { prop: 'notes', label: '备注', minWidth: 160 }
+  { prop: 'location', label: '地点', minWidth: 120 },
+  { prop: 'status', label: '参与状态', width: 100, formatter: (_v, row) => statusOf(row) },
+  { prop: 'points', label: '积分', width: 80 }
 ]
 const fields = [
   {
     prop: 'activity_id', label: '关联活动', type: 'select', options: []
-  },
-  {
-    prop: 'status', label: '参与状态', type: 'select',
-    options: ['报名', '参加', '缺席', '请假', '获奖']
-  },
-  { prop: 'notes', label: '备注', type: 'textarea' }
+  }
 ]
 const rules = { activity_id: [{ required: true, message: '请选择活动', trigger: 'change' }] }
 

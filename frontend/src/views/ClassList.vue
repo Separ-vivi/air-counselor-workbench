@@ -90,6 +90,8 @@ const reload = () => orgStore.loadTree(true)
 
 onMounted(() => {
   if (!orgStore.orgTree.length) orgStore.loadTree()
+  // reinit 后自动刷新组织树（数据库被重建，班级列表要重新拉）
+  window.addEventListener('system-reinit-done', () => orgStore.loadTree(true))
 })
 </script>
 
