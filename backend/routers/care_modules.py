@@ -25,16 +25,19 @@ def list_party_progress(
     search: str = Query('', description='搜索学号/姓名/阶段/联系人'),
     student_id: Optional[int] = Query(None),
     stage: Optional[str] = Query(None),
+    class_id: Optional[int] = Query(None, description='v3j-C c01 · 按班级筛选'),
     sort_by: str = Query('stage_date', description='排序字段'),
     order: str = Query('desc', description='asc/desc'),
     db: Session = Depends(get_db)
 ):
-    """党团发展列表 (v3j-B-b03 · 支持 search + sort_by + order)"""
+    """党团发展列表 (v3j-B-b03 · 支持 search + sort_by + order；v3j-C c01 · 加 class_id)"""
     q = db.query(PartyProgress, Student).join(Student, PartyProgress.student_id == Student.id)
     if student_id:
         q = q.filter(PartyProgress.student_id == student_id)
     if stage:
         q = q.filter(PartyProgress.stage == stage)
+    if class_id is not None:
+        q = q.filter(Student.class_id == class_id)
     if search:
         pattern = f"%{search.strip()}%"
         q = q.filter(

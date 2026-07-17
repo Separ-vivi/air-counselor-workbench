@@ -22,6 +22,11 @@
         <el-form-item label="学生">
           <StudentSelect v-model="filter.student_id" style="width: 260px" @change="reload" />
         </el-form-item>
+        <el-form-item label="班级">
+          <el-select v-model="filter.class_id" placeholder="全部班级" clearable filterable style="width: 220px" @change="reload">
+            <el-option v-for="c in classes" :key="c.id" :label="c.class_name" :value="c.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="阶段">
           <el-select v-model="filter.stage" placeholder="全部阶段" clearable style="width: 220px" @change="reload">
             <el-option v-for="s in stages" :key="s" :label="s" :value="s" />
@@ -115,6 +120,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Download } from '@element-plus/icons-vue'
 import { party as partyApi } from '@/api/modules'
+import http from '@/api/index.js'
 import { useStudentStore } from '@/stores/student'
 import StudentSelect from '@/components/StudentSelect.vue'
 import { triggerDownload, stampedName } from '@/utils/download'
@@ -128,7 +134,8 @@ const stageColor = { '递交入党申请书': '#909399', '入党积极分子': '
 
 const list = ref([])
 const loading = ref(false)
-const filter = reactive({ student_id: null, stage: '', kw: '' })
+const classes = ref([])
+const filter = reactive({ student_id: null, stage: '', kw: '', class_id: null })
 
 // v3j-B-b03 · 排序 + 搜索 + 多选
 const sortBy = ref('stage_date')
@@ -158,6 +165,7 @@ const buildParams = () => {
   const params = {}
   if (filter.student_id) params.student_id = filter.student_id
   if (filter.stage) params.stage = filter.stage
+  if (filter.class_id) params.class_id = filter.class_id
   if (filter.kw) params.search = filter.kw
   return params
 }
@@ -230,7 +238,15 @@ const onDelete = async (row) => {
 }
 
 watch(() => studentStore.refreshBumper, reload)
-onMounted(reload)
+
+const loadClasses = async () => {
+  try {
+    const res = await http.get('/classes')
+    classes.value = Array.isArray(res) ? res : (res?.items || res?.data || [])
+  } catch (e) { classes.value = [] }
+}
+
+onMounted(() => { loadClasses(); reload() })
 </script>
 
 <style scoped>

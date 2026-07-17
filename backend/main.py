@@ -137,6 +137,15 @@ app.include_router(productivity_router)
 async def startup():
     """启动时导入示例数据并启动定时任务"""
     seed_if_empty()
+    # v3j-C c01 · 幂等 migration：老库 party_progress.stage='申请入党' → '递交入党申请书'
+    try:
+        from sqlalchemy import text
+        with SessionLocal() as _mdb:
+            _mdb.execute(text("UPDATE party_progress SET stage='递交入党申请书' WHERE stage='申请入党'"))
+            _mdb.commit()
+        logger.info("Migration: party_progress.stage 已完成命名统一")
+    except Exception as _e:
+        logger.warning(f"Migration party_progress.stage 失败(可忽略): {_e}")
     # 启动定时任务调度器
     scheduler.start()
     logger.info("定时任务调度器已启动")

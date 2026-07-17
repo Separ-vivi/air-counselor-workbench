@@ -313,6 +313,7 @@ def get_class_grades(class_id: int, db: Session = Depends(get_db)):
 # v3j-B: stage 归一化映射（seed 存的原始值 → 前端 6 阶段体系）
 _STAGE_NORMALIZE = {
     '申请入党': '入党申请人',
+    '递交入党申请书': '入党申请人',
     '入党申请人': '入党申请人',
     '入党积极分子': '积极分子',
     '积极分子': '积极分子',

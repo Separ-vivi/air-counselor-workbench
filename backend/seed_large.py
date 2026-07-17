@@ -339,11 +339,11 @@ def seed_large_dataset():
         stats['party_progress'] = 0
         for stu in all_students:
             ps = stu.political_status
-            if ps == '中共党员': stages = ['申请入党','入党积极分子','发展对象','预备党员','正式党员']
-            elif ps == '预备党员': stages = ['申请入党','入党积极分子','发展对象','预备党员']
-            elif ps == '党员发展对象': stages = ['申请入党','入党积极分子','发展对象']
-            elif ps == '入党积极分子': stages = ['申请入党','入党积极分子']
-            elif ps == '共青团员' and random.random() < 0.15: stages = ['申请入党']
+            if ps == '中共党员': stages = ['递交入党申请书','入党积极分子','发展对象','预备党员','正式党员']
+            elif ps == '预备党员': stages = ['递交入党申请书','入党积极分子','发展对象','预备党员']
+            elif ps == '党员发展对象': stages = ['递交入党申请书','入党积极分子','发展对象']
+            elif ps == '入党积极分子': stages = ['递交入党申请书','入党积极分子']
+            elif ps == '共青团员' and random.random() < 0.15: stages = ['递交入党申请书']
             else: continue
             for i, s in enumerate(stages):
                 db.add(PartyProgress(
