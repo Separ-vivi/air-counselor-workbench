@@ -198,6 +198,7 @@ const toggleReminded = async (row) => {
     row.reminded = !!res?.reminded
     row.reminded_at = res?.reminded_at || null
     ElMessage.success(row.reminded ? '已标记为已提醒' : '已恢复为未提醒')
+    await loadReminders()
   } catch (e) {
     row.reminded = !row.reminded
     ElMessage.error('切换提醒状态失败')
@@ -215,7 +216,8 @@ const onBatchMarkReminded = async (reminded) => {
     const ids = checkedRows.value.map(r => r.id)
     const res = await psyApi.batchMarkReminded(ids, reminded)
     ElMessage.success(`已批量标记 ${res?.updated ?? ids.length} 条为${reminded ? '已提醒' : '未提醒'}`)
-    reload()
+    await reload()
+    await loadReminders()
   } catch (e) {
     ElMessage.error('批量标记失败')
   } finally { batchReminding.value = false }

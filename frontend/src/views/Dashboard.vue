@@ -41,14 +41,14 @@
     </el-row>
 
 
-    <!-- ============ 可视化图表区（air 要求：类多维表格样式，不要冷冰冰数字） ============ -->
+    <!-- v3h-hotfix1: 三格并排（预警灯 / 专业分布 / 本周待办中心） -->
     <el-row :gutter="16" style="margin-bottom: 16px">
       <el-col :span="8">
-        <el-card shadow="never" class="chart-card">
+        <el-card shadow="never" class="chart-card triple-card">
           <template #header>
             <div class="card-header">
               <span>🎯 预警灯分布</span>
-              <span class="chart-sub">全体 {{ dash.total_students }} 人</span>
+              <el-button text type="primary" size="small" @click="goWarning">查看学业预警</el-button>
             </div>
           </template>
           <div ref="warningPieRef" class="chart-box"></div>
@@ -59,8 +59,8 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="16">
-        <el-card shadow="never" class="chart-card">
+      <el-col :span="8">
+        <el-card shadow="never" class="chart-card triple-card">
           <template #header>
             <div class="card-header">
               <span>🎓 专业人数分布</span>
@@ -70,40 +70,31 @@
           <div ref="majorPieRef" class="chart-box"></div>
         </el-card>
       </el-col>
-    </el-row>
-
-    <!-- v3h A: 本周待办中心（活动/班会/家访/todo/记事本提醒 聚合） -->
-    <el-row :gutter="16" style="margin-bottom: 16px">
-      <el-col :span="24">
-        <el-card shadow="never">
+      <el-col :span="8">
+        <el-card shadow="never" class="triple-card">
           <template #header>
             <div class="card-header">
               <span>🗓️ 本周待办中心</span>
-              <div>
-                <el-button text type="primary" size="small" @click="goWarning">查看学业预警</el-button>
-                <el-button text type="primary" size="small" @click="$router.push('/calendar')">打开日历</el-button>
-              </div>
+              <el-button text type="primary" size="small" @click="$router.push('/calendar')">打开日历</el-button>
             </div>
           </template>
-          <el-empty v-if="!weekEvents.length" description="本周暂无待办事项" :image-size="80" />
-          <div v-else class="week-events-grid">
-            <div v-for="grp in weekEventsByDay" :key="grp.date" class="week-day-col">
-              <div class="week-day-head" :class="{ today: grp.date === todayStrKey }">
-                <div class="wd-date">{{ grp.mmdd }}</div>
-                <div class="wd-week">{{ grp.weekdayCn }}</div>
-              </div>
-              <div class="week-day-body">
-                <el-empty v-if="!grp.items.length" description="—" :image-size="0" style="padding: 8px 0; color:#C0C4CC; font-size:12px" />
-                <div
-                  v-for="ev in grp.items"
-                  :key="ev.id"
-                  class="week-ev-item"
-                  :style="{ borderLeftColor: evBarColor(ev.color) }"
-                  @click="ev.link && $router.push(ev.link)"
-                >
-                  <div class="ev-title">{{ ev.title }}</div>
-                  <div v-if="ev.meta" class="ev-meta">{{ ev.meta }}</div>
+          <el-empty v-if="!weekTodoList.length" description="本周暂无待办" :image-size="60" />
+          <div v-else class="todo-vlist">
+            <div
+              v-for="ev in weekTodoList"
+              :key="ev.id"
+              class="todo-vitem"
+              :style="{ borderLeftColor: evBarColor(ev.color) }"
+              @click="ev.link && $router.push(ev.link)"
+            >
+              <div class="tv-left">
+                <div class="tv-date" :class="{ 'is-today': ev.date === todayStrKey }">
+                  {{ tvDateLabel(ev.date) }}
                 </div>
+              </div>
+              <div class="tv-body">
+                <div class="tv-title">{{ ev.title }}</div>
+                <div v-if="ev.meta" class="tv-meta">{{ ev.meta }}</div>
               </div>
             </div>
           </div>
@@ -296,6 +287,28 @@ const weekEventsByDay = computed(() => {
   return days
 })
 
+// v3h-hotfix1: 待办中心竖列（本周未过期事件按日期升序）
+const weekTodoList = computed(() => {
+  const arr = [...weekEvents.value]
+  arr.sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+  // 优先未完成 + 未过期
+  const today = todayStrKey.value
+  return arr.filter(ev => !ev.done && (ev.date || '') >= today).slice(0, 12)
+})
+
+function tvDateLabel(d) {
+  if (!d) return '—'
+  const today = todayStrKey.value
+  if (d === today) return '今天'
+  const nt = new Date(today)
+  const nd = new Date(d)
+  const diff = Math.round((nd - nt) / 86400000)
+  if (diff === 1) return '明天'
+  if (diff === 2) return '后天'
+  const [y, m, dd] = d.split('-')
+  return `${parseInt(m)}/${parseInt(dd)}`
+}
+
 const evBarColor = (c) => {
   const m = {
     blue: '#7BB6D6', orange: '#F5A76E', yellow: '#E8C86A', pink: '#F1A6B7',
@@ -390,12 +403,7 @@ onMounted(async () => {
 .dashboard {
   padding: 8px;
   min-height: calc(100vh - 100px);
-  background:
-    radial-gradient(circle at 10% 10%, rgba(255, 210, 220, 0.35), transparent 40%),
-    radial-gradient(circle at 90% 20%, rgba(200, 230, 240, 0.35), transparent 45%),
-    radial-gradient(circle at 50% 100%, rgba(220, 220, 250, 0.30), transparent 50%),
-    linear-gradient(180deg, #FDFCFA 0%, #F5F7FA 100%);
-  border-radius: 20px;
+  background: transparent;
 }
 
 /* ============ 顶部 hero 时钟卡片 ============ */
@@ -621,43 +629,32 @@ onMounted(async () => {
 .hero-cd-days.warning { color: #E6A23C; }
 .hero-cd-days.danger { color: #F56C6C; }
 
-/* v3h A · 本周待办中心 · 七日网格 */
-.week-events-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-}
-.week-day-col {
-  border: 1px solid #E4EAF0;
-  border-radius: 10px;
-  background: #FBFCFE;
-  min-height: 160px;
+/* v3h-hotfix1 · 三格并排卡片 + 待办中心竖列 */
+.triple-card { height: 100%; }
+.triple-card :deep(.el-card__body) { padding: 12px 16px; }
+.todo-vlist {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
 }
-.week-day-head {
+.todo-vitem {
+  display: flex;
+  gap: 10px;
   padding: 8px 10px;
-  border-bottom: 1px solid #EBEEF5;
-  background: rgba(238, 243, 248, 0.6);
-  border-radius: 10px 10px 0 0;
-}
-.week-day-head.today {
-  background: rgba(123, 182, 214, 0.18);
-  border-bottom-color: rgba(123, 182, 214, 0.35);
-}
-.wd-date { font-size: 15px; font-weight: 600; color: #3A5A6E; }
-.wd-week { font-size: 11px; color: #909399; margin-top: 2px; }
-.week-day-body { padding: 6px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
-.week-ev-item {
-  padding: 6px 8px;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.78);
   border-left: 3px solid #909399;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(60,80,100,0.04);
   transition: transform .15s;
 }
-.week-ev-item:hover { transform: translateX(2px); box-shadow: 0 2px 6px rgba(60,80,100,0.08); }
-.ev-title { font-size: 12px; color: #303133; font-weight: 500; line-height: 1.4; word-break: break-all; }
-.ev-meta  { font-size: 11px; color: #909399; margin-top: 2px; }
+.todo-vitem:hover { transform: translateX(2px); box-shadow: 0 2px 6px rgba(60,80,100,0.08); }
+.tv-left { flex-shrink: 0; width: 42px; }
+.tv-date { font-size: 12px; color: #7B8B9C; font-weight: 600; padding-top: 2px; }
+.tv-date.is-today { color: #C15E5E; }
+.tv-body { flex: 1; min-width: 0; }
+.tv-title { font-size: 13px; color: #303133; font-weight: 500; line-height: 1.4; word-break: break-word; }
+.tv-meta  { font-size: 11px; color: #909399; margin-top: 2px; }
 </style>

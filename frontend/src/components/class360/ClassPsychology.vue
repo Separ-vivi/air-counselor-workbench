@@ -24,16 +24,25 @@
 
       <el-card shadow="never">
         <template #header>
-          <div style="display: flex; justify-content: space-between; align-items: center">
-            <span>心理记录（共 {{ records.length }} 条）</span>
-            <el-radio-group v-model="viewMode" size="small">
-              <el-radio-button label="table">明细表格</el-radio-button>
-              <el-radio-button label="timeline">时间轴</el-radio-button>
-            </el-radio-group>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
+            <span>心理记录（共 {{ filteredRecords.length }} / {{ records.length }} 条）</span>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <el-input
+                v-model="searchKw"
+                placeholder="搜索学生姓名/学号/主题"
+                clearable
+                size="small"
+                style="width: 220px"
+              />
+              <el-radio-group v-model="viewMode" size="small">
+                <el-radio-button label="table">明细表格</el-radio-button>
+                <el-radio-button label="timeline">时间轴</el-radio-button>
+              </el-radio-group>
+            </div>
           </div>
         </template>
         <!-- v3j-D · D1: 明细表格视图 -->
-        <el-table v-if="viewMode === 'table'" :data="records" stripe border max-height="500">
+        <el-table v-if="viewMode === 'table'" :data="filteredRecords" stripe border max-height="500">
           <el-table-column label="学生" prop="student_name" width="120" sortable />
           <el-table-column label="学号" prop="student_no" width="140" sortable />
           <el-table-column label="关注等级" width="110">
@@ -112,6 +121,7 @@ const props = defineProps({
 
 const loading = ref(false)
 const records = ref([])
+const searchKw = ref('')
 const chartRef = ref(null)
 let chartIns = null
 
@@ -119,6 +129,19 @@ let chartIns = null
 const totalStudentCount = computed(() => {
   if (props.classStudentCount && props.classStudentCount > 0) return props.classStudentCount
   return records.value.length
+})
+
+// v3h-hotfix1: 学生搜索过滤
+const filteredRecords = computed(() => {
+  const kw = String(searchKw.value || '').trim().toLowerCase()
+  if (!kw) return records.value
+  return records.value.filter((r) => {
+    const name = String(r.student_name || '').toLowerCase()
+    const no = String(r.student_no || '').toLowerCase()
+    const topic = String(r.topic || '').toLowerCase()
+    const notes = String(r.notes || '').toLowerCase()
+    return name.includes(kw) || no.includes(kw) || topic.includes(kw) || notes.includes(kw)
+  })
 })
 
 const statCards = ref([
@@ -143,7 +166,7 @@ const timelineRecords = computed(() => {
 // v3h: 按学生分组的时间轴
 const timelineGroups = computed(() => {
   const map = new Map()
-  for (const r of records.value) {
+  for (const r of filteredRecords.value) {
     const key = r.student_id || r.student_no || r.student_name || 'unknown'
     if (!map.has(key)) {
       map.set(key, {

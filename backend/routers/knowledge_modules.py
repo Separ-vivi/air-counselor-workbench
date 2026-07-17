@@ -234,7 +234,7 @@ def get_weekly_summary(summary_id: int, db: Session = Depends(get_db)):
 
 @router.post('/weekly-summaries/generate')
 def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db)):
-    """自动生成周汇总（叙事型：具体时间、地点、事件、当事人）
+    """自动生成周汇总（v3h-hotfix1：三 format 真差异化 + 日程本本周回顾/下周计划）
     payload 可选字段：
       dimensions: [academic|party|psychology|aid|employment|daily|activity] 多选
       format: bullet | paragraph | mixed
@@ -245,7 +245,8 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
         PsychologyRecord, FamilyContact, PartyProgress, WarningRecord,
         ClassMeeting, WeeklySummary as WS,
         Activity, StudentGrant, EmploymentRecord, GradeRecord,
-        StudentDiscipline, StudentDormVisit, Student, ClassModel
+        StudentDiscipline, StudentDormVisit, Student, ClassModel,
+        Note, Countdown, Project
     )
 
     payload = payload or {}
@@ -258,8 +259,10 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
     week_end = week_start + timedelta(days=6)
     ws = week_start.strftime('%Y-%m-%d')
     we = week_end.strftime('%Y-%m-%d')
+    # 下周
+    nws = (week_start + timedelta(days=7)).strftime('%Y-%m-%d')
+    nwe = (week_end + timedelta(days=7)).strftime('%Y-%m-%d')
 
-    # 学生 id → (姓名, 班级) 查询缓存
     _stu_cache = {}
     def _stu(sid):
         if sid in _stu_cache:
@@ -273,7 +276,6 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
         return _stu_cache[sid]
 
     def _fmt_date(d):
-        """YYYY-MM-DD -> MM-DD 周X"""
         if not d:
             return '日期未记录'
         try:
@@ -283,211 +285,427 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
         except Exception:
             return d
 
-    def _in_week(d):
+    def _in_range(d, a, b):
         if not d:
             return False
         try:
-            return ws <= d[:10] <= we
+            return a <= d[:10] <= b
         except Exception:
             return False
 
+    def _in_week(d):
+        return _in_range(d, ws, we)
+    def _in_next_week(d):
+        return _in_range(d, nws, nwe)
+
     MAX_PER_DIM = 6
 
-    # v3h: format 三种真实差异化渲染
-    def _render_section(title, lines, fmt):
-        """lines: 第一行为 header（如 '本周新增 X 条'）；后续以 '- ' 开头为条目；
-        含 '**' 或以 '\n' 起始为 tail 总览。按 fmt=bullet/paragraph/mixed 输出。"""
-        if not lines:
-            return title + '\n\n'
-        header = lines[0]
-        bullets = [ln for ln in lines[1:] if ln.startswith('- ')]
-        tails = [ln for ln in lines[1:] if not ln.startswith('- ')]
-        capped = bullets[:MAX_PER_DIM]
-        omitted = max(0, len(bullets) - MAX_PER_DIM)
+    # ---------- 通用渲染 ----------
+    # section_dict 结构：
+    #   title: '## 📚 学业跟踪'
+    #   header: '本周新增学业预警 3 条：'（bullet/mixed 用）
+    #   narrative: '本周新增红色预警 2 人（张三、李四），黄色预警 1 人……' （paragraph 主要输出）
+    #   bullets: ['- 07-15（周一）· 🔴红牌 · 张三（软件2班）· 详见预警记录', ...]
+    #   kpis: [('🔴', '红色', 2), ('🟡', '黄色', 1)]  # mixed 用大数字卡片
+    #   tail: '**学业总览**：累计挂科 12 条，历史预警 30 条。'
+    def _emoji_bar(kpis, width=20):
+        """字符艺术水平条形图 · 每行一条"""
+        if not kpis:
+            return ''
+        total = max(1, sum(k[2] for k in kpis) or 1)
+        rows = []
+        for emoji, label, count in kpis:
+            n = int(round(count * width / total)) if total else 0
+            bar = '█' * n + '░' * (width - n)
+            rows.append(f'`{bar}` {emoji} {label} × **{count}**')
+        return '\n'.join(rows)
+
+    def _render(sec, fmt):
+        title = sec.get('title', '')
+        header = sec.get('header', '')
+        narrative = sec.get('narrative', '')
+        bullets = sec.get('bullets', [])[:MAX_PER_DIM]
+        omitted = max(0, len(sec.get('bullets', [])) - MAX_PER_DIM)
+        kpis = sec.get('kpis', [])
+        tail = sec.get('tail', '')
 
         if fmt == 'paragraph':
-            body = header
-            if capped:
-                sentences = [b[2:].strip().rstrip('。') for b in capped]
-                body += '\n\n主要开展情况：' + '；'.join(sentences) + '。'
+            # 完全叙事段落
+            body = title + '\n\n'
+            body += (narrative or header) + '\n'
             if omitted:
-                body += f' 另有 {omitted} 条详情从略。'
-            tail_txt = '\n'.join([t for t in tails if t.strip()])
-            if tail_txt:
-                body += '\n\n' + tail_txt.replace('\n**', '**').strip()
-            return title + '\n' + body + '\n'
+                body += f'\n另有 {omitted} 条详情从略，可切换"要点列表"模式查看。\n'
+            if tail:
+                body += '\n' + tail + '\n'
+            return body + '\n'
 
         if fmt == 'mixed':
-            body = title + '\n' + header + '\n'
-            top = capped[:3]
-            rest = capped[3:]
-            if top:
-                body += '\n'.join(top) + '\n'
-            if rest:
-                more = '；'.join([b[2:].strip().rstrip('。') for b in rest])
-                body += f'\n此外还包括：{more}。\n'
+            # 段落 + 大数字卡片 + 字符条形图 + top3 bullet
+            body = title + '\n\n'
+            body += (narrative or header) + '\n\n'
+            # 大数字卡片 · emoji 版
+            if kpis:
+                cards = ' &nbsp; '.join([f'{k[0]} **{k[1]}** `{k[2]}`' for k in kpis])
+                body += '> ' + cards + '\n\n'
+                bar_txt = _emoji_bar(kpis)
+                if bar_txt:
+                    body += bar_txt + '\n\n'
+            # top3 bullet
+            if bullets:
+                top = bullets[:3]
+                body += '**代表条目：**\n' + '\n'.join(top) + '\n'
+                if len(bullets) > 3:
+                    rest = '；'.join([b[2:].split(' · ',1)[-1].strip() for b in bullets[3:]])
+                    body += f'\n此外还包括：{rest}。\n'
             if omitted:
-                body += f'- （另有 {omitted} 条从略）\n'
-            tail_txt = '\n'.join([t for t in tails if t.strip()])
-            if tail_txt:
-                body += tail_txt + '\n'
-            return body
+                body += f'\n（另有 {omitted} 条从略）\n'
+            if tail:
+                body += '\n' + tail + '\n'
+            return body + '\n'
 
-        # bullet（默认）
-        body = title + '\n' + header + '\n'
-        if capped:
-            body += '\n'.join(capped) + '\n'
+        # bullet（默认）· 完整列表
+        body = title + '\n' + (header or narrative) + '\n'
+        if bullets:
+            body += '\n'.join(bullets) + '\n'
         if omitted:
             body += f'- （另有 {omitted} 条从略）\n'
-        tail_txt = '\n'.join([t for t in tails if t.strip()])
-        if tail_txt:
-            body += tail_txt + '\n'
+        if tail:
+            body += '\n' + tail + '\n'
         return body
 
+    def _names(rs, key='student_id', max_n=8):
+        """把一组 record 的学生姓名拼成'张三、李四、王五'"""
+        seen = []
+        for r in rs:
+            sid = getattr(r, key, None) if not isinstance(r, dict) else r.get(key)
+            name, _cn = _stu(sid)
+            if name not in seen:
+                seen.append(name)
+            if len(seen) >= max_n:
+                break
+        s = '、'.join(seen)
+        if len(rs) > len(seen):
+            s += f' 等 {len(rs)} 人'
+        return s
+
     sections = [f'# 第 {today.isocalendar()[1]} 周工作汇总  ·  {ws} ~ {we}\n',
-                f'> 本周共 7 天，以下按业务维度回顾具体开展的工作。（format: {fmt}）\n']
+                f'> 输出模式：**{ {"bullet":"要点列表","paragraph":"叙事段落","mixed":"图文混合"}.get(fmt, fmt) }**  ·  共 7 天\n']
 
     # ---------- 学业 ----------
     if 'academic' in dims:
         warns_all = db.query(WarningRecord).order_by(WarningRecord.created_at.desc()).all()
         warns_week = [w for w in warns_all if _in_week(str(w.created_at))]
-        lines = []
+        red = [w for w in warns_week if w.warning_type == 'red']
+        yellow = [w for w in warns_week if w.warning_type != 'red']
+
+        bullets = []
+        for w in warns_week:
+            name, cn = _stu(w.student_id)
+            tag = '🔴红牌' if w.warning_type == 'red' else '🟡黄牌'
+            desc = (w.description or '详见预警记录').strip()[:40]
+            bullets.append(f'- {_fmt_date(str(w.created_at)[:10])} · {tag} · {name}（{cn}）· {desc}')
+
+        # 叙事总结
         if warns_week:
-            lines.append(f'本周新增学业预警 **{len(warns_week)}** 条：')
-            for w in warns_week[:MAX_PER_DIM]:
-                name, cn = _stu(w.student_id)
-                tag = '🔴红牌' if w.warning_type == 'red' else '🟡黄牌'
-                lines.append(f'- {_fmt_date(str(w.created_at)[:10])} · {tag} · {name}（{cn}） · {w.description or "详见预警记录"}')
+            parts = []
+            if red:
+                parts.append(f'新增红色预警 {len(red)} 人（{_names(red)}），已按流程提醒到位')
+            if yellow:
+                parts.append(f'黄色预警 {len(yellow)} 人（{_names(yellow)}），持续跟进中')
+            narrative = f'**学业维度**：本周' + '；'.join(parts) + '。'
         else:
-            lines.append('本周未新增学业预警，学业风险总体平稳。')
-        # 挂科增量
+            narrative = '**学业维度**：本周未新增学业预警，学业风险总体平稳。'
+
         fail_this = db.query(GradeRecord).filter(GradeRecord.score < 60).count()
-        lines.append(f'\n**学业总览**：累计挂科记录 {fail_this} 条，历史预警 {len(warns_all)} 条。')
-        sections.append(_render_section('## 📚 学业跟踪', lines, fmt))
+        tail = f'**学业总览**：累计挂科记录 {fail_this} 条，历史预警 {len(warns_all)} 条。'
+        kpis = []
+        if red: kpis.append(('🔴','红色预警',len(red)))
+        if yellow: kpis.append(('🟡','黄色预警',len(yellow)))
+
+        sections.append(_render({
+            'title': '## 📚 学业跟踪',
+            'header': f'本周新增学业预警 **{len(warns_week)}** 条：',
+            'narrative': narrative,
+            'bullets': bullets, 'kpis': kpis, 'tail': tail,
+        }, fmt))
 
     # ---------- 谈心谈话 ----------
     if 'psychology' in dims:
         recs = db.query(PsychologyRecord).all()
         week_recs = [r for r in recs if _in_week(r.record_date)]
-        lines = []
+        bullets = []
+        for r in week_recs:
+            name, cn = _stu(r.student_id)
+            loc = r.location or '未记录地点'
+            topic = r.topic or '常规谈话'
+            summary = (r.summary or '').replace('\n',' ').strip()[:60]
+            follow = f'（后续 {r.next_follow_date} 再跟进）' if r.next_follow_date else ''
+            bullets.append(f'- {_fmt_date(r.record_date)} · 与 **{name}**（{cn}）在 {loc} 谈心 · 主题：{topic}' +
+                           (f' · 要点：{summary}' if summary else '') + follow)
+        # 关注等级分布
+        lv_map = {'一': 0, '二': 0, '三': 0, '普通': 0}
+        for r in week_recs:
+            for k in lv_map:
+                if k in (r.attention_level or ''):
+                    lv_map[k] += 1
+                    break
+
         if week_recs:
-            lines.append(f'本周开展谈心谈话 **{len(week_recs)}** 次：')
-            for r in week_recs[:MAX_PER_DIM]:
-                name, cn = _stu(r.student_id)
-                loc = r.location or '未记录地点'
-                topic = r.topic or '常规谈话'
-                summary = (r.summary or '').replace('\n',' ').strip()[:60]
-                follow = f'（后续 {r.next_follow_date} 再跟进）' if r.next_follow_date else ''
-                lines.append(f'- {_fmt_date(r.record_date)} · 与 **{name}**（{cn}）在 {loc} 谈心 · 主题：{topic}' +
-                             (f' · 要点：{summary}' if summary else '') + follow)
+            narrative = f'**谈心谈话**：本周共开展 {len(week_recs)} 次心理关怀谈话，涉及 {_names(week_recs)}。'
+            details = []
+            if lv_map['一']: details.append(f'一级重点 {lv_map["一"]} 人')
+            if lv_map['二']: details.append(f'二级关注 {lv_map["二"]} 人')
+            if lv_map['三']: details.append(f'三级关注 {lv_map["三"]} 人')
+            if details:
+                narrative += ' 关注等级分布：' + '，'.join(details) + '。'
         else:
-            lines.append('本周未记录谈心谈话，可关注情绪波动学生主动约谈。')
-        sections.append(_render_section('## 💚 谈心谈话', lines, fmt))
+            narrative = '**谈心谈话**：本周未记录谈心谈话，建议主动约谈有情绪波动的学生。'
+
+        kpis = []
+        for lv, cnt in lv_map.items():
+            if cnt:
+                emoji = {'一':'🔴','二':'🟠','三':'🟢','普通':'⚪'}[lv]
+                kpis.append((emoji, f'{lv}级', cnt))
+
+        sections.append(_render({
+            'title': '## 💚 谈心谈话',
+            'header': f'本周开展谈心谈话 **{len(week_recs)}** 次：',
+            'narrative': narrative,
+            'bullets': bullets, 'kpis': kpis,
+        }, fmt))
 
     # ---------- 党团 ----------
     if 'party' in dims:
         recs = db.query(PartyProgress).all()
         week_recs = [r for r in recs if _in_week(r.stage_date) or _in_week(str(r.created_at))]
-        lines = []
+        bullets = []
+        stage_map = {}
+        for r in week_recs:
+            name, cn = _stu(r.student_id)
+            notes = (r.notes or '').strip()[:40]
+            stage_map[r.stage or '未标注'] = stage_map.get(r.stage or '未标注', 0) + 1
+            bullets.append(f'- {_fmt_date(r.stage_date or str(r.created_at)[:10])} · {name}（{cn}）· 进入「**{r.stage}**」阶段' +
+                           (f' · 联系人：{r.contact_person}' if r.contact_person else '') +
+                           (f' · {notes}' if notes else ''))
+
         if week_recs:
-            lines.append(f'本周党团发展节点 **{len(week_recs)}** 项：')
-            for r in week_recs[:MAX_PER_DIM]:
-                name, cn = _stu(r.student_id)
-                notes = (r.notes or '').strip()[:40]
-                lines.append(f'- {_fmt_date(r.stage_date or str(r.created_at)[:10])} · {name}（{cn}）· 进入「**{r.stage}**」阶段' +
-                             (f' · 联系人：{r.contact_person}' if r.contact_person else '') +
-                             (f' · {notes}' if notes else ''))
+            stage_parts = '；'.join([f'{k} {v} 人' for k, v in stage_map.items()])
+            narrative = f'**党团发展**：本周共 {len(week_recs)} 项节点变动 —— {stage_parts}。涉及学生：{_names(week_recs)}。'
         else:
-            lines.append('本周无党团发展节点变动。')
-        sections.append(_render_section('## 🚩 党团建设', lines, fmt))
+            narrative = '**党团发展**：本周无党团发展节点变动。'
+        kpis = [('🚩', k, v) for k, v in stage_map.items()]
+
+        sections.append(_render({
+            'title': '## 🚩 党团建设',
+            'header': f'本周党团发展节点 **{len(week_recs)}** 项：',
+            'narrative': narrative,
+            'bullets': bullets, 'kpis': kpis,
+        }, fmt))
 
     # ---------- 资助 ----------
     if 'aid' in dims:
         recs = db.query(StudentGrant).all()
         week_recs = [r for r in recs if _in_week(str(r.created_at))]
-        lines = []
+        bullets = []
+        total_amt = 0.0
+        for r in week_recs:
+            name, cn = _stu(r.student_id)
+            total_amt += (r.amount or 0)
+            bullets.append(f'- {_fmt_date(str(r.created_at)[:10])} · {name}（{cn}） · {r.grant_type or "资助"} ¥{r.amount:.0f}' +
+                           (f' · {r.notes}' if r.notes else ''))
         if week_recs:
-            lines.append(f'本周资助/助学金动态 **{len(week_recs)}** 条：')
-            for r in week_recs[:MAX_PER_DIM]:
-                name, cn = _stu(r.student_id)
-                lines.append(f'- {_fmt_date(str(r.created_at)[:10])} · {name}（{cn}） · {r.grant_type or "资助"} ¥{r.amount:.0f}' +
-                             (f' · {r.notes}' if r.notes else ''))
+            narrative = f'**资助帮扶**：本周新增资助/助学金 {len(week_recs)} 条，涉及 {_names(week_recs)}，合计发放金额 ¥{total_amt:.0f}。'
         else:
-            lines.append('本周资助无变动，如临学期节点可发起复核。')
-        sections.append(_render_section('## 💰 资助帮扶', lines, fmt))
+            narrative = '**资助帮扶**：本周资助无变动，如临学期节点可发起复核。'
+        kpis = [('💰','资助笔数',len(week_recs))] if week_recs else []
+
+        sections.append(_render({
+            'title': '## 💰 资助帮扶',
+            'header': f'本周资助/助学金动态 **{len(week_recs)}** 条：',
+            'narrative': narrative,
+            'bullets': bullets, 'kpis': kpis,
+        }, fmt))
 
     # ---------- 就业 ----------
     if 'employment' in dims:
         recs = db.query(EmploymentRecord).all()
         week_recs = [r for r in recs if _in_week(r.offer_date) or _in_week(str(r.created_at))]
-        lines = []
+        bullets = []
+        status_map = {}
+        for r in week_recs:
+            name, cn = _stu(r.student_id)
+            status_map[r.status or '未标注'] = status_map.get(r.status or '未标注', 0) + 1
+            bits = []
+            if r.status: bits.append(r.status)
+            if r.target_industry: bits.append(r.target_industry)
+            if r.target_position: bits.append(r.target_position)
+            if r.internship_company: bits.append(f'实习→{r.internship_company}')
+            if r.salary_range: bits.append(f'薪资 {r.salary_range}')
+            bullets.append(f'- {_fmt_date(r.offer_date or str(r.created_at)[:10])} · {name}（{cn}）· ' + ' / '.join(bits))
         if week_recs:
-            lines.append(f'本周就业进展 **{len(week_recs)}** 条：')
-            for r in week_recs[:MAX_PER_DIM]:
-                name, cn = _stu(r.student_id)
-                bits = []
-                if r.status: bits.append(r.status)
-                if r.target_industry: bits.append(r.target_industry)
-                if r.target_position: bits.append(r.target_position)
-                if r.internship_company: bits.append(f'实习→{r.internship_company}')
-                if r.salary_range: bits.append(f'薪资 {r.salary_range}')
-                lines.append(f'- {_fmt_date(r.offer_date or str(r.created_at)[:10])} · {name}（{cn}）· ' + ' / '.join(bits))
+            stat_parts = '；'.join([f'{k} {v} 人' for k, v in status_map.items()])
+            narrative = f'**就业跟踪**：本周就业进展 {len(week_recs)} 条，状态分布：{stat_parts}。涉及学生：{_names(week_recs)}。'
         else:
-            lines.append('本周就业无进展，可推送校招信息或组织宣讲会。')
-        sections.append(_render_section('## 🎯 就业跟踪', lines, fmt))
+            narrative = '**就业跟踪**：本周就业无进展，可推送校招信息或组织宣讲会。'
+        kpis = [('🎯', k, v) for k, v in status_map.items()]
+
+        sections.append(_render({
+            'title': '## 🎯 就业跟踪',
+            'header': f'本周就业进展 **{len(week_recs)}** 条：',
+            'narrative': narrative,
+            'bullets': bullets, 'kpis': kpis,
+        }, fmt))
 
     # ---------- 日常（家校+违纪+走访） ----------
     if 'daily' in dims:
-        lines = []
         fc = [r for r in db.query(FamilyContact).all() if _in_week(r.contact_date)]
         dc = [r for r in db.query(StudentDiscipline).all() if _in_week(r.discipline_date)]
         vs = [r for r in db.query(StudentDormVisit).all() if _in_week(r.visit_date)]
-        if fc:
-            lines.append(f'**家校沟通** {len(fc)} 次：')
-            for r in fc[:MAX_PER_DIM]:
-                name, cn = _stu(r.student_id)
-                lines.append(f'- {_fmt_date(r.contact_date)} · 联系 {name}（{cn}）家长 {r.parent_name or ""} · 方式：{r.contact_method or "电话"} · 主题：{r.topic or "常规沟通"}')
-        if dc:
-            lines.append(f'\n**违纪处理** {len(dc)} 次：')
-            for r in dc[:MAX_PER_DIM]:
-                name, cn = _stu(r.student_id)
-                lines.append(f'- {_fmt_date(r.discipline_date)} · {name}（{cn}）· {r.level or ""}{r.discipline_type or "处分"} · 原因：{(r.reason or "").strip()[:40]}')
-        if vs:
-            lines.append(f'\n**宿舍走访** {len(vs)} 次：')
-            for r in vs[:MAX_PER_DIM]:
-                name, cn = _stu(r.student_id)
-                sit = (r.situation or '').strip()[:40]
-                lines.append(f'- {_fmt_date(r.visit_date)} · 走访 {name}（{cn}）· 寝室 {r.dorm_room or "?"} · 走访人：{r.visitor or "本人"}' + (f' · {sit}' if sit else ''))
-        if not (fc or dc or vs):
-            lines.append('本周日常事务平稳，无违纪、无重要家校沟通、无宿舍走访记录。')
-        sections.append(_render_section('## 📖 日常事务', lines, fmt))
+
+        bullets = []
+        for r in fc:
+            name, cn = _stu(r.student_id)
+            bullets.append(f'- {_fmt_date(r.contact_date)} · 联系 {name}（{cn}）家长 {r.parent_name or ""} · 方式：{r.contact_method or "电话"} · 主题：{r.topic or "常规沟通"}')
+        for r in dc:
+            name, cn = _stu(r.student_id)
+            bullets.append(f'- {_fmt_date(r.discipline_date)} · {name}（{cn}）· {r.level or ""}{r.discipline_type or "处分"} · 原因：{(r.reason or "").strip()[:40]}')
+        for r in vs:
+            name, cn = _stu(r.student_id)
+            sit = (r.situation or '').strip()[:40]
+            bullets.append(f'- {_fmt_date(r.visit_date)} · 走访 {name}（{cn}）· 寝室 {r.dorm_room or "?"} · 走访人：{r.visitor or "本人"}' + (f' · {sit}' if sit else ''))
+
+        parts = []
+        if fc: parts.append(f'家校沟通 {len(fc)} 次（{_names(fc)}）')
+        if dc: parts.append(f'违纪处理 {len(dc)} 次（{_names(dc)}）')
+        if vs: parts.append(f'宿舍走访 {len(vs)} 次（{_names(vs)}）')
+        if parts:
+            narrative = f'**日常事务**：本周' + '、'.join(parts) + '。'
+        else:
+            narrative = '**日常事务**：本周日常事务平稳，无违纪、无重要家校沟通、无宿舍走访记录。'
+        kpis = []
+        if fc: kpis.append(('📞','家校沟通',len(fc)))
+        if dc: kpis.append(('⚠️','违纪',len(dc)))
+        if vs: kpis.append(('🏠','宿舍走访',len(vs)))
+
+        sections.append(_render({
+            'title': '## 📖 日常事务',
+            'header': f'本周日常事务合计 **{len(fc)+len(dc)+len(vs)}** 项：',
+            'narrative': narrative,
+            'bullets': bullets, 'kpis': kpis,
+        }, fmt))
 
     # ---------- 活动（含班会） ----------
     if 'activity' in dims:
         acts = [a for a in db.query(Activity).all() if _in_week(a.activity_date)]
         meets = [m for m in db.query(ClassMeeting).all() if _in_week(m.meeting_date)]
-        lines = []
-        if acts:
-            lines.append(f'**学院/学生活动** {len(acts)} 场：')
-            for a in acts[:MAX_PER_DIM]:
-                lines.append(f'- {_fmt_date(a.activity_date)} · **{a.title}**' +
-                             (f' · 地点：{a.location}' if a.location else '') +
-                             (f' · 类型：{a.activity_type}' if a.activity_type else '') +
-                             (f' · 状态：{a.status}' if a.status else ''))
-        if meets:
-            lines.append(f'\n**班会** {len(meets)} 次：')
-            for m in meets[:MAX_PER_DIM]:
-                cls = db.query(ClassModel).get(m.class_id) if m.class_id else None
-                cn = cls.class_name if cls else '(未指定班级)'
-                lines.append(f'- {_fmt_date(m.meeting_date)} · {cn} · 主题：{m.topic or "常规班会"} · 出勤 {m.attendance_count or 0} 人' +
-                             (f' · 结论：{(m.resolution or "").strip()[:40]}' if m.resolution else ''))
-        if not (acts or meets):
-            lines.append('本周无组织的学院活动或班会，可结合校历安排下周事项。')
-        sections.append(_render_section('## 🎨 活动 & 班会', lines, fmt))
 
-    # ---------- 收尾：本周关键词 ----------
+        bullets = []
+        for a in acts:
+            bullets.append(f'- {_fmt_date(a.activity_date)} · **{a.title}**' +
+                           (f' · 地点：{a.location}' if a.location else '') +
+                           (f' · 类型：{a.activity_type}' if a.activity_type else '') +
+                           (f' · 状态：{a.status}' if a.status else ''))
+        for m in meets:
+            cls = db.query(ClassModel).get(m.class_id) if m.class_id else None
+            cn = cls.class_name if cls else '(未指定班级)'
+            bullets.append(f'- {_fmt_date(m.meeting_date)} · {cn} · 主题：{m.topic or "常规班会"} · 出勤 {m.attendance_count or 0} 人' +
+                           (f' · 结论：{(m.resolution or "").strip()[:40]}' if m.resolution else ''))
+
+        parts = []
+        if acts: parts.append(f'组织学院/学生活动 {len(acts)} 场（{"、".join([a.title for a in acts[:5]])}）')
+        if meets: parts.append(f'开展班会 {len(meets)} 次')
+        if parts:
+            narrative = f'**活动 & 班会**：本周' + '，'.join(parts) + '。'
+        else:
+            narrative = '**活动 & 班会**：本周无组织的学院活动或班会，可结合校历安排下周事项。'
+        kpis = []
+        if acts: kpis.append(('🎨','活动',len(acts)))
+        if meets: kpis.append(('🏫','班会',len(meets)))
+
+        sections.append(_render({
+            'title': '## 🎨 活动 & 班会',
+            'header': f'本周活动 **{len(acts)}** 场 · 班会 **{len(meets)}** 次：',
+            'narrative': narrative,
+            'bullets': bullets, 'kpis': kpis,
+        }, fmt))
+
+    # ---------- 本周日程回顾（结合日程本：Note done + Countdown + Project 进度） ----------
+    notes_done_week = [n for n in db.query(Note).all()
+                       if n.status == 'done' and (_in_week(n.due_date) or _in_week(str(n.updated_at)))]
+    countdowns_week = [c for c in db.query(Countdown).all() if _in_week(c.target_date)]
+    projects_active = db.query(Project).filter(Project.status == 'active').all()
+    projects_touched_week = [p for p in projects_active
+                             if _in_week(p.start_date) or _in_week(p.end_date)]
+
+    bullets_done = []
+    for n in notes_done_week[:MAX_PER_DIM]:
+        bullets_done.append(f'- ✅ {_fmt_date(n.due_date or str(n.updated_at)[:10])} · {n.title or "(无标题)"}' +
+                            (f' · {(n.content or "").strip()[:30]}' if n.content else ''))
+    for c in countdowns_week[:MAX_PER_DIM]:
+        bullets_done.append(f'- 📅 {_fmt_date(c.target_date)} · **{c.title}**（{c.category or "校历"}）')
+    for p in projects_touched_week[:MAX_PER_DIM]:
+        bullets_done.append(f'- 🎯 项目 **{p.name}** · 进度 {p.progress}%' +
+                            (f' · 起止 {p.start_date} ~ {p.end_date}' if p.start_date else ''))
+
+    if bullets_done:
+        narrative_done = (
+            f'**本周日程回顾**：完成待办 {len(notes_done_week)} 项，'
+            f'触达校历节点 {len(countdowns_week)} 个，推进中的专项工作 {len(projects_touched_week)} 项。'
+        )
+    else:
+        narrative_done = '**本周日程回顾**：本周日程本无已完成待办或校历节点，可按计划稳步推进。'
+    sections.append(_render({
+        'title': '## 🗓️ 本周日程回顾',
+        'header': f'本周完成 {len(notes_done_week)} 项待办 · 校历节点 {len(countdowns_week)} 个 · 项目触达 {len(projects_touched_week)} 项',
+        'narrative': narrative_done,
+        'bullets': bullets_done,
+        'kpis': [('✅','已完成待办',len(notes_done_week)),
+                 ('📅','校历节点',len(countdowns_week)),
+                 ('🎯','项目触达',len(projects_touched_week))],
+    }, fmt))
+
+    # ---------- 下周计划提醒 ----------
+    notes_todo_next = [n for n in db.query(Note).all()
+                       if n.category == 'todo' and n.status != 'done' and _in_next_week(n.due_date)]
+    countdowns_next = [c for c in db.query(Countdown).all() if _in_next_week(c.target_date)]
+    acts_next = [a for a in db.query(Activity).all() if _in_next_week(a.activity_date)]
+    meets_next = [m for m in db.query(ClassMeeting).all() if _in_next_week(m.meeting_date)]
+
+    bullets_next = []
+    for n in notes_todo_next[:MAX_PER_DIM]:
+        prio = ['低','中','高'][n.priority or 0] if (n.priority or 0) <= 2 else '高'
+        bullets_next.append(f'- ☑️ {_fmt_date(n.due_date)} · [{prio}] {n.title or "(无标题)"}')
+    for c in countdowns_next[:MAX_PER_DIM]:
+        bullets_next.append(f'- 📅 {_fmt_date(c.target_date)} · **{c.title}**（{c.category or "校历"}）')
+    for a in acts_next[:MAX_PER_DIM]:
+        bullets_next.append(f'- 🎨 {_fmt_date(a.activity_date)} · {a.title}' + (f' · {a.location}' if a.location else ''))
+    for m in meets_next[:MAX_PER_DIM]:
+        cls = db.query(ClassModel).get(m.class_id) if m.class_id else None
+        cn = cls.class_name if cls else '(未指定班级)'
+        bullets_next.append(f'- 🏫 {_fmt_date(m.meeting_date)} · {cn} · {m.topic or "班会"}')
+
+    total_next = len(notes_todo_next) + len(countdowns_next) + len(acts_next) + len(meets_next)
+    if total_next:
+        narrative_next = (
+            f'**下周计划提醒**（{nws} ~ {nwe}）：待办 {len(notes_todo_next)} 项、校历节点 {len(countdowns_next)} 个、'
+            f'活动 {len(acts_next)} 场、班会 {len(meets_next)} 次，请提前安排时间与资源。'
+        )
+    else:
+        narrative_next = f'**下周计划提醒**（{nws} ~ {nwe}）：日程本暂无预设事项，可尽早规划下周重点工作。'
+    sections.append(_render({
+        'title': '## 📌 下周计划提醒',
+        'header': f'下周共 {total_next} 项预设事项：',
+        'narrative': narrative_next,
+        'bullets': bullets_next,
+        'kpis': [('☑️','待办',len(notes_todo_next)),
+                 ('📅','校历',len(countdowns_next)),
+                 ('🎨','活动',len(acts_next)),
+                 ('🏫','班会',len(meets_next))],
+    }, fmt))
+
+    # ---------- 收尾 ----------
     sections.append('---\n')
-    sections.append('*本汇总由系统按数据库真实记录自动汇编，可点击"手写补充"添加更多定性描述。*')
+    sections.append('*本汇总由系统按数据库真实记录自动汇编 · 三种模式（要点列表 / 叙事段落 / 图文混合）根据 format 参数切换 · 结尾已联动日程本给出本周回顾与下周计划。*')
 
     content = '\n'.join(sections)
 

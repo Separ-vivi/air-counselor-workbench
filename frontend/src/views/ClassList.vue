@@ -36,16 +36,31 @@
       </el-form>
     </el-card>
 
-    <!-- v3h A: 班级人数柱状图（从驾驶舱挪来） -->
-    <el-card shadow="never" style="margin-bottom: 16px" v-if="filteredClasses.length">
-      <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
-          <span>📊 各班学生人数对比</span>
-          <span style="font-size:12px;color:#909399">共 {{ filteredClasses.length }} 个班级 · 点击柱形跳转班级 360</span>
-        </div>
-      </template>
-      <div ref="classBarRef" style="width: 100%; height: 260px"></div>
-    </el-card>
+    <!-- v3h-hotfix1: 双柱状图并排 · 学生人数 + 平均成绩（点击柱形不跳转） -->
+    <el-row :gutter="16" v-if="filteredClasses.length" style="margin-bottom: 16px">
+      <el-col :span="12">
+        <el-card shadow="never">
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center">
+              <span>📊 各班学生人数</span>
+              <span style="font-size:12px;color:#909399">共 {{ filteredClasses.length }} 个班级</span>
+            </div>
+          </template>
+          <div ref="classBarRef" style="width: 100%; height: 260px"></div>
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card shadow="never">
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center">
+              <span>📈 各班平均成绩</span>
+              <span style="font-size:12px;color:#909399">按全部课程均分</span>
+            </div>
+          </template>
+          <div ref="avgBarRef" style="width: 100%; height: 260px"></div>
+        </el-card>
+      </el-col>
+    </el-row>
 
     <el-row :gutter="16">
       <el-col v-for="c in filteredClasses" :key="c.id" :span="8" style="margin-bottom: 16px">
@@ -121,9 +136,11 @@ const filteredClasses = computed(() => {
 })
 
 const goClass = (id) => router.push(`/classes/${id}`)
-// v3h A: 班级人数柱状图
+// v3h-hotfix1: 双柱状图 · 人数 + 平均成绩（不跳转）
 const classBarRef = ref(null)
+const avgBarRef = ref(null)
 let classBarChart = null
+let avgBarChart = null
 const macaronColors = ['#F8B4B4','#F9E79F','#B7E4C7','#B7D8E4','#D5B7E4','#F5C7A0','#FCB69F','#A8E6CF','#FFD3B6','#FF8B94','#C7CEEA','#FEC8D8']
 
 function renderClassBar() {
@@ -131,7 +148,7 @@ function renderClassBar() {
   const cd = filteredClasses.value.map(c => ({ name: c.name, value: c.student_count || 0, id: c.id }))
   if (!classBarChart) classBarChart = echarts.init(classBarRef.value)
   classBarChart.setOption({
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: p => `${p[0].name}<br/>${p[0].marker} 学生人数：<b>${p[0].value}</b> 人` },
     grid: { left: 8, right: 12, top: 20, bottom: 40, containLabel: true },
     xAxis: { type: 'category', data: cd.map(x => x.name), axisLine: { lineStyle: { color: '#DCDFE6' } }, axisLabel: { color: '#606266', fontSize: 11, rotate: cd.length > 8 ? 20 : 0, interval: 0 } },
     yAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed', color: '#E4E7ED' } }, axisLabel: { color: '#909399', fontSize: 11 } },
@@ -147,19 +164,44 @@ function renderClassBar() {
       label: { show: true, position: 'top', color: '#606266', fontSize: 11, fontWeight: 500 }
     }]
   })
+  // v3h-hotfix1: 移除点击跳转（air 反馈：现在只是切换 chart，不需要跳转到 class360）
   classBarChart.off('click')
-  classBarChart.on('click', (params) => {
-    const idx = params?.dataIndex
-    const cls = filteredClasses.value[idx]
-    if (cls?.id) router.push({ path: `/class360/${cls.id}` })
-  })
 }
 
-const resizeClassBar = () => { try { classBarChart?.resize() } catch(e) {} }
-watch(filteredClasses, () => { nextTick(renderClassBar) })
+function renderAvgBar() {
+  if (!avgBarRef.value) return
+  const cd = filteredClasses.value.map(c => ({ name: c.name, value: c.avg_score || 0, id: c.id }))
+  if (!avgBarChart) avgBarChart = echarts.init(avgBarRef.value)
+  const scoreColor = (v) => v < 60 ? '#F8B4B4' : v < 75 ? '#F9E79F' : '#B7E4C7'
+  avgBarChart.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: p => `${p[0].name}<br/>${p[0].marker} 平均成绩：<b>${p[0].value}</b> 分` },
+    grid: { left: 8, right: 12, top: 20, bottom: 40, containLabel: true },
+    xAxis: { type: 'category', data: cd.map(x => x.name), axisLine: { lineStyle: { color: '#DCDFE6' } }, axisLabel: { color: '#606266', fontSize: 11, rotate: cd.length > 8 ? 20 : 0, interval: 0 } },
+    yAxis: { type: 'value', min: 0, max: 100, splitLine: { lineStyle: { type: 'dashed', color: '#E4E7ED' } }, axisLabel: { color: '#909399', fontSize: 11 } },
+    series: [{
+      type: 'bar', barWidth: '46%',
+      data: cd.map(x => ({ value: x.value, name: x.name, itemStyle: { color: {
+        type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+        colorStops: [
+          { offset: 0, color: scoreColor(x.value) },
+          { offset: 1, color: '#FFFFFF' }
+        ]
+      }, borderRadius: [8, 8, 0, 0] } })),
+      label: { show: true, position: 'top', color: '#606266', fontSize: 11, fontWeight: 500, formatter: (p) => p.value ? p.value.toFixed(1) : '—' }
+    }]
+  })
+  avgBarChart.off('click')
+}
+
+const resizeCharts = () => {
+  try { classBarChart?.resize() } catch(e) {}
+  try { avgBarChart?.resize() } catch(e) {}
+}
+watch(filteredClasses, () => { nextTick(() => { renderClassBar(); renderAvgBar() }) })
 onUnmounted(() => {
-  window.removeEventListener('resize', resizeClassBar)
+  window.removeEventListener('resize', resizeCharts)
   try { classBarChart?.dispose() } catch(e) {}
+  try { avgBarChart?.dispose() } catch(e) {}
 })
 
 const reload = () => orgStore.loadTree(true)
@@ -178,8 +220,8 @@ const exportAll = async () => {
 }
 
 onMounted(() => {
-  window.addEventListener('resize', resizeClassBar)
-  nextTick(renderClassBar)
+  window.addEventListener('resize', resizeCharts)
+  nextTick(() => { renderClassBar(); renderAvgBar() })
   if (!orgStore.orgTree.length) orgStore.loadTree()
   // reinit 后自动刷新组织树（数据库被重建，班级列表要重新拉）
   window.addEventListener('system-reinit-done', () => orgStore.loadTree(true))

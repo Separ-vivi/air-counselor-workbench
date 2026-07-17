@@ -511,7 +511,8 @@ def psychology_reminders(db: Session = Depends(get_db)):
     today = datetime.now().strftime('%Y-%m-%d')
     items = db.query(PsychologyRecord).filter(
         PsychologyRecord.next_follow_date != '',
-        PsychologyRecord.next_follow_date <= today
+        PsychologyRecord.next_follow_date <= today,
+        (PsychologyRecord.reminded == False) | (PsychologyRecord.reminded.is_(None))
     ).all()
     result = []
     for r in items:

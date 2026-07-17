@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">v3h · Dashboard减重+日历统一+记事联动+浅蓝色系+批量提醒</div>
+        <div class="brand-ver">v3h-hotfix1 · 色系纠正+三格+双柱状+图例对齐+心理搜索+周汇总重写</div>
       </div>
     </div>
 

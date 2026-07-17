@@ -126,8 +126,8 @@
         </el-form-item>
         <el-form-item label="类型">
           <el-radio-group v-model="form.category">
+            <el-radio-button label="todo">☑️ 待办</el-radio-button>
             <el-radio-button label="memo">📄 备忘</el-radio-button>
-            <el-radio-button label="todo">📌 待办</el-radio-button>
             <el-radio-button label="idea">💡 想法</el-radio-button>
           </el-radio-group>
         </el-form-item>

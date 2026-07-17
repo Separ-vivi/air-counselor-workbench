@@ -74,14 +74,13 @@ a:hover {
 .app-sidebar {
   width: 220px;
   background: linear-gradient(180deg,
-    rgba(220, 235, 250, 0.72) 0%,
-    rgba(225, 245, 240, 0.75) 100%);
-  backdrop-filter: blur(18px) saturate(1.2);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  color: #3A5A6E;
-  border-right: 1px solid rgba(255, 255, 255, 0.55);
+    #C6DEF3 0%,
+    #B4D0EC 100%);
+  color: #234A6A;
+  border-right: 1px solid rgba(255, 255, 255, 0.60);
   flex-shrink: 0;
   overflow-y: auto;
+  box-shadow: 2px 0 8px rgba(90, 130, 170, 0.06);
 }
 
 .app-main {
@@ -466,13 +465,13 @@ a:hover {
    V3-G 全站时尚化增强（air 反馈：风格要跟驾驶舱一致，时尚一点；禁止深底深字）
    ======================================================================== */
 
-/* ---- 全站柔和渐变背景（马卡龙气泡） ---- */
+/* ---- v3h-hotfix1 · 全站浅蓝色系统一（air 硬指令：禁止粉色底） ---- */
 .app-content {
   background:
-    radial-gradient(circle at 8% 6%, rgba(255, 210, 220, 0.25), transparent 38%),
-    radial-gradient(circle at 92% 10%, rgba(200, 230, 240, 0.28), transparent 42%),
-    radial-gradient(circle at 60% 96%, rgba(220, 220, 250, 0.24), transparent 46%),
-    linear-gradient(180deg, #FDFCFA 0%, #F5F7FA 100%) !important;
+    radial-gradient(circle at 8% 6%, rgba(180, 215, 240, 0.28), transparent 40%),
+    radial-gradient(circle at 92% 10%, rgba(200, 230, 240, 0.30), transparent 44%),
+    radial-gradient(circle at 60% 96%, rgba(190, 220, 245, 0.24), transparent 48%),
+    linear-gradient(180deg, #E9F1F9 0%, #DEEAF4 100%) !important;
 }
 
 /* ---- 所有卡片：统一微毛玻璃 + 圆角 + hover 上浮 ---- */

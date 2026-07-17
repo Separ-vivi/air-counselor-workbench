@@ -12,15 +12,15 @@
       </div>
     </div>
 
-    <!-- 图例 -->
+    <!-- 图例（v3h-hotfix1: 颜色对齐后端 event.color） -->
     <div class="legend-row">
       <span class="lg-tag lg-blue">📚 校历倒计时</span>
       <span class="lg-tag lg-orange">☑️ 待办截止</span>
       <span class="lg-tag lg-yellow">🔔 记事提醒</span>
-      <span class="lg-tag lg-pink">🎯 项目节点</span>
-      <span class="lg-tag lg-green">📌 活动</span>
-      <span class="lg-tag lg-cyan">🏫 班会</span>
-      <span class="lg-tag lg-purple">👨‍👩‍👧 家校沟通</span>
+      <span class="lg-tag lg-purple">🎯 项目节点</span>
+      <span class="lg-tag lg-pink">📌 活动</span>
+      <span class="lg-tag lg-green">🏫 班会</span>
+      <span class="lg-tag lg-cyan">👨‍👩‍👧 家校沟通</span>
     </div>
 
     <!-- 倒计时 chip 区（保留） -->

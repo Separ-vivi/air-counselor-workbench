@@ -1,13 +1,13 @@
 """组织架构 API - 年级/专业/班级"""
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
 from database import get_db
-from models import Grade, Major, ClassModel, Student
+from models import Grade, Major, ClassModel, Student, GradeRecord
 
 router = APIRouter(prefix='/api/org', tags=['organization'])
 
@@ -141,6 +141,12 @@ def list_classes(major_id: Optional[int] = None, grade_id: Optional[int] = None,
         if grade_id and c.major and c.major.grade_id != grade_id:
             continue
         student_count = db.query(Student).filter(Student.class_id == c.id).count()
+        # v3h-hotfix1: 加班级平均成绩（供 ClassList 双柱状图使用）
+        student_ids_c = [row[0] for row in db.query(Student.id).filter(Student.class_id == c.id).all()]
+        avg_score = 0
+        if student_ids_c:
+            r = db.query(func.avg(GradeRecord.score)).filter(GradeRecord.student_id.in_(student_ids_c)).scalar()
+            avg_score = round(r, 2) if r else 0
         result.append({
             'id': c.id,
             'class_name': c.class_name,
@@ -151,6 +157,7 @@ def list_classes(major_id: Optional[int] = None, grade_id: Optional[int] = None,
             'monitor': c.monitor,
             'league_secretary': c.league_secretary,
             'student_count': student_count,
+            'avg_score': avg_score,
         })
     return result
 
@@ -320,11 +327,17 @@ def get_org_tree(db: Session = Depends(get_db)):
             }
             for c in m.classes:
                 student_count = db.query(Student).filter(Student.class_id == c.id).count()
+                sids = [row[0] for row in db.query(Student.id).filter(Student.class_id == c.id).all()]
+                avg_score = 0
+                if sids:
+                    r = db.query(func.avg(GradeRecord.score)).filter(GradeRecord.student_id.in_(sids)).scalar()
+                    avg_score = round(r, 2) if r else 0
                 major_data['classes'].append({
                     'id': c.id,
                     'class_name': c.class_name,
                     'student_count': student_count,
                     'class_teacher': c.class_teacher,
+                    'avg_score': avg_score,
                 })
             grade_data['majors'].append(major_data)
         result.append(grade_data)
