@@ -663,3 +663,11 @@ a:hover {
 .el-button.is-text.el-button--warning {
   color: #d9a441 !important;
 }
+
+
+/* v3j-C c02 · 全站表头单行不换行（避免因表头折行导致列错位/挤压） */
+.el-table th.el-table__cell .cell {
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

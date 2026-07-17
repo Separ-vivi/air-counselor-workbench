@@ -122,10 +122,11 @@ const renderChart = () => {
   }
   if (!chartIns) chartIns = echarts.init(chartRef.value)
   const data = [
-    { name: '一级重点关注', value: statCards.value[1].value, itemStyle: { color: '#F56C6C' } },
-    { name: '二级关注', value: statCards.value[2].value, itemStyle: { color: '#E6A23C' } },
-    { name: '三级关注', value: statCards.value[3].value, itemStyle: { color: '#909399' } },
-    { name: '无档案', value: Math.max(0, totalStudentCount.value - records.value.length), itemStyle: { color: '#DCDFE6' } }
+    // v3j-C c02: 心理关注饼图改马卡龙 3 色 + 淡蓝无档案
+    { name: '一级重点关注', value: statCards.value[1].value, itemStyle: { color: '#FF9AA2' } },
+    { name: '二级关注', value: statCards.value[2].value, itemStyle: { color: '#FFDAC1' } },
+    { name: '三级关注', value: statCards.value[3].value, itemStyle: { color: '#B5EAD7' } },
+    { name: '无档案', value: Math.max(0, totalStudentCount.value - records.value.length), itemStyle: { color: '#C7CEEA' } }
   ]
   chartIns.setOption({
     tooltip: { trigger: 'item' },

@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">v3j-C c01 · 数据修复+字段补齐+筛选过滤增强</div>
+        <div class="brand-ver">v3j-C c02 · UI细节+术语统一</div>
       </div>
     </div>
 
