@@ -65,33 +65,26 @@
 </script>
 
 <style scoped>
-/* V3-G 侧边栏（淡色版）：浅蓝→浅薄荷柔和过渡 + 毛玻璃 */
+/* V4-hotfix6: 侧边栏改深空蓝 (Linear/Notion 风) - 跟主内容清新蓝白形成经典明暗对比, 不再泛白土气 */
 .sidebar-root {
   width: 220px;
   height: 100vh;
-  /* v4-hotfix3: 中饱和蓝渐变 - 不要浅到白与主背景糊掉，保留一层顶部微白光营造 iOS 磨砂反射 */
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.00) 45%, rgba(255,255,255,0.15) 100%),
-    linear-gradient(180deg, #5A9DD1 0%, #78B4DE 32%, #9EC8E7 62%, #B8D6EB 90%, #C4DDEE 100%);
-  backdrop-filter: blur(20px) saturate(170%);
-  -webkit-backdrop-filter: blur(20px) saturate(170%);
-  color: #0E2A44;
-  border-right: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow:
-    inset 1px 0 0 rgba(255,255,255,0.58),
-    2px 0 16px rgba(60, 110, 165, 0.20);
+  background: linear-gradient(180deg, #1E2B40 0%, #263650 55%, #2C3E58 100%);
+  color: #D9E2EE;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 2px 0 16px rgba(20, 35, 60, 0.28);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   position: relative;
 }
-/* v4-hotfix3: 只保留顶部一层柔和高光条 (110px), 去掉双光条避免过反光 */
+/* 顶部一层极淡冷光, 只做质感不做白光 */
 .sidebar-root::before {
   content: '';
   position: absolute;
   left: 0; right: 0; top: 0;
-  height: 110px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.10) 55%, rgba(255,255,255,0) 100%);
+  height: 90px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 60%, rgba(255,255,255,0) 100%);
   pointer-events: none;
   z-index: 0;
 }
@@ -99,14 +92,16 @@
 
 .brand {
   padding: 18px 16px 14px;
-  border-bottom: 1px solid rgba(122, 168, 184, 0.15);
+  /* 分界线清晰: 白半透 iOS 磨砂风 */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
   display: flex;
   align-items: center;
   gap: 10px;
 }
 .brand-icon {
   font-size: 22px !important;
-  color: #1F4A6B;
+  color: #7FB4E5;
   flex-shrink: 0;
 }
 .brand-info {
@@ -117,7 +112,7 @@
 .brand-text {
   font-weight: 600;
   font-size: 14px;
-  color: #12324D;
+  color: #EEF3FA;
   letter-spacing: 0.3px;
   white-space: nowrap;
   overflow: hidden;
@@ -125,7 +120,7 @@
   line-height: 1.3;
 }
 .brand-ver {
-  color: rgba(30, 60, 90, 0.68);
+  color: rgba(200, 215, 235, 0.6);
   font-size: 11px;
   margin-top: 2px;
   letter-spacing: 0.5px;
@@ -139,7 +134,7 @@
 }
 :deep(.el-menu-item),
 :deep(.el-sub-menu__title) {
-  color: #12324D !important;
+  color: #B8C6D8 !important;
   border-radius: 10px !important;
   margin: 3px 10px !important;
   transition: all .2s ease;
@@ -147,17 +142,15 @@
 }
 :deep(.el-menu-item:hover),
 :deep(.el-sub-menu__title:hover) {
-  background: rgba(255, 255, 255, 0.42) !important;
-  color: #0B2A48 !important;
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #FFFFFF !important;
 }
 :deep(.el-menu-item.is-active) {
-  background: rgba(255, 255, 255, 0.62) !important;
-  color: #0B2A48 !important;
+  background: linear-gradient(135deg, rgba(74,138,199,0.28), rgba(74,138,199,0.16)) !important;
+  color: #FFFFFF !important;
   font-weight: 600;
-  box-shadow: 0 2px 6px rgba(60, 110, 150, 0.18), inset 0 1px 0 rgba(255,255,255,0.8);
+  box-shadow: 0 2px 8px rgba(20, 40, 70, 0.35), inset 0 1px 0 rgba(255,255,255,0.08);
   position: relative;
-  backdrop-filter: blur(8px);
 }
 :deep(.el-menu-item.is-active)::before {
   content: '';
@@ -167,7 +160,7 @@
   bottom: 22%;
   width: 3px;
   border-radius: 2px;
-  background: linear-gradient(180deg, #4A90C7 0%, #2A6FA8 100%);
+  background: linear-gradient(180deg, #7FB4E5 0%, #4A90C7 100%);
 }
 :deep(.el-sub-menu .el-menu-item) {
   min-width: unset !important;
@@ -187,13 +180,14 @@
   opacity: 0.85;
 }
 :deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
-  color: #3B6A7C !important;
+  color: #A8C0DC !important;
 }
 .footer-hint {
   padding: 12px 20px;
   font-size: 12px;
-  color: rgba(58, 90, 110, 0.7);
-  border-top: 1px solid rgba(122, 168, 184, 0.18);
+  color: rgba(200, 215, 235, 0.55);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.15);
 }
-.footer-hint .text-muted { color: rgba(58, 90, 110, 0.5); }
+.footer-hint .text-muted { color: rgba(200, 215, 235, 0.35); }
 </style>

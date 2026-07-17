@@ -700,8 +700,10 @@ onMounted(async () => {
   border-color: rgba(255, 255, 255, 0.9);
   box-shadow: 0 4px 14px rgba(90, 130, 180, 0.22), inset 0 1px 0 rgba(255,255,255,0.85);
 }
-.mini-day.is-today .mini-mmdd,
-.mini-day.is-today .mini-week { color: #FFFFFF; text-shadow: 0 1px 2px rgba(50,90,140,0.35); }
+/* v4-hotfix6: 今日格背景已改浅蓝双色，文字改深色避免白字糊 */
+.mini-day.is-today .mini-mmdd { color: #1B3552; text-shadow: 0 1px 1px rgba(255,255,255,0.55); }
+.mini-day.is-today .mini-week { color: #35597E; text-shadow: 0 1px 1px rgba(255,255,255,0.55); }
+.mini-day.is-today .mini-empty { color: #4A6A88; font-style: normal; font-weight: 500; }
 .mini-day.is-today .mini-badge { background: rgba(255,255,255,0.95); color: #4A85C0; }
 .mini-week { font-size: 11px; color: #6B85A0; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; }
 .mini-mmdd { font-size: 22px; color: #1E3A56; font-weight: 800; margin: 4px 0 auto; letter-spacing: -0.5px; line-height: 1; font-family: -apple-system, "SF Pro Display", "PingFang SC", sans-serif; }
