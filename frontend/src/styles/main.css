@@ -10,7 +10,7 @@
   --color-sidebar-hover: #5D8FA0;
   --color-sidebar-active: #3B6A7C;
   --color-topbar: #F5F9FC;  /* 极浅蓝白 v3h */
-  --color-page-bg: #E8F1FA;          /* 浅蓝底 v3h 统一色系 */
+  --color-page-bg: #EEF3F9;          /* v4-hotfix5: 清新极浅蓝灰基调 */
   --color-card-bg: #FFFFFF;
   --color-card-border: #D8E1EC;
   --color-text-primary: #3A3A3A;
@@ -112,13 +112,11 @@ a:hover {
 
 /* ---------- 卡片 ---------- */
 .macaron-card {
-  /* v4-hotfix1: 半透明磨砂玻璃，跟 el-card 保持一致的 iOS 风 */
-  background: linear-gradient(180deg, #FBF8F1 0%, #F5F0E3 100%);
-  border: 1px solid rgba(220, 208, 185, 0.55);
+  /* v4-hotfix5: 清新蓝白极简，air 拒绝奶油/黄 → 走浅蓝白冷调 */
+  background: linear-gradient(180deg, #FFFFFF 0%, #F6FAFE 100%);
+  border: 1px solid rgba(200, 215, 235, 0.55);
   border-radius: 16px;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  box-shadow: 0 4px 20px rgba(120, 155, 195, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 10px rgba(90, 130, 180, 0.06), 0 6px 22px rgba(90, 130, 180, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   padding: 16px 20px;
   margin-bottom: 16px;
 }
@@ -473,34 +471,34 @@ a:hover {
 
 /* ---- v4-hotfix2 · 底色真正浅白 + 气泡改成半透明可见的柔和圆斑 ---- */
 .app-content {
-  /* v4-hotfix3: 底色加淡蓝档次拉开与白卡片对比，气泡减淡只做背景点缀 */
+  /* v4-hotfix5: 清新极简底色，气泡进一步淡化只做点缀 */
   background:
-    radial-gradient(circle at  8% 10%, rgba(120, 180, 225, 0.15), transparent 38%),
-    radial-gradient(circle at 92% 15%, rgba(160, 210, 240, 0.14), transparent 40%),
-    radial-gradient(circle at 68% 92%, rgba(140, 195, 235, 0.12), transparent 42%),
-    radial-gradient(circle at 22% 68%, rgba(190, 220, 245, 0.10), transparent 36%),
-    linear-gradient(180deg, #EEF5FC 0%, #DDEAF6 100%) !important;
+    radial-gradient(circle at  8% 10%, rgba(140, 185, 225, 0.10), transparent 40%),
+    radial-gradient(circle at 92% 15%, rgba(170, 210, 240, 0.09), transparent 42%),
+    radial-gradient(circle at 68% 92%, rgba(150, 200, 235, 0.08), transparent 44%),
+    radial-gradient(circle at 22% 68%, rgba(190, 220, 245, 0.07), transparent 38%),
+    linear-gradient(180deg, #F5F8FC 0%, #E8F0F8 100%) !important;
 }
 
 /* ---- 所有卡片：统一微毛玻璃 + 圆角 + hover 上浮 ---- */
 .el-card {
   border-radius: 16px !important;
-  /* v4-hotfix4: air 拒绝死白 → 全站换低饱和马卡龙奶油白基调 + 暖调描边 */
-  border: 1px solid rgba(220, 208, 185, 0.55) !important;
-  background: linear-gradient(180deg, #FBF8F1 0%, #F5F0E3 100%) !important;
+  /* v4-hotfix5: 清新蓝白极简，air 拒绝奶油/黄 → 浅蓝白 + 冷调淡蓝描边 */
+  border: 1px solid rgba(200, 215, 235, 0.55) !important;
+  background: linear-gradient(180deg, #FFFFFF 0%, #F6FAFE 100%) !important;
   box-shadow:
-    0 2px 10px rgba(150, 130, 100, 0.08),
-    0 6px 22px rgba(150, 130, 100, 0.06),
-    inset 0 1px 0 rgba(255, 253, 245, 0.9) !important;
+    0 2px 10px rgba(90, 130, 180, 0.06),
+    0 6px 22px rgba(90, 130, 180, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
 }
 .el-card:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 4px 14px rgba(150, 130, 100, 0.14),
-    0 12px 30px rgba(150, 130, 100, 0.12),
-    inset 0 1px 0 rgba(255, 253, 245, 1) !important;
-  border-color: rgba(200, 180, 145, 0.75) !important;
+    0 4px 14px rgba(90, 130, 180, 0.12),
+    0 12px 30px rgba(90, 130, 180, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+  border-color: rgba(160, 195, 225, 0.75) !important;
 }
 .el-card__header {
   border-bottom: 1px solid rgba(220, 226, 232, 0.5) !important;

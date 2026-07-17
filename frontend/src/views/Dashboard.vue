@@ -339,16 +339,17 @@ const daysClass = (d) => {
 }
 
 const statCards = ref([
-  { label: '在校学生', value: 0, icon: '👥', bg: '#E1F0FF' },
-  { label: '班级数量', value: 0, icon: '🎓', bg: '#E8F5E9' },
-  { label: '党员/发展对象', value: 0, icon: '🚩', bg: '#FFEBEE' },
-  { label: '本月活动', value: 0, icon: '🎨', bg: '#FFF8E1' }
+  // v4-hotfix5: 清新马卡龙渐变 + 活动黄→薰衣草紫（air 拒绝黄）
+  { label: '在校学生', value: 0, icon: '👥', bg: 'linear-gradient(135deg, #C4E0F5 0%, #93C4E8 100%)' },
+  { label: '班级数量', value: 0, icon: '🎓', bg: 'linear-gradient(135deg, #C7E9D4 0%, #92CFB0 100%)' },
+  { label: '党员/发展对象', value: 0, icon: '🚩', bg: 'linear-gradient(135deg, #F5D0D8 0%, #E9A9B5 100%)' },
+  { label: '本月活动', value: 0, icon: '🎨', bg: 'linear-gradient(135deg, #DDD0F0 0%, #B396E0 100%)' }
 ])
 
 const shortcuts = [
   { icon: '📋', label: '学生管理', to: '/students', bg: '#E1F0FF' },
   { icon: '🎓', label: '班级管理', to: '/classes', bg: '#E8F5E9' },
-  { icon: '🏛️', label: '组织架构', to: '/org', bg: '#FFF3E0' },
+  { icon: '🏛️', label: '组织架构', to: '/org', bg: '#E8E4F5' },
   { icon: '📥', label: '智能导入', to: '/smart-import', bg: '#F3E5F5' },
   { icon: '📊', label: '成绩管理', to: '/module/grades', bg: '#E0F7FA' },
   { icon: '⚠️', label: '预警管理', to: '/module/warnings', bg: '#FFEBEE' },
@@ -419,13 +420,13 @@ onMounted(async () => {
   padding: 24px 32px;
   margin-bottom: 20px;
   border-radius: 20px;
-  /* v4-hotfix4: hero 顶部聚焦点用稍暖一档奶油马卡龙 */
-  background: linear-gradient(160deg, #FDF9EF 0%, #F7F1E0 100%);
-  border: 1px solid rgba(220, 208, 185, 0.6);
+  /* v4-hotfix5: 清新极简 hero，浅蓝白作视觉焦点 */
+  background: linear-gradient(160deg, #FFFFFF 0%, #EEF5FD 100%);
+  border: 1px solid rgba(200, 215, 235, 0.6);
   box-shadow:
-    0 2px 12px rgba(150, 130, 100, 0.10),
-    0 8px 28px rgba(150, 130, 100, 0.08),
-    inset 0 1px 0 rgba(255, 253, 245, 0.9);
+    0 2px 12px rgba(90, 130, 180, 0.08),
+    0 8px 28px rgba(90, 130, 180, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 .hero-left { flex: 1; }
 .hero-greeting {
@@ -481,21 +482,21 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   border-radius: 16px !important;
-  /* v4-hotfix4: 每列卡片改低饱和马卡龙奶油白 + 暖调描边 */
-  background: linear-gradient(180deg, #FBF8F1 0%, #F5F0E3 100%) !important;
-  border: 1px solid rgba(220, 208, 185, 0.55) !important;
+  /* v4-hotfix5: 清新蓝白极简 · air 拒绝奶油 → 浅蓝白 + 淡蓝描边 */
+  background: linear-gradient(180deg, #FFFFFF 0%, #F6FAFE 100%) !important;
+  border: 1px solid rgba(200, 215, 235, 0.55) !important;
   box-shadow:
-    0 2px 10px rgba(150, 130, 100, 0.08),
-    0 6px 22px rgba(150, 130, 100, 0.06),
-    inset 0 1px 0 rgba(255, 253, 245, 0.9);
+    0 2px 10px rgba(90, 130, 180, 0.06),
+    0 6px 22px rgba(90, 130, 180, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 .dashboard :deep(.el-col > .el-card:hover) {
   transform: translateY(-2px);
   box-shadow:
-    0 4px 14px rgba(150, 130, 100, 0.14),
-    0 12px 28px rgba(150, 130, 100, 0.12);
-  border-color: rgba(200, 180, 145, 0.75) !important;
+    0 4px 14px rgba(90, 130, 180, 0.12),
+    0 12px 28px rgba(90, 130, 180, 0.10);
+  border-color: rgba(160, 195, 225, 0.75) !important;
 }
 .dashboard :deep(.el-col > .el-card > .el-card__body) {
   flex: 1;
@@ -575,12 +576,20 @@ onMounted(async () => {
   color: #303133;
 }
 .prod-row { display: flex; gap: 12px; align-items: stretch; }
-.prod-item { flex: 1; text-align: center; padding: 18px 8px; border-radius: 10px; background: #F5F7FA; }
-.prod-num { font-size: 32px; font-weight: 700; color: #303133; }
+/* v4-hotfix5: ⑩ 效率中心与全站清新蓝白统一，去除冷灰+纯黑 */
+.prod-item {
+  flex: 1;
+  text-align: center;
+  padding: 18px 8px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #F7FAFD 0%, #EDF3FA 100%);
+  border: 1px solid rgba(200, 215, 235, 0.55);
+}
+.prod-num { font-size: 32px; font-weight: 700; color: #3A4A5A; letter-spacing: 0.5px; }
 .prod-num.warning { color: #E6A23C; }
 .prod-num.danger { color: #F56C6C; }
 .prod-num.success { color: #67C23A; }
-.prod-label { color: #909399; font-size: 12px; margin-top: 6px; }
+.prod-label { color: #8CA0B4; font-size: 12px; margin-top: 6px; letter-spacing: 0.3px; }
 .cd-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .cd-card {
   border-left: 4px solid #4A7A8C;
@@ -665,9 +674,9 @@ onMounted(async () => {
 }
 .mini-day {
   position: relative;
-  /* v4-hotfix4: mini-day 用更浅一档奶白 (与卡片主奶油形成层次) + 暖调描边 */
-  background: linear-gradient(160deg, #FDFBF6 0%, #F8F3E7 100%);
-  border: 1px solid rgba(220, 208, 185, 0.6);
+  /* v4-hotfix5: 清新蓝白，与卡片主色统一，去暖调 */
+  background: linear-gradient(160deg, #FFFFFF 0%, #F1F7FC 100%);
+  border: 1px solid rgba(200, 215, 235, 0.6);
   border-radius: 16px;
   padding: 12px 10px 10px;
   min-height: 108px;
@@ -677,8 +686,8 @@ onMounted(async () => {
   cursor: pointer;
   transition: transform .2s cubic-bezier(.4,0,.2,1), box-shadow .2s, border-color .2s;
   box-shadow:
-    0 1px 4px rgba(150, 130, 100, 0.06),
-    inset 0 1px 0 rgba(255, 253, 245, 0.9);
+    0 1px 4px rgba(90, 130, 180, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 .mini-day:hover {
   transform: translateY(-3px) scale(1.02);
@@ -686,9 +695,10 @@ onMounted(async () => {
   border-color: rgba(180, 215, 240, 1);
 }
 .mini-day.is-today {
-  background: linear-gradient(160deg, #A8D0F5 0%, #7EB6E5 50%, #6BA8DC 100%);
+  /* v4-hotfix5: 今日格降饱和收敛为清新主色蓝，不再刺眼 */
+  background: linear-gradient(160deg, #B4D4EC 0%, #8CB8DE 100%);
   border-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 16px rgba(90,150,215,0.35), inset 0 1px 0 rgba(255,255,255,0.8);
+  box-shadow: 0 4px 14px rgba(90, 130, 180, 0.22), inset 0 1px 0 rgba(255,255,255,0.85);
 }
 .mini-day.is-today .mini-mmdd,
 .mini-day.is-today .mini-week { color: #FFFFFF; text-shadow: 0 1px 2px rgba(50,90,140,0.35); }
