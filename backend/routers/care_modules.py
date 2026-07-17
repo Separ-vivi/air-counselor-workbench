@@ -1,6 +1,7 @@
 """党团发展 + 心理关怀 + 家校沟通 路由"""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from typing import Optional
 from database import get_db
 from models import PartyProgress, PsychologyRecord, FamilyContact, Student, ClassModel
@@ -9,21 +10,99 @@ router = APIRouter(prefix='/api')
 
 
 # ===== 党团发展 =====
+def _party_row_dict(p, stu, class_map):
+    return {
+        'id': p.id, 'student_id': p.student_id, 'stage': p.stage,
+        'stage_date': p.stage_date, 'contact_person': p.contact_person,
+        'notes': p.notes, 'student_name': stu.name if stu else '',
+        'student_no': stu.student_no if stu else '',
+        'class_name': class_map.get(stu.class_id, '') if stu else '',
+    }
+
+
 @router.get('/party-progress')
-def list_party_progress(db: Session = Depends(get_db)):
-    progress_list = db.query(PartyProgress).all()
+def list_party_progress(
+    search: str = Query('', description='搜索学号/姓名/阶段/联系人'),
+    student_id: Optional[int] = Query(None),
+    stage: Optional[str] = Query(None),
+    sort_by: str = Query('stage_date', description='排序字段'),
+    order: str = Query('desc', description='asc/desc'),
+    db: Session = Depends(get_db)
+):
+    """党团发展列表 (v3j-B-b03 · 支持 search + sort_by + order)"""
+    q = db.query(PartyProgress, Student).join(Student, PartyProgress.student_id == Student.id)
+    if student_id:
+        q = q.filter(PartyProgress.student_id == student_id)
+    if stage:
+        q = q.filter(PartyProgress.stage == stage)
+    if search:
+        pattern = f"%{search.strip()}%"
+        q = q.filter(
+            or_(
+                Student.name.ilike(pattern),
+                Student.student_no.ilike(pattern),
+                PartyProgress.stage.ilike(pattern),
+                PartyProgress.contact_person.ilike(pattern),
+                PartyProgress.notes.ilike(pattern),
+            )
+        )
+    SORT_WHITELIST = {
+        'stage_date': PartyProgress.stage_date,
+        'stage': PartyProgress.stage,
+        'contact_person': PartyProgress.contact_person,
+        'student_name': Student.name,
+        'student_no': Student.student_no,
+    }
+    col = SORT_WHITELIST.get(sort_by, PartyProgress.stage_date)
+    if (order or 'desc').lower() == 'asc':
+        q = q.order_by(col.asc())
+    else:
+        q = q.order_by(col.desc())
     class_map = {c.id: c.class_name for c in db.query(ClassModel).all()}
     result = []
-    for p in progress_list:
-        stu = db.query(Student).get(p.student_id)
-        result.append({
-            'id': p.id, 'student_id': p.student_id, 'stage': p.stage,
-            'stage_date': p.stage_date, 'contact_person': p.contact_person,
-            'notes': p.notes, 'student_name': stu.name if stu else '',
-            'student_no': stu.student_no if stu else '',
-            'class_name': class_map.get(stu.class_id, '') if stu else '',
-        })
+    for p, stu in q.all():
+        result.append(_party_row_dict(p, stu, class_map))
     return result
+
+
+@router.post('/party-progress/export-by-ids')
+def export_party_progress_by_ids(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """按 ID 列表批量导出党团发展 Excel (v3j-B-b03)"""
+    from openpyxl import Workbook
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    from datetime import datetime as _dt
+
+    ids = payload.get('ids') or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(400, '请传入非空的 ids 列表')
+
+    rows = db.query(PartyProgress, Student).join(
+        Student, PartyProgress.student_id == Student.id
+    ).filter(PartyProgress.id.in_(ids)).all()
+    class_map = {c.id: c.class_name for c in db.query(ClassModel).all()}
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '党团发展_选中'
+    ws.append(['学号', '姓名', '班级', '发展阶段', '阶段日期', '联系人', '备注'])
+    for p, stu in rows:
+        ws.append([
+            stu.student_no if stu else '',
+            stu.name if stu else '',
+            class_map.get(stu.class_id, '') if stu else '',
+            p.stage or '', p.stage_date or '',
+            p.contact_person or '', p.notes or '',
+        ])
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    filename = f'party_progress_selected_{_dt.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    return StreamingResponse(
+        output,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
 
 
 @router.post('/party-progress')
@@ -284,14 +363,124 @@ def _psy_normalize_input(data: dict) -> dict:
 
 
 @router.get('/psychology')
-def list_psychology(student_id: Optional[int] = None, attention_level: Optional[str] = None, db: Session = Depends(get_db)):
-    q = db.query(PsychologyRecord)
+def list_psychology(
+    student_id: Optional[int] = Query(None),
+    attention_level: Optional[str] = Query(None),
+    search: str = Query('', description='搜索学号/姓名/主题/备注'),
+    sort_by: str = Query('record_date', description='排序字段'),
+    order: str = Query('desc', description='asc/desc'),
+    db: Session = Depends(get_db)
+):
+    """心理档案列表 (v3j-B-b03 · 支持 search + sort_by + order)"""
+    q = db.query(PsychologyRecord).outerjoin(Student, PsychologyRecord.student_id == Student.id)
     if student_id:
         q = q.filter(PsychologyRecord.student_id == student_id)
     if attention_level:
         q = q.filter(PsychologyRecord.attention_level == attention_level)
-    items = q.order_by(PsychologyRecord.created_at.desc()).all()
+    if search:
+        pattern = f"%{search.strip()}%"
+        q = q.filter(
+            or_(
+                Student.name.ilike(pattern),
+                Student.student_no.ilike(pattern),
+                PsychologyRecord.topic.ilike(pattern),
+                PsychologyRecord.summary.ilike(pattern),
+                PsychologyRecord.attention_level.ilike(pattern),
+            )
+        )
+    SORT_WHITELIST = {
+        'record_date': PsychologyRecord.record_date,
+        'assessment_date': PsychologyRecord.record_date,
+        'attention_level': PsychologyRecord.attention_level,
+        'counseling_count': PsychologyRecord.counseling_count,
+        'next_follow_date': PsychologyRecord.next_follow_date,
+        'next_follow_up': PsychologyRecord.next_follow_date,
+        'student_name': Student.name,
+        'student_no': Student.student_no,
+    }
+    col = SORT_WHITELIST.get(sort_by, PsychologyRecord.record_date)
+    if (order or 'desc').lower() == 'asc':
+        q = q.order_by(col.asc())
+    else:
+        q = q.order_by(col.desc())
+    items = q.all()
     return [_psy_dict(r, db) for r in items]
+
+
+def _psy_query_with_filters(db: Session, search: str = '', student_id: Optional[int] = None, attention_level: Optional[str] = None):
+    q = db.query(PsychologyRecord).outerjoin(Student, PsychologyRecord.student_id == Student.id)
+    if student_id:
+        q = q.filter(PsychologyRecord.student_id == student_id)
+    if attention_level:
+        q = q.filter(PsychologyRecord.attention_level == attention_level)
+    if search:
+        pattern = f"%{search.strip()}%"
+        q = q.filter(
+            or_(
+                Student.name.ilike(pattern),
+                Student.student_no.ilike(pattern),
+                PsychologyRecord.topic.ilike(pattern),
+                PsychologyRecord.summary.ilike(pattern),
+                PsychologyRecord.attention_level.ilike(pattern),
+            )
+        )
+    return q
+
+
+def _psy_export_workbook(rows, db):
+    from openpyxl import Workbook
+    from io import BytesIO
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '心理档案'
+    ws.append(['学号', '姓名', '班级', '关注等级', '测评日期', '咨询次数', '下次跟进', '主题', '备注'])
+    for r in rows:
+        d = _psy_dict(r, db)
+        ws.append([
+            d['student_no'], d['student_name'], d['class_name'],
+            d['attention_level'], d['record_date'],
+            d['counseling_count'], d['next_follow_date'],
+            d.get('topic', ''), d.get('summary', ''),
+        ])
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
+
+
+@router.post('/psychology/export')
+def export_psychology_by_ids(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """按 ID 列表批量导出心理档案 Excel (v3j-B-b03)"""
+    from fastapi.responses import StreamingResponse
+    ids = payload.get('ids') or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(400, '请传入非空的 ids 列表')
+    rows = db.query(PsychologyRecord).filter(PsychologyRecord.id.in_(ids)).all()
+    output = _psy_export_workbook(rows, db)
+    return StreamingResponse(
+        output,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': 'attachment; filename=psychology_selected.xlsx'}
+    )
+
+
+@router.get('/psychology/export/all')
+def export_psychology_all(
+    search: str = Query(''),
+    student_id: Optional[int] = Query(None),
+    attention_level: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """按当前搜索条件导出全部心理档案 Excel (v3j-B-b03)"""
+    from fastapi.responses import StreamingResponse
+    q = _psy_query_with_filters(db, search, student_id, attention_level)
+    rows = q.order_by(PsychologyRecord.record_date.desc()).all()
+    output = _psy_export_workbook(rows, db)
+    return StreamingResponse(
+        output,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': 'attachment; filename=psychology_all.xlsx'}
+    )
 
 
 @router.get('/psychology/reminders')

@@ -37,11 +37,11 @@
           </span>
         </template>
       </el-table-column>
-      <el-table-column prop="gpa" label="绩点" width="80"
-        :formatter="(r) = sortable> r.gpa != null ? Number(r.gpa).toFixed(2) : '—'" />
+      <el-table-column prop="gpa" label="绩点" width="80" sortable
+        :formatter="(r) => r.gpa != null ? Number(r.gpa).toFixed(2) : '—'" />
       <el-table-column prop="credit" label="学分" width="80" sortable />
-      <el-table-column prop="is_repair" label="重修" width="80"
-        :formatter="(r) = sortable> r.is_repair ? '是' : ''" />
+      <el-table-column prop="is_repair" label="重修" width="80" sortable
+        :formatter="(r) => r.is_repair ? '是' : ''" />
     </el-table>
   </div>
 </template>
