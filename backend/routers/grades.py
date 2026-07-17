@@ -307,8 +307,26 @@ def get_warnings(
             'student_no': s.student_no,
             'class_name': s.class_obj.class_name if s.class_obj else '',
             'created_at': w.created_at.isoformat() if w.created_at else None,
+            'reminded': bool(w.reminded) if hasattr(w, 'reminded') else False,
+            'reminded_at': w.reminded_at.isoformat() if getattr(w, 'reminded_at', None) else None,
         })
     return payload
+
+
+@router.patch('/warnings/{warning_id}/toggle-reminded')
+def toggle_warning_reminded(warning_id: int, db: Session = Depends(get_db)):
+    """v3j-D · D1: 切换预警 已提醒 状态"""
+    w = db.query(WarningRecord).filter(WarningRecord.id == warning_id).first()
+    if not w:
+        raise HTTPException(status_code=404, detail='预警记录不存在')
+    w.reminded = not bool(w.reminded)
+    w.reminded_at = datetime.now() if w.reminded else None
+    db.commit()
+    return {
+        'id': w.id,
+        'reminded': bool(w.reminded),
+        'reminded_at': w.reminded_at.isoformat() if w.reminded_at else None,
+    }
 
 
 @router.post('/recalculate', response_model=dict)

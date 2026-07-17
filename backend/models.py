@@ -167,6 +167,9 @@ class WarningRecord(Base):
     description = Column(Text, default='')
     semester = Column(String(50), default='')
     created_at = Column(DateTime, default=datetime.now)
+    # v3j-D · D1: 已提醒标记
+    reminded = Column(Boolean, default=False)
+    reminded_at = Column(DateTime, nullable=True)
     student = relationship('Student', back_populates='warnings')
 
 

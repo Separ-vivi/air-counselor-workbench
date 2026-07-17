@@ -14,6 +14,8 @@ export const grades = {
   exportWarningsByIds: (ids) => http.post('/grades/warnings/export/by-ids', { ids }, { responseType: 'blob' }),
   semesters: () => http.get('/grades/semesters'),
   recalculateWarnings: () => http.post('/grades/recalculate'),
+  /** v3j-D · D1: 切换预警已提醒状态 */
+  toggleWarningReminded: (id) => http.patch(`/grades/warnings/${id}/toggle-reminded`),
   exportAll: () => http.get('/grades/export', { responseType: 'blob' }),
   /** v3j-B-b02 · 按 ID 列表批量导出成绩记录 */
   exportByIds: (ids) => http.post('/grades/export', { ids }, { responseType: 'blob' }),

@@ -26,9 +26,16 @@
 
       <el-card shadow="never">
         <template #header>
-          <span>心理记录明细（共 {{ records.length }} 条）</span>
+          <div style="display: flex; justify-content: space-between; align-items: center">
+            <span>心理记录（共 {{ records.length }} 条）</span>
+            <el-radio-group v-model="viewMode" size="small">
+              <el-radio-button label="table">明细表格</el-radio-button>
+              <el-radio-button label="timeline">时间轴</el-radio-button>
+            </el-radio-group>
+          </div>
         </template>
-        <el-table :data="records" stripe border max-height="500">
+        <!-- v3j-D · D1: 明细表格视图 -->
+        <el-table v-if="viewMode === 'table'" :data="records" stripe border max-height="500">
           <el-table-column label="学生" prop="student_name" width="120" sortable />
           <el-table-column label="学号" prop="student_no" width="140" sortable />
           <el-table-column label="关注等级" width="110">
@@ -42,6 +49,36 @@
           <el-table-column label="咨询次数" prop="counseling_count" width="100" align="center" sortable />
           <el-table-column label="备注" prop="notes" show-overflow-tooltip sortable />
         </el-table>
+        <!-- v3j-D · D1: 时间轴视图 -->
+        <div v-else class="psy-timeline-wrap">
+          <el-empty v-if="!timelineRecords.length" description="暂无心理记录" />
+          <el-timeline v-else>
+            <el-timeline-item
+              v-for="item in timelineRecords"
+              :key="item.id"
+              :timestamp="item.assessment_date || '未填写日期'"
+              :color="timelineDotColor(item.attention_level)"
+              placement="top"
+            >
+              <div class="psy-timeline-card">
+                <div class="psy-timeline-head">
+                  <span class="psy-stu">{{ item.student_name }}</span>
+                  <span class="psy-no">{{ item.student_no }}</span>
+                  <el-tag :style="levelTagStyle(item.attention_level)" size="small">
+                    {{ item.attention_level || '-' }}
+                  </el-tag>
+                  <span v-if="item.counseling_count" class="psy-meta">咨询 {{ item.counseling_count }} 次</span>
+                  <span v-if="item.location" class="psy-meta">📍 {{ item.location }}</span>
+                </div>
+                <div v-if="item.topic" class="psy-topic"><strong>主题：</strong>{{ item.topic }}</div>
+                <div v-if="item.summary" class="psy-summary">{{ item.summary }}</div>
+                <div v-if="item.next_follow_date" class="psy-meta psy-follow">
+                  🕒 下次跟进：{{ item.next_follow_date }}
+                </div>
+              </div>
+            </el-timeline-item>
+          </el-timeline>
+        </div>
       </el-card>
     </template>
   </div>
@@ -76,6 +113,23 @@ const statCards = ref([
 ])
 
 // v3j-C c02-hotfix2 · 心理关注 tag 底色对齐饼图马卡龙
+// v3j-D · D1: 视图切换（表格 / 时间轴）
+const viewMode = ref('table')
+const timelineRecords = computed(() => {
+  return [...records.value].sort((a, b) => {
+    const da = a.assessment_date || ''
+    const db = b.assessment_date || ''
+    return db.localeCompare(da)
+  })
+})
+const timelineDotColor = (l) => {
+  const s = String(l || '')
+  if (s.includes('一')) return '#FF9AA2'
+  if (s.includes('二')) return '#FFDAC1'
+  if (s.includes('三')) return '#B5EAD7'
+  return '#C7CEEA'
+}
+
 const levelTagStyle = (l) => {
   if (!l) return { background: '#F5F7FA', color: '#909399', border: 'none' }
   if (l.includes('一')) return { background: '#FF9AA2', color: '#7A2E36', border: 'none', fontWeight: 600 }
@@ -167,5 +221,54 @@ onMounted(fetchData)
 .stat-value {
   font-size: 26px;
   font-weight: 600;
+}
+.psy-timeline-wrap {
+  padding: 12px 8px;
+  max-height: 560px;
+  overflow-y: auto;
+}
+.psy-timeline-card {
+  background: #FAFBFC;
+  border: 1px solid #EBEEF5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 4px;
+}
+.psy-timeline-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.psy-stu {
+  font-weight: 600;
+  color: #303133;
+}
+.psy-no {
+  color: #909399;
+  font-size: 12px;
+}
+.psy-meta {
+  color: #909399;
+  font-size: 12px;
+}
+.psy-topic {
+  color: #606266;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.psy-summary {
+  color: #303133;
+  font-size: 13px;
+  line-height: 1.6;
+  background: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+.psy-follow {
+  margin-top: 6px;
+  color: #E6A23C;
 }
 </style>

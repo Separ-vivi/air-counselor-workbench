@@ -167,6 +167,22 @@ async def startup():
         logger.info("Migration: 干部级别修正完成（团支书→团支部, 党支部干部→党支部）")
     except Exception as _e:
         logger.warning(f"Migration 干部级别 失败(可忽略): {_e}")
+    # v3j-D · D1: warning_records 加 reminded / reminded_at 字段（SQLite 幂等）
+    try:
+        from sqlalchemy import text
+        with SessionLocal() as _mdb:
+            for _sql in [
+                "ALTER TABLE warning_records ADD COLUMN reminded INTEGER DEFAULT 0",
+                "ALTER TABLE warning_records ADD COLUMN reminded_at TEXT",
+            ]:
+                try:
+                    _mdb.execute(text(_sql))
+                    _mdb.commit()
+                except Exception:
+                    _mdb.rollback()
+        logger.info("Migration: warning_records 已添加 reminded / reminded_at 字段")
+    except Exception as _e:
+        logger.warning(f"Migration warning_records reminded 失败(可忽略): {_e}")
     # 启动定时任务调度器
     scheduler.start()
     logger.info("定时任务调度器已启动")

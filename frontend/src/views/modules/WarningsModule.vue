@@ -40,6 +40,12 @@
         <el-form-item label="学生">
           <StudentSelect v-model="filter.student_id" style="width: 220px" @change="reload" />
         </el-form-item>
+        <el-form-item label="提醒状态">
+          <el-select v-model="filter.reminded_state" placeholder="全部" clearable style="width: 140px" @change="reload">
+            <el-option label="仅未提醒" value="unreminded" />
+            <el-option label="仅已提醒" value="reminded" />
+          </el-select>
+        </el-form-item>
       </el-form>
     </el-card>
 
@@ -104,6 +110,18 @@
         <el-table-column label="不及格门数" prop="fail_count" width="110" align="center" sortable="custom" />
         <el-table-column label="GPA" prop="gpa" width="90" sortable="custom" />
         <el-table-column label="学期" prop="semester" width="120" sortable="custom" />
+        <el-table-column label="已提醒" prop="reminded" width="90" align="center">
+          <template #default="{ row }">
+            <el-switch
+              v-model="row.reminded"
+              :loading="row._remindLoading"
+              @change="toggleReminded(row)"
+              inline-prompt
+              active-text="已"
+              inactive-text="未"
+            />
+          </template>
+        </el-table-column>
       </el-table>
     </el-card>
 
@@ -148,7 +166,7 @@ const list = ref([])
 const semesters = ref([])
 const loading = ref(false)
 const recalcing = ref(false)
-const filter = reactive({ semester: '', level: '', class_name: '', student_id: null, kw: '' })
+const filter = reactive({ semester: '', level: '', class_name: '', student_id: null, kw: '', reminded_state: '' })
 
 // v3j-B-b03 · 排序 + 搜索 + 多选
 const sortBy = ref('warning_level')
@@ -172,6 +190,8 @@ const filteredRows = computed(() => {
   if (filter.level) rs = rs.filter((r) => (r.warning_level || '').includes(filter.level.slice(0, 1)) || r.warning_level === filter.level)
   if (filter.class_name) rs = rs.filter((r) => r.class_name === filter.class_name)
   if (filter.student_id) rs = rs.filter((r) => r.student_id === filter.student_id || r.id === filter.student_id)
+  if (filter.reminded_state === 'reminded') rs = rs.filter((r) => !!r.reminded)
+  else if (filter.reminded_state === 'unreminded') rs = rs.filter((r) => !r.reminded)
   return rs
 })
 
@@ -238,6 +258,23 @@ const openFailDetail = async (row) => {
     failDetailList.value = []
   } finally {
     failDetailLoading.value = false
+  }
+}
+
+// v3j-D · D1: 切换已提醒状态
+const toggleReminded = async (row) => {
+  row._remindLoading = true
+  try {
+    const res = await gradesApi.toggleWarningReminded(row.id)
+    row.reminded = !!res?.reminded
+    row.reminded_at = res?.reminded_at || null
+    ElMessage.success(row.reminded ? '已标记为已提醒' : '已恢复为未提醒')
+  } catch (e) {
+    // 失败回滚
+    row.reminded = !row.reminded
+    ElMessage.error('切换提醒状态失败')
+  } finally {
+    row._remindLoading = false
   }
 }
 
