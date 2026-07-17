@@ -18,6 +18,12 @@
           :disabled="!selected.length"
           @click="exportSelected"
         >导出选中（{{ selected.length }}）</el-button>
+        <el-button
+          type="warning"
+          :icon="Download"
+          :disabled="!selected.length"
+          @click="exportSelectedFull"
+        >导出选中·完整档案（{{ selected.length }}）</el-button>
         <el-button :icon="Download" @click="exportAll">导出全部</el-button>
       </div>
     </div>
@@ -258,7 +264,8 @@ import {
   updateStudent,
   deleteStudent,
   exportStudents,
-  exportStudentsByIds
+  exportStudentsByIds,
+  exportStudentsFull
 } from '@/api/students'
 import { useOrgStore } from '@/stores/org'
 import { useStudentStore } from '@/stores/student'
@@ -430,6 +437,20 @@ const exportSelected = async () => {
     const blob = await exportStudentsByIds(ids)
     triggerDownload(blob, stampedName(`学生名单_选中${ids.length}人`))
     ElMessage.success(`已导出 ${ids.length} 名学生`)
+  } catch (e) { ElMessage.error('导出失败') }
+}
+
+// v3j-B b03-batch02 · 导出选中学生的完整档案（含各业务模块数据，多 sheet）
+const exportSelectedFull = async () => {
+  if (!selected.value.length) {
+    ElMessage.warning('请先勾选要导出的学生')
+    return
+  }
+  try {
+    const ids = selected.value.map(r => r.id)
+    const blob = await exportStudentsFull(ids)
+    triggerDownload(blob, stampedName(`学生完整档案_选中${ids.length}人`))
+    ElMessage.success(`已导出 ${ids.length} 名学生的完整档案`)
   } catch (e) { ElMessage.error('导出失败') }
 }
 
