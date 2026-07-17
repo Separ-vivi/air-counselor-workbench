@@ -152,12 +152,13 @@ const renderChart = () => {
   if (!hardshipChart.value) return
   if (!chartIns) chartIns = echarts.init(hardshipChart.value)
   const hs = raw.value.hardship || []
-  const cnt = { 特殊困难: 0, 一般困难: 0, 其他: 0 }
+  // v3j-C c01 · 修 bug：seed 实际值为「特别困难/困难/一般困难」，此处 3 档匹配
+  const cnt = { 特别困难: 0, 困难: 0, 一般困难: 0 }
   hs.forEach((r) => {
     const lv = r.hardship_level || ''
-    if (lv.includes('特殊')) cnt['特殊困难']++
+    if (lv.includes('特别')) cnt['特别困难']++
     else if (lv.includes('一般')) cnt['一般困难']++
-    else cnt['其他']++
+    else if (lv.includes('困难')) cnt['困难']++
   })
   chartIns.setOption({
     tooltip: { trigger: 'item' },
@@ -168,9 +169,9 @@ const renderChart = () => {
         radius: ['40%', '70%'],
         center: ['50%', '45%'],
         data: [
-          { name: '特殊困难', value: cnt['特殊困难'], itemStyle: { color: '#F56C6C' } },
-          { name: '一般困难', value: cnt['一般困难'], itemStyle: { color: '#E6A23C' } },
-          { name: '其他', value: cnt['其他'], itemStyle: { color: '#909399' } }
+          { name: '特别困难', value: cnt['特别困难'], itemStyle: { color: '#FF9AA2' } },
+          { name: '困难', value: cnt['困难'], itemStyle: { color: '#FFDAC1' } },
+          { name: '一般困难', value: cnt['一般困难'], itemStyle: { color: '#B5EAD7' } }
         ]
       }
     ]
