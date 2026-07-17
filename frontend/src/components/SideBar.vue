@@ -24,16 +24,16 @@
 
       <el-sub-menu index="modules">
         <template #title><el-icon><Menu /></el-icon><span>业务模块</span></template>
-        <el-menu-item index="/module/grades"><el-icon><Notebook /></el-icon><span>成绩</span></el-menu-item>
+        <el-menu-item index="/module/grades"><el-icon><Notebook /></el-icon><span>成绩管理</span></el-menu-item>
         <el-menu-item index="/module/warnings"><el-icon><WarningFilled /></el-icon><span>学业预警</span></el-menu-item>
-        <el-menu-item index="/module/party"><el-icon><Flag /></el-icon><span>党团</span></el-menu-item>
-        <el-menu-item index="/module/psychology"><el-icon><Sunny /></el-icon><span>心理</span></el-menu-item>
-        <el-menu-item index="/module/family"><el-icon><House /></el-icon><span>家庭</span></el-menu-item>
-        <el-menu-item index="/module/cadres"><el-icon><UserFilled /></el-icon><span>干部</span></el-menu-item>
-        <el-menu-item index="/module/activities"><el-icon><Star /></el-icon><span>活动</span></el-menu-item>
-        <el-menu-item index="/module/employment"><el-icon><Promotion /></el-icon><span>就业</span></el-menu-item>
-        <el-menu-item index="/module/meetings"><el-icon><Tickets /></el-icon><span>班会</span></el-menu-item>
-        <el-menu-item index="/module/teachers"><el-icon><Avatar /></el-icon><span>班主任</span></el-menu-item>
+        <el-menu-item index="/module/party"><el-icon><Flag /></el-icon><span>党团发展</span></el-menu-item>
+        <el-menu-item index="/module/psychology"><el-icon><Sunny /></el-icon><span>心理关怀</span></el-menu-item>
+        <el-menu-item index="/module/family"><el-icon><HomeFilled /></el-icon><span>家庭档案</span></el-menu-item>
+        <el-menu-item index="/module/cadres"><el-icon><Medal /></el-icon><span>学生干部</span></el-menu-item>
+        <el-menu-item index="/module/activities"><el-icon><TrophyBase /></el-icon><span>学生活动</span></el-menu-item>
+        <el-menu-item index="/module/employment"><el-icon><Suitcase /></el-icon><span>就业跟踪</span></el-menu-item>
+        <el-menu-item index="/module/meetings"><el-icon><ChatDotSquare /></el-icon><span>班会记录</span></el-menu-item>
+        <el-menu-item index="/module/teachers"><el-icon><UserFilled /></el-icon><span>班主任组</span></el-menu-item>
       </el-sub-menu>
 
       <el-sub-menu index="productivity">
