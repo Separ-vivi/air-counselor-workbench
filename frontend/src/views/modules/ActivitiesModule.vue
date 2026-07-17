@@ -6,9 +6,9 @@
         <el-button
           type="success"
           :icon="Download"
-          :disabled="!selected.length"
+          :disabled="!checkedRows.length"
           @click="exportSelected"
-        >导出选中（{{ selected.length }}）</el-button>
+        >导出选中（{{ checkedRows.length }}）</el-button>
         <el-button :icon="Download" @click="exportAll">导出全部</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreate(null)">新增活动</el-button>
       </div>
@@ -175,8 +175,8 @@ const signupsLoading = ref(false)
 // v3j-B-b02 · 前端过滤已移除，改由后端 /activities?search=&sort_by=&order= 支持
 const sortBy = ref('activity_date')
 const sortOrder = ref('desc')
-const selected = ref([])
-const onSelectionChange = (rows) => { selected.value = rows }
+const checkedRows = ref([])
+const onSelectionChange = (rows) => { checkedRows.value = rows }
 const onSort = ({ prop, order }) => {
   sortBy.value = prop || 'activity_date'
   sortOrder.value = order === 'ascending' ? 'asc' : (order === 'descending' ? 'desc' : 'desc')
@@ -209,12 +209,12 @@ const reload = async () => {
 }
 
 const exportSelected = async () => {
-  if (!selected.value.length) {
+  if (!checkedRows.value.length) {
     ElMessage.warning('请先勾选要导出的活动')
     return
   }
   try {
-    const ids = selected.value.map(r => r.id)
+    const ids = checkedRows.value.map(r => r.id)
     const blob = await actApi.exportByIds(ids)
     triggerDownload(blob, stampedName(`活动列表_选中${ids.length}条`))
     ElMessage.success(`已导出 ${ids.length} 条活动`)
