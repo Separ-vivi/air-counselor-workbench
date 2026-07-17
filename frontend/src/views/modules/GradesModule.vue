@@ -181,7 +181,7 @@
             <el-table-column label="及格率(%)" prop="pass_rate" width="110" align="center" sortable />
             <el-table-column label="操作" width="120">
               <template #default="{ row }">
-                <el-button link type="primary" @click="goStudent(row.student_id)">查看明细</el-button>
+                <el-button link type="primary" @click="openDetailDialog(row)">查看明细</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -217,6 +217,60 @@
         </el-card>
       </template>
     </template>
+
+    <!-- v3j-C c02 · 学生成绩明细弹窗（不跳 360） -->
+    <el-dialog
+      v-model="detailVisible"
+      :title="detailTitle"
+      width="900px"
+      :destroy-on-close="true"
+    >
+      <el-table
+        :data="detailGrades"
+        stripe
+        border
+        v-loading="detailLoading"
+        max-height="500"
+      >
+        <el-table-column label="学期" prop="semester" width="130" sortable />
+        <el-table-column label="课程代码" prop="course_code" width="120" sortable />
+        <el-table-column label="课程名" prop="course_name" min-width="180" show-overflow-tooltip sortable />
+        <el-table-column label="学分" prop="credit" width="70" align="center" sortable />
+        <el-table-column label="分数" prop="score" width="80" align="center" sortable>
+          <template #default="{ row }">
+            <span :style="{ color: row.score < 60 ? '#F56C6C' : row.score < 75 ? '#E6A23C' : '#67C23A', fontWeight: 600 }">
+              {{ row.score ?? '-' }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="成绩等级" prop="grade_level" width="100" sortable />
+        <el-table-column label="绩点" prop="gpa" width="80" align="center" sortable />
+        <el-table-column label="重修" prop="is_makeup" width="70" align="center" sortable>
+          <template #default="{ row }">
+            <el-tag v-if="row.is_makeup" type="warning" size="small">重修</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div class="detail-stats">
+        <div class="ds-item">
+          <span class="ds-label">总课程数</span>
+          <span class="ds-value" style="color:#409EFF">{{ detailStats.total }}</span>
+        </div>
+        <div class="ds-item">
+          <span class="ds-label">平均分</span>
+          <span class="ds-value" style="color:#E6A23C">{{ detailStats.avg }}</span>
+        </div>
+        <div class="ds-item">
+          <span class="ds-label">挂科数</span>
+          <span class="ds-value" style="color:#F56C6C">{{ detailStats.fail }}</span>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -326,6 +380,35 @@ const goStudent = (sid) => {
   router.push(`/students/${sid}`)
 }
 
+// v3j-C c02 · 学生成绩明细弹窗（不跳 360）
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailGrades = ref([])
+const detailStudentName = ref('')
+const detailTitle = computed(() => `${detailStudentName.value || '学生'} 成绩明细`)
+const detailStats = computed(() => {
+  const rs = detailGrades.value
+  const total = rs.length
+  const fail = rs.filter((r) => (r.score ?? 100) < 60).length
+  const scores = rs.map((r) => Number(r.score)).filter((x) => !isNaN(x))
+  const avg = scores.length ? (scores.reduce((s, v) => s + v, 0) / scores.length).toFixed(2) : '-'
+  return { total, fail, avg }
+})
+const openDetailDialog = async (row) => {
+  detailStudentName.value = row.name || row.student_name || ''
+  detailGrades.value = []
+  detailVisible.value = true
+  detailLoading.value = true
+  try {
+    const res = await gradesApi.studentGrades(row.student_id)
+    detailGrades.value = Array.isArray(res) ? res : (res?.items || res?.grades || [])
+  } catch (e) {
+    ElMessage.error('获取成绩明细失败')
+  } finally {
+    detailLoading.value = false
+  }
+}
+
 const exportAll = async () => {
   try {
     const blob = await gradesApi.exportAll()
@@ -368,4 +451,8 @@ watch(classId, reloadClass)
 .stat-card { border-radius: 12px; text-align: center; }
 .stat-label { color: #909399; font-size: 13px; margin-bottom: 8px; }
 .stat-value { font-size: 26px; font-weight: 600; }
+.detail-stats { display:flex; gap:32px; margin-top:16px; padding:12px 16px; background:#FAFBFC; border-radius:8px; }
+.ds-item { display:flex; align-items:baseline; gap:8px; }
+.ds-label { color:#909399; font-size:13px; }
+.ds-value { font-size:20px; font-weight:600; }
 </style>
