@@ -113,8 +113,8 @@ a:hover {
 /* ---------- 卡片 ---------- */
 .macaron-card {
   /* v4-hotfix1: 半透明磨砂玻璃，跟 el-card 保持一致的 iOS 风 */
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(200, 220, 240, 0.7);
+  background: linear-gradient(180deg, #FBF8F1 0%, #F5F0E3 100%);
+  border: 1px solid rgba(220, 208, 185, 0.55);
   border-radius: 16px;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -485,24 +485,22 @@ a:hover {
 /* ---- 所有卡片：统一微毛玻璃 + 圆角 + hover 上浮 ---- */
 .el-card {
   border-radius: 16px !important;
-  /* v4-hotfix3: 卡片改成实体白 92% 不透明 + 蓝描边, 拉开与淡蓝背景的层次 */
-  border: 1px solid rgba(190, 215, 235, 0.75) !important;
-  background: rgba(255, 255, 255, 0.92) !important;
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  /* v4-hotfix4: air 拒绝死白 → 全站换低饱和马卡龙奶油白基调 + 暖调描边 */
+  border: 1px solid rgba(220, 208, 185, 0.55) !important;
+  background: linear-gradient(180deg, #FBF8F1 0%, #F5F0E3 100%) !important;
   box-shadow:
-    0 2px 10px rgba(90, 130, 170, 0.10),
-    0 6px 24px rgba(90, 130, 170, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+    0 2px 10px rgba(150, 130, 100, 0.08),
+    0 6px 22px rgba(150, 130, 100, 0.06),
+    inset 0 1px 0 rgba(255, 253, 245, 0.9) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
 }
 .el-card:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 4px 16px rgba(90, 130, 170, 0.18),
-    0 12px 32px rgba(90, 130, 170, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 1) !important;
-  border-color: rgba(150, 195, 225, 0.85) !important;
+    0 4px 14px rgba(150, 130, 100, 0.14),
+    0 12px 30px rgba(150, 130, 100, 0.12),
+    inset 0 1px 0 rgba(255, 253, 245, 1) !important;
+  border-color: rgba(200, 180, 145, 0.75) !important;
 }
 .el-card__header {
   border-bottom: 1px solid rgba(220, 226, 232, 0.5) !important;
