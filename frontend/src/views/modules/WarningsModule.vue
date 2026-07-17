@@ -84,16 +84,20 @@
         <el-table-column type="selection" width="45" reserve-selection />
         <el-table-column label="学生" prop="student_name" width="110" sortable="custom">
           <template #default="{ row }">
-            <el-link type="primary" @click="$router.push(`/students/${row.student_id || row.id}`)">
+            <el-link type="primary" @click="openFailDetail(row)">
               {{ row.student_name || row.name }}
             </el-link>
           </template>
         </el-table-column>
         <el-table-column label="学号" prop="student_no" width="140" sortable="custom" />
         <el-table-column label="班级" prop="class_name" min-width="160" show-overflow-tooltip sortable="custom" />
-        <el-table-column label="预警等级" prop="warning_level" width="110" sortable="custom">
+        <el-table-column label="预警等级" prop="warning_level" width="120" sortable="custom">
           <template #default="{ row }">
-            <span class="dot" :style="{ background: dotColor(row.warning_level) }"></span><span>{{ row.warning_level || '-' }}</span>
+            <span :style="{
+              background: levelBg(row.warning_level),
+              color: levelFg(row.warning_level),
+              padding: '3px 10px', borderRadius: '10px', fontWeight: 600, fontSize: '12px'
+            }">{{ row.warning_level || '-' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="预警原因" prop="warning_reason" min-width="200" show-overflow-tooltip />
@@ -102,6 +106,28 @@
         <el-table-column label="学期" prop="semester" width="120" sortable="custom" />
       </el-table>
     </el-card>
+
+    <!-- v3j-C c02-hotfix2 · 学业预警学生点击弹挂科明细，不再跳 360 -->
+    <el-dialog v-model="failDetailVisible" :title="failDetailTitle" width="720px" :destroy-on-close="true">
+      <el-table :data="failDetailList" v-loading="failDetailLoading" stripe border max-height="480">
+        <el-table-column label="学期" prop="semester" width="130" />
+        <el-table-column label="课程" prop="course_name" min-width="180" show-overflow-tooltip />
+        <el-table-column label="学分" prop="credit" width="70" align="center" />
+        <el-table-column label="分数" prop="score" width="90" align="center">
+          <template #default="{ row }">
+            <span :style="{ color: '#F56C6C', fontWeight: 600, background: '#FDECEC', padding: '2px 8px', borderRadius: '8px' }">
+              {{ row.score ?? '-' }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="重修" prop="is_makeup" width="70" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.is_makeup" type="warning" size="small">重修</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer><el-button @click="failDetailVisible = false">关闭</el-button></template>
+    </el-dialog>
   </div>
 </template>
 
@@ -168,14 +194,51 @@ const levelTag = (l) => {
   return 'info'
 }
 
-// v3j-C c02 · 预警等级小色点配色（一级红/二级橙/三级黄，兼容"红/黄/蓝色预警"命名）
-const dotColor = (l) => {
-  if (!l) return '#C0C4CC'
+// v3j-C c02-hotfix2 · 预警等级用整 cell 底色高亮（air 原话：什么等级给什么颜色）
+const levelBg = (l) => {
+  if (!l) return '#F5F7FA'
+  const s = String(l)
+  if (s.includes('一级') || s.includes('红')) return '#FDECEC'  // 浅红
+  if (s.includes('二级') || s.includes('橙')) return '#FEF4E7'  // 浅橙
+  if (s.includes('三级') || s.includes('黄') || s.includes('蓝')) return '#FEF9E7'  // 浅黄
+  return '#F5F7FA'
+}
+const levelFg = (l) => {
+  if (!l) return '#909399'
   const s = String(l)
   if (s.includes('一级') || s.includes('红')) return '#F56C6C'
   if (s.includes('二级') || s.includes('橙')) return '#E6A23C'
-  if (s.includes('三级') || s.includes('黄') || s.includes('蓝')) return '#909399'
-  return '#C0C4CC'
+  if (s.includes('三级') || s.includes('黄') || s.includes('蓝')) return '#B88F00'
+  return '#909399'
+}
+// 兼容旧引用
+const dotColor = levelBg
+
+// v3j-C c02-hotfix2 · 挂科明细弹窗
+const failDetailVisible = ref(false)
+const failDetailLoading = ref(false)
+const failDetailTitle = ref('')
+const failDetailList = ref([])
+const openFailDetail = async (row) => {
+  const sid = row.student_id || row.id
+  if (!sid) return
+  failDetailTitle.value = `${row.student_name || row.name || '学生'} 挂科明细`
+  failDetailVisible.value = true
+  failDetailLoading.value = true
+  try {
+    const res = await gradesApi.studentGrades(sid)
+    const all = Array.isArray(res) ? res : (res?.items || [])
+    // 只保留挂科（<60）
+    failDetailList.value = all.filter(g => g.score != null && g.score < 60)
+    if (!failDetailList.value.length) {
+      ElMessage.info('该学生无挂科记录')
+    }
+  } catch (e) {
+    ElMessage.error('拉取挂科明细失败')
+    failDetailList.value = []
+  } finally {
+    failDetailLoading.value = false
+  }
 }
 
 const reload = async () => {

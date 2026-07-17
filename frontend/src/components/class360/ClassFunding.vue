@@ -26,7 +26,7 @@
             <el-table-column label="学号" prop="student_no" width="140" sortable />
             <el-table-column label="困难等级" prop="hardship_level" width="130" sortable>
               <template #default="{ row }">
-                <el-tag :type="hardshipTag(row.hardship_level)" size="small">
+                <el-tag :style="hardshipTagStyle(row.hardship_level)" size="small">
                   {{ row.hardship_level || '-' }}
                 </el-tag>
               </template>
@@ -114,12 +114,15 @@ const statCards = ref([
   { label: '资助总金额', value: '¥0', color: '#409EFF' }
 ])
 
-const hardshipTag = (l) => {
-  if (!l) return ''
-  if (l.includes('特殊')) return 'danger'
-  if (l.includes('一般')) return 'warning'
-  return 'info'
+// v3j-C c02-hotfix2 · 困难 tag 底色对齐饼图马卡龙
+const hardshipTagStyle = (l) => {
+  if (!l) return { background: '#F5F7FA', color: '#909399', border: 'none' }
+  if (l.includes('特别')) return { background: '#FF9AA2', color: '#7A2E36', border: 'none', fontWeight: 600 }
+  if (l.includes('一般')) return { background: '#B5EAD7', color: '#1F5A46', border: 'none', fontWeight: 600 }
+  return { background: '#FFDAC1', color: '#8A4E1F', border: 'none', fontWeight: 600 }  // 困难
 }
+// 兼容旧引用
+const hardshipTag = () => ''  
 
 const fetchData = async () => {
   if (!props.cid || Number.isNaN(Number(props.cid))) return

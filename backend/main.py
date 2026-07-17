@@ -157,6 +157,16 @@ async def startup():
         logger.info("Migration: 党员术语已统一(预备党员→中共预备党员, 正式党员→中共党员)")
     except Exception as _e:
         logger.warning(f"Migration 党员术语 失败(可忽略): {_e}")
+    # v3j-C c02-hotfix2 · 幂等 migration：干部级别修正（团支书→团支部，党支部干部→党支部）
+    try:
+        from sqlalchemy import text
+        with SessionLocal() as _mdb:
+            _mdb.execute(text("UPDATE student_cadre_records SET level='团支部' WHERE position='团支书'"))
+            _mdb.execute(text("UPDATE student_cadre_records SET level='党支部' WHERE position IN ('党支部书记','党支部组织委员','党支部宣传委员','党支部纪检委员')"))
+            _mdb.commit()
+        logger.info("Migration: 干部级别修正完成（团支书→团支部, 党支部干部→党支部）")
+    except Exception as _e:
+        logger.warning(f"Migration 干部级别 失败(可忽略): {_e}")
     # 启动定时任务调度器
     scheduler.start()
     logger.info("定时任务调度器已启动")

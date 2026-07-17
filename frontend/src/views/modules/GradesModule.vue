@@ -89,7 +89,7 @@
             <el-table-column label="学分" prop="credit" width="80" align="center" sortable />
             <el-table-column label="分数" prop="score" width="90" align="center" sortable>
               <template #default="{ row }">
-                <span :style="{ color: row.score < 60 ? '#F56C6C' : row.score < 75 ? '#E6A23C' : '#67C23A', fontWeight: 600 }">
+                <span :style="{ color: row.score < 60 ? '#F56C6C' : row.score < 75 ? '#E6A23C' : '#67C23A', fontWeight: 600, background: row.score < 60 ? '#FDECEC' : row.score < 75 ? '#FEF4E7' : '#EAF5EE', padding: '2px 8px', borderRadius: '8px' }">
                   {{ row.score ?? '-' }}
                 </span>
               </template>
@@ -167,7 +167,7 @@
             <el-table-column label="总课程数" prop="total_courses" width="110" align="center" sortable />
             <el-table-column label="平均分" prop="avg_score" width="110" align="center" sortable>
               <template #default="{ row }">
-                <span :style="{ color: row.avg_score < 60 ? '#F56C6C' : row.avg_score < 75 ? '#E6A23C' : '#67C23A', fontWeight: 600 }">
+                <span :style="{ color: row.avg_score < 60 ? '#F56C6C' : row.avg_score < 75 ? '#E6A23C' : '#67C23A', fontWeight: 600, background: row.avg_score < 60 ? '#FDECEC' : row.avg_score < 75 ? '#FEF4E7' : '#EAF5EE', padding: '2px 8px', borderRadius: '8px' }">
                   {{ row.avg_score }}
                 </span>
               </template>
@@ -207,7 +207,7 @@
             <el-table-column label="学分" prop="credit" width="70" align="center" sortable />
             <el-table-column label="分数" prop="score" width="80" align="center" sortable>
               <template #default="{ row }">
-                <span :style="{ color: row.score < 60 ? '#F56C6C' : row.score < 75 ? '#E6A23C' : '#67C23A', fontWeight: 600 }">
+                <span :style="{ color: row.score < 60 ? '#F56C6C' : row.score < 75 ? '#E6A23C' : '#67C23A', fontWeight: 600, background: row.score < 60 ? '#FDECEC' : row.score < 75 ? '#FEF4E7' : '#EAF5EE', padding: '2px 8px', borderRadius: '8px' }">
                   {{ row.score ?? '-' }}
                 </span>
               </template>
@@ -238,14 +238,14 @@
         <el-table-column label="学分" prop="credit" width="70" align="center" sortable />
         <el-table-column label="分数" prop="score" width="80" align="center" sortable>
           <template #default="{ row }">
-            <span :style="{ color: row.score < 60 ? '#F56C6C' : row.score < 75 ? '#E6A23C' : '#67C23A', fontWeight: 600 }">
+            <span :style="{ color: row.score < 60 ? '#F56C6C' : row.score < 75 ? '#E6A23C' : '#67C23A', fontWeight: 600, background: row.score < 60 ? '#FDECEC' : row.score < 75 ? '#FEF4E7' : '#EAF5EE', padding: '2px 8px', borderRadius: '8px' }">
               {{ row.score ?? '-' }}
             </span>
           </template>
         </el-table-column>
         <el-table-column label="成绩等级" prop="grade_level" width="100" sortable />
         <el-table-column label="绩点" prop="gpa" width="80" align="center" sortable />
-        <el-table-column label="重修" prop="is_makeup" width="70" align="center" sortable>
+        <el-table-column label="重修" prop="is_makeup" width="70" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.is_makeup" type="warning" size="small">重修</el-tag>
           </template>

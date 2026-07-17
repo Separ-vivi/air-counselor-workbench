@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">v3j-C c02 · UI细节+术语统一</div>
+        <div class="brand-ver">v3j-C c02-hotfix2 · 重点数据底色+等级色回归</div>
       </div>
     </div>
 

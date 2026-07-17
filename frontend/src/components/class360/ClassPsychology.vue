@@ -33,7 +33,7 @@
           <el-table-column label="学号" prop="student_no" width="140" sortable />
           <el-table-column label="关注等级" width="110">
             <template #default="{ row }">
-              <el-tag :type="levelTag(row.attention_level)" size="small">
+              <el-tag :style="levelTagStyle(row.attention_level)" size="small">
                 {{ row.attention_level || '-' }}
               </el-tag>
             </template>
@@ -75,12 +75,15 @@ const statCards = ref([
   { label: '三级关注', value: 0, color: '#909399' }
 ])
 
-const levelTag = (l) => {
-  if (l && l.includes('一')) return 'danger'
-  if (l && l.includes('二')) return 'warning'
-  if (l && l.includes('三')) return 'info'
-  return ''
+// v3j-C c02-hotfix2 · 心理关注 tag 底色对齐饼图马卡龙
+const levelTagStyle = (l) => {
+  if (!l) return { background: '#F5F7FA', color: '#909399', border: 'none' }
+  if (l.includes('一')) return { background: '#FF9AA2', color: '#7A2E36', border: 'none', fontWeight: 600 }
+  if (l.includes('二')) return { background: '#FFDAC1', color: '#8A4E1F', border: 'none', fontWeight: 600 }
+  if (l.includes('三')) return { background: '#B5EAD7', color: '#1F5A46', border: 'none', fontWeight: 600 }
+  return { background: '#F5F7FA', color: '#909399', border: 'none' }
 }
+const levelTag = () => ''  
 
 const fetchData = async () => {
   if (!props.cid || Number.isNaN(Number(props.cid))) return

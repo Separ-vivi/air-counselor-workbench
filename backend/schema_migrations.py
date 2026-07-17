@@ -165,3 +165,24 @@ def get_schema_health(engine, base):
         'healthy': total_missing == 0,
         'tables': report,
     }
+
+
+def _v3jc_hotfix2_cadre_level(db):
+    """v3j-C c02-hotfix2: 团支书 level 修正到 '团支部'；党支部三职位 level 修正到 '党支部'"""
+    try:
+        from models import StudentCadreRecord
+        # 团支书 → 团支部
+        updated1 = db.query(StudentCadreRecord).filter(
+            StudentCadreRecord.position == '团支书'
+        ).update({'level': '团支部'}, synchronize_session=False)
+        # 党支部书记/组织委员/宣传委员/纪检委员 → 党支部
+        updated2 = db.query(StudentCadreRecord).filter(
+            StudentCadreRecord.position.in_([
+                '党支部书记', '党支部组织委员', '党支部宣传委员', '党支部纪检委员'
+            ])
+        ).update({'level': '党支部'}, synchronize_session=False)
+        db.commit()
+        return f'团支书→团支部 {updated1} 条，党支部干部→党支部 {updated2} 条'
+    except Exception as e:
+        db.rollback()
+        return f'v3jc_hotfix2 cadre migration skipped: {e}'
