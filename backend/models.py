@@ -52,6 +52,10 @@ class ClassModel(Base):
     class_teacher = Column(String(100), default='')  # 班主任姓名
     monitor = Column(String(100), default='')  # 班长姓名
     league_secretary = Column(String(100), default='')  # 团支书姓名
+    # v3j-D · D3: 班级档案
+    slogan = Column(String(200), default='')  # 班级口号
+    features = Column(Text, default='')  # 班级特色（自由文本，多条用换行）
+    office_location = Column(String(200), default='')  # 办公地点
     created_at = Column(DateTime, default=datetime.now)
     major = relationship('Major', back_populates='classes')
     students = relationship('Student', back_populates='class_obj')

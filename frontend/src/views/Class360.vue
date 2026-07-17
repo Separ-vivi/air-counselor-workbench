@@ -28,6 +28,9 @@
             <span>🎗️ 团支书：{{ classInfo.league_secretary || '未指定' }}</span>
           </div>
           <div class="status-lights">
+            <el-button size="small" type="primary" :loading="exporting" @click="onExport" style="margin-right: 8px">
+              📥 导出班级 360
+            </el-button>
             <span class="status-chip">📊 挂科率 {{ fmtPct(summary?.fail_rate) }}</span>
             <span class="status-chip red">🚦 红灯 {{ summary?.warning_red_count ?? 0 }}</span>
             <span class="status-chip yellow">🚦 黄灯 {{ summary?.warning_yellow_count ?? 0 }}</span>
@@ -90,9 +93,30 @@ function inlineGoBack() {
   if (window.history.length > 1) _routerInline.back()
   else _routerInline.push('/dashboard')
 }
+
+// v3j-D · D3: 班级360 导出
+import { ref as _refExp } from 'vue'
+import { ElMessage as _ElMsgExp } from 'element-plus'
+import { triggerDownload as _triggerDl, stampedName as _stamp } from '@/utils/download'
+const exporting = _refExp(false)
+async function onExport() {
+  const _cid = cid.value
+  const _cn = classInfo.value?.class_name || classInfo.value?.name || '班级'
+  if (!_cid || Number.isNaN(Number(_cid))) { _ElMsgExp.warning('班级 ID 无效'); return }
+  exporting.value = true
+  try {
+    const blob = await exportClass360(_cid)
+    _triggerDl(blob, _stamp(`班级360_${_cn}`))
+    _ElMsgExp.success('导出成功')
+  } catch (e) {
+    _ElMsgExp.error('导出失败: ' + (e?.message || '未知错误'))
+  } finally {
+    exporting.value = false
+  }
+}
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { getClassSummary, getClassStudents } from '@/api/class360.js'
+import { getClassSummary, getClassStudents, exportClass360 } from '@/api/class360.js'
 import { getClass } from '@/api/org.js'
 import { useOrgStore } from '@/stores/org.js'
 

@@ -104,6 +104,10 @@ def get_class_summary(class_id: int, db: Session = Depends(get_db)):
         'class_teacher': cls.class_teacher or '',
         'monitor': cls.monitor or '',
         'league_secretary': cls.league_secretary or '',
+        # v3j-D · D3: 班级档案
+        'slogan': getattr(cls, 'slogan', '') or '',
+        'features': getattr(cls, 'features', '') or '',
+        'office_location': getattr(cls, 'office_location', '') or '',
         'student_count': len(students),
         'male_count': sum(1 for s in students if s.gender == '男'),
         'female_count': sum(1 for s in students if s.gender == '女'),
@@ -653,3 +657,165 @@ def get_class_activities(class_id: int, db: Session = Depends(get_db)):
         })
     result.sort(key=lambda x: x['activity_date'] or '', reverse=True)
     return result
+
+
+# ===== v3j-D · D3: 班级档案编辑 + 班级360 导出 =====
+
+@router.patch('/{class_id}/info')
+def update_class_info(class_id: int, data: dict, db: Session = Depends(get_db)):
+    """更新班级档案（班主任/班长/团支书/口号/办公地点/特色）"""
+    cls = db.query(ClassModel).filter(ClassModel.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="班级不存在")
+    allowed = {'class_teacher', 'monitor', 'league_secretary', 'slogan', 'features', 'office_location'}
+    for k, v in (data or {}).items():
+        if k in allowed and hasattr(cls, k):
+            setattr(cls, k, v if v is not None else '')
+    db.commit()
+    return {
+        'id': cls.id,
+        'class_name': cls.class_name,
+        'class_teacher': cls.class_teacher or '',
+        'monitor': cls.monitor or '',
+        'league_secretary': cls.league_secretary or '',
+        'slogan': getattr(cls, 'slogan', '') or '',
+        'features': getattr(cls, 'features', '') or '',
+        'office_location': getattr(cls, 'office_location', '') or '',
+    }
+
+
+@router.get('/{class_id}/export')
+def export_class_360(class_id: int, db: Session = Depends(get_db)):
+    """导出班级 360 全量数据到 Excel (v3j-D · D3)"""
+    from io import BytesIO
+    from openpyxl import Workbook
+    from fastapi.responses import StreamingResponse
+
+    cls = db.query(ClassModel).filter(ClassModel.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="班级不存在")
+
+    students, stu_map, student_ids = _class_student_map(db, class_id)
+
+    wb = Workbook()
+
+    # Sheet1: 班级档案 / 概览
+    ws1 = wb.active
+    ws1.title = '班级档案'
+    ws1.append(['字段', '内容'])
+    rows = [
+        ('班级名称', cls.class_name),
+        ('专业', cls.major.major_name if cls.major else ''),
+        ('年级', cls.major.grade.grade_name if cls.major and cls.major.grade else ''),
+        ('班主任', cls.class_teacher or ''),
+        ('班长', cls.monitor or ''),
+        ('团支书', cls.league_secretary or ''),
+        ('班级口号', getattr(cls, 'slogan', '') or ''),
+        ('办公地点', getattr(cls, 'office_location', '') or ''),
+        ('班级特色', getattr(cls, 'features', '') or ''),
+        ('学生总数', len(students)),
+        ('男生数', sum(1 for s in students if s.gender == '男')),
+        ('女生数', sum(1 for s in students if s.gender == '女')),
+    ]
+    for r in rows:
+        ws1.append(list(r))
+
+    # Sheet2: 学生名单
+    ws2 = wb.create_sheet('学生名单')
+    ws2.append(['学号', '姓名', '性别', '政治面貌', '联系电话', '生源地', '备注'])
+    for s in students:
+        ws2.append([
+            s.student_no or '',
+            s.name or '',
+            s.gender or '',
+            s.political_status or '',
+            s.phone or '',
+            getattr(s, 'birth_source', '') or '',
+            getattr(s, 'notes', '') or '',
+        ])
+
+    # Sheet3: 成绩汇总
+    ws3 = wb.create_sheet('成绩汇总')
+    ws3.append(['学号', '姓名', '学期', '课程名', '学分', '分数', '绩点', '成绩等级'])
+    if student_ids:
+        grades = db.query(GradeRecord).filter(GradeRecord.student_id.in_(student_ids)).all()
+        for g in grades:
+            s = stu_map.get(g.student_id)
+            if not s:
+                continue
+            ws3.append([
+                s.student_no or '', s.name or '',
+                g.semester or '', g.course_name or '',
+                g.credit or 0, g.score if g.score is not None else '',
+                g.gpa if g.gpa is not None else '',
+                g.grade_level or '',
+            ])
+
+    # Sheet4: 党团发展
+    ws4 = wb.create_sheet('党团发展')
+    ws4.append(['学号', '姓名', '当前阶段', '阶段日期', '联系人', '备注'])
+    if student_ids:
+        pp = db.query(PartyProgress).filter(PartyProgress.student_id.in_(student_ids)).all()
+        for p in pp:
+            s = stu_map.get(p.student_id)
+            if not s:
+                continue
+            ws4.append([
+                s.student_no or '', s.name or '',
+                p.stage or '',
+                getattr(p, 'stage_date', '') or '',
+                getattr(p, 'contact_person', '') or '',
+                getattr(p, 'notes', '') or '',
+            ])
+
+    # Sheet5: 心理关怀
+    ws5 = wb.create_sheet('心理关怀')
+    ws5.append(['学号', '姓名', '关注等级', '测评日期', '主题', '咨询次数', '备注/摘要'])
+    if student_ids:
+        recs = db.query(PsychologyRecord).filter(PsychologyRecord.student_id.in_(student_ids)).all()
+        for r in recs:
+            s = stu_map.get(r.student_id)
+            if not s:
+                continue
+            ws5.append([
+                s.student_no or '', s.name or '',
+                getattr(r, 'attention_level', '') or '',
+                getattr(r, 'record_date', '') or '',
+                getattr(r, 'topic', '') or '',
+                getattr(r, 'counseling_count', 0) or 0,
+                getattr(r, 'summary', '') or '',
+            ])
+
+    # Sheet6: 资助/困难
+    ws6 = wb.create_sheet('资助与困难')
+    ws6.append(['学号', '姓名', '困难等级', '学年', '家庭情况', '备注'])
+    if student_ids:
+        hs = db.query(StudentHardship).filter(StudentHardship.student_id.in_(student_ids)).all()
+        for h in hs:
+            s = stu_map.get(h.student_id)
+            if not s:
+                continue
+            ws6.append([
+                s.student_no or '', s.name or '',
+                h.hardship_level or '',
+                h.academic_year or '',
+                h.evidence or '',
+                h.notes or '',
+            ])
+
+    out = BytesIO()
+    wb.save(out)
+    out.seek(0)
+
+    # 用班级名作为文件名（做基础清洗，避免非法字符）
+    import re
+    safe_name = re.sub(r'[\\/:*?"<>|]', '', cls.class_name or f'class_{class_id}')
+    from urllib.parse import quote
+    filename_enc = quote(f'班级360_{safe_name}.xlsx')
+    return StreamingResponse(
+        out,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={
+            'Content-Disposition': f"attachment; filename*=UTF-8''{filename_enc}"
+        }
+    )

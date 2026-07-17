@@ -16,3 +16,6 @@ export const getClassDaily      = (cid) => http.get(`/class360/${cid}/daily`)
 export const getClassContacts           = (cid) => http.get(`/class360/${cid}/contacts`)
 export const getClassPartyBranch        = (cid) => http.get(`/class360/${cid}/party-branch`)
 export const getClassFeaturedActivities = (cid) => http.get(`/class360/${cid}/featured-activities`)
+// v3j-D · D3: 班级档案编辑 + 班级360 导出
+export const updateClassInfo = (cid, data) => http.patch(`/class360/${cid}/info`, data)
+export const exportClass360  = (cid) => http.get(`/class360/${cid}/export`, { responseType: 'blob' })

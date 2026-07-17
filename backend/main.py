@@ -288,6 +288,23 @@ async def startup():
         logger.info("Migration: class_meetings 已添加 teacher_attended / teacher_names 字段")
     except Exception as _e:
         logger.warning(f"Migration class_meetings teacher_attended 失败(可忽略): {_e}")
+    # v3j-D · D3: classes 加班级档案字段（slogan/features/office_location）
+    try:
+        from sqlalchemy import text
+        with SessionLocal() as _mdb:
+            for _sql in [
+                "ALTER TABLE classes ADD COLUMN slogan VARCHAR(200) DEFAULT ''",
+                "ALTER TABLE classes ADD COLUMN features TEXT DEFAULT ''",
+                "ALTER TABLE classes ADD COLUMN office_location VARCHAR(200) DEFAULT ''",
+            ]:
+                try:
+                    _mdb.execute(text(_sql))
+                    _mdb.commit()
+                except Exception:
+                    _mdb.rollback()
+        logger.info("Migration: classes 已添加 slogan / features / office_location 字段")
+    except Exception as _e:
+        logger.warning(f"Migration classes 班级档案字段 失败(可忽略): {_e}")
     # 启动定时任务调度器
     scheduler.start()
     logger.info("定时任务调度器已启动")
