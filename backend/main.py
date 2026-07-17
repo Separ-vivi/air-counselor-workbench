@@ -28,31 +28,120 @@ logger = logging.getLogger(__name__)
 
 # 周汇总自动生成任务
 def generate_weekly_summary_job():
-    """每周五 17:00 自动生成周汇总"""
+    """每周五 17:00 自动生成周汇总 (v3j-D · D2 重构：分板块统计)"""
     logger.info("定时任务触发: 生成周汇总")
     try:
         db = SessionLocal()
-        # 计算本周的日期范围
         today = datetime.now().date()
-        week_start = today - timedelta(days=today.weekday())  # 本周一
-        week_end = week_start + timedelta(days=6)  # 本周日
-        
-        # 统计本周数据
-        new_students_count = db.query(Student).filter(
-            Student.created_at >= datetime.combine(week_start, datetime.min.time()),
-            Student.created_at <= datetime.combine(week_end, datetime.max.time())
-        ).count()
-        
-        total_students = db.query(Student).count()
-        warning_count = db.query(WarningRecord).count()
-        
-        # 创建周汇总记录
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+        wk_start_dt = datetime.combine(week_start, datetime.min.time())
+        wk_end_dt = datetime.combine(week_end, datetime.max.time())
+        wk_start_str = week_start.strftime('%Y-%m-%d')
+        wk_end_str = week_end.strftime('%Y-%m-%d')
+
+        # 各板块统计（每一段 try/except 独立，一处失败不影响整体）
+        parts = []
+
+        # 1. 学工基础
+        try:
+            new_stu = db.query(Student).filter(
+                Student.created_at >= wk_start_dt, Student.created_at <= wk_end_dt
+            ).count()
+            total_stu = db.query(Student).count()
+            parts.append(f"【学工基础】\n  · 学生总数：{total_stu} 人\n  · 本周新增：{new_stu} 人")
+        except Exception as _e:
+            parts.append(f"【学工基础】统计失败：{_e}")
+
+        # 2. 学业预警
+        try:
+            total_warn = db.query(WarningRecord).count()
+            new_warn = db.query(WarningRecord).filter(
+                WarningRecord.created_at >= wk_start_dt, WarningRecord.created_at <= wk_end_dt
+            ).count()
+            red_warn = db.query(WarningRecord).filter(WarningRecord.warning_type == 'red').count()
+            unreminded = db.query(WarningRecord).filter(
+                (WarningRecord.reminded == False) | (WarningRecord.reminded == None)
+            ).count()
+            parts.append(
+                f"【学业预警】\n  · 累计预警：{total_warn} 条（红色 {red_warn}）\n"
+                f"  · 本周新增：{new_warn} 条\n"
+                f"  · 未提醒：{unreminded} 条"
+            )
+        except Exception as _e:
+            parts.append(f"【学业预警】统计失败：{_e}")
+
+        # 3. 心理关怀
+        try:
+            from models import PsychologyRecord
+            new_psy = db.query(PsychologyRecord).filter(
+                PsychologyRecord.record_date >= wk_start_str,
+                PsychologyRecord.record_date <= wk_end_str
+            ).count()
+            focus_psy = db.query(PsychologyRecord).filter(
+                PsychologyRecord.attention_level.in_(['一级', '一级重点关注', '一级关注'])
+            ).count()
+            parts.append(
+                f"【心理关怀】\n  · 本周新增记录：{new_psy} 条\n  · 一级关注学生：{focus_psy} 人"
+            )
+        except Exception as _e:
+            parts.append(f"【心理关怀】统计失败：{_e}")
+
+        # 4. 党团发展
+        try:
+            from models import PartyProgress
+            new_party = db.query(PartyProgress).filter(
+                PartyProgress.updated_at >= wk_start_dt, PartyProgress.updated_at <= wk_end_dt
+            ).count() if hasattr(PartyProgress, 'updated_at') else 0
+            active_party = db.query(Student).filter(
+                Student.political_status.in_(['中共预备党员', '中共党员', '入党积极分子'])
+            ).count()
+            parts.append(
+                f"【党团发展】\n  · 本周进展更新：{new_party} 条\n  · 党员/积极分子：{active_party} 人"
+            )
+        except Exception as _e:
+            parts.append(f"【党团发展】统计失败：{_e}")
+
+        # 5. 班会与活动
+        try:
+            from models import ClassMeeting, Activity
+            new_meeting = db.query(ClassMeeting).filter(
+                ClassMeeting.meeting_date >= wk_start_str,
+                ClassMeeting.meeting_date <= wk_end_str
+            ).count()
+            teacher_attended = db.query(ClassMeeting).filter(
+                ClassMeeting.meeting_date >= wk_start_str,
+                ClassMeeting.meeting_date <= wk_end_str,
+                ClassMeeting.teacher_attended == True
+            ).count() if hasattr(ClassMeeting, 'teacher_attended') else 0
+            new_act = db.query(Activity).filter(
+                Activity.activity_date >= wk_start_str,
+                Activity.activity_date <= wk_end_str
+            ).count()
+            parts.append(
+                f"【班会与活动】\n  · 本周班会：{new_meeting} 次（班主任出席 {teacher_attended}）\n"
+                f"  · 本周活动：{new_act} 场"
+            )
+        except Exception as _e:
+            parts.append(f"【班会与活动】统计失败：{_e}")
+
+        # 6. 资助与困难
+        try:
+            from models import StudentHardship
+            hardship_cnt = db.query(StudentHardship).count()
+            parts.append(f"【资助情况】\n  · 困难档案总数：{hardship_cnt} 份")
+        except Exception as _e:
+            parts.append(f"【资助情况】统计失败：{_e}")
+
+        content = (
+            f"周汇总（{wk_start_str} ~ {wk_end_str}）\n"
+            f"生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            + "\n\n".join(parts)
+        )
+
         summary = WeeklySummary(
-            title=f"周汇总 ({week_start.strftime('%Y-%m-%d')} ~ {week_end.strftime('%Y-%m-%d')})",
-            content=f"本周新增学生: {new_students_count}人\n"
-                    f"学生总数: {total_students}人\n"
-                    f"预警记录: {warning_count}条\n"
-                    f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            title=f"周汇总 ({wk_start_str} ~ {wk_end_str})",
+            content=content,
             created_at=datetime.now()
         )
         db.add(summary)
@@ -183,6 +272,22 @@ async def startup():
         logger.info("Migration: warning_records 已添加 reminded / reminded_at 字段")
     except Exception as _e:
         logger.warning(f"Migration warning_records reminded 失败(可忽略): {_e}")
+    # v3j-D · D2: class_meetings 加 teacher_attended / teacher_names 字段
+    try:
+        from sqlalchemy import text
+        with SessionLocal() as _mdb:
+            for _sql in [
+                "ALTER TABLE class_meetings ADD COLUMN teacher_attended INTEGER DEFAULT 0",
+                "ALTER TABLE class_meetings ADD COLUMN teacher_names VARCHAR(200) DEFAULT ''",
+            ]:
+                try:
+                    _mdb.execute(text(_sql))
+                    _mdb.commit()
+                except Exception:
+                    _mdb.rollback()
+        logger.info("Migration: class_meetings 已添加 teacher_attended / teacher_names 字段")
+    except Exception as _e:
+        logger.warning(f"Migration class_meetings teacher_attended 失败(可忽略): {_e}")
     # 启动定时任务调度器
     scheduler.start()
     logger.info("定时任务调度器已启动")

@@ -19,12 +19,17 @@
         <el-card shadow="never">
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center">
-              <span>活动列表 · 共 {{ list.length }} 条</span>
-              <el-input v-model="filterKw" placeholder="搜索活动名/类型/组织者/地点" clearable size="small" style="width: 200px" />
+              <span>活动列表 · 共 {{ filteredList.length }} 条</span>
+              <div style="display: flex; gap: 8px">
+                <el-select v-model="filterType" placeholder="全部类型" clearable size="small" style="width: 140px">
+                  <el-option v-for="t in allTypes" :key="t" :label="t" :value="t" />
+                </el-select>
+                <el-input v-model="filterKw" placeholder="搜索活动名/组织者/地点" clearable size="small" style="width: 200px" />
+              </div>
             </div>
           </template>
           <el-table
-            :data="list"
+            :data="filteredList"
             v-loading="loading"
             stripe
             border
@@ -164,6 +169,18 @@ import { triggerDownload, stampedName } from '@/utils/download'
 
 const studentStore = useStudentStore()
 const types = ['学术科技', '文体艺术', '志愿公益', '思政教育', '实践创新', '其他']
+
+// v3j-D · D2: 活动类型筛选（含 seed 里的所有类型）
+const filterType = ref('')
+const allTypes = computed(() => {
+  const s = new Set(types)
+  list.value.forEach((r) => { if (r.activity_type) s.add(r.activity_type) })
+  return Array.from(s)
+})
+const filteredList = computed(() => {
+  if (!filterType.value) return list.value
+  return list.value.filter((r) => (r.activity_type || '') === filterType.value)
+})
 const roles = ['参与者', '组织者', '负责人', '志愿者', '嘉宾']
 
 const list = ref([])

@@ -45,6 +45,13 @@
         <el-table-column label="主持人" prop="host" width="120" sortable="custom" />
         <el-table-column label="出席人数" prop="attendance_count" width="100" align="center" sortable="custom" />
         <el-table-column label="记录人" prop="recorder" width="120" sortable="custom" />
+        <el-table-column label="班主任出席" width="110" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.teacher_attended" type="success" size="small">已出席</el-tag>
+            <el-tag v-else type="info" size="small" effect="plain">未出席</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="出席老师" prop="teacher_names" width="140" show-overflow-tooltip />
         <el-table-column label="备注" prop="notes" show-overflow-tooltip />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
@@ -80,6 +87,12 @@
         </el-form-item>
         <el-form-item label="出席人数">
           <el-input-number v-model="form.attendance_count" :min="0" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="班主任出席">
+          <el-switch v-model="form.teacher_attended" active-text="出席" inactive-text="未出席" inline-prompt />
+        </el-form-item>
+        <el-form-item label="出席老师" v-if="form.teacher_attended">
+          <el-input v-model="form.teacher_names" placeholder="多位老师用逗号分隔" />
         </el-form-item>
         <el-form-item label="内容摘要">
           <el-input v-model="form.summary" type="textarea" :rows="3" />
@@ -163,7 +176,7 @@ const dlg = ref(false)
 const editing = ref(null)
 const saving = ref(false)
 const formRef = ref(null)
-const defaultForm = () => ({ theme: '', class_id: null, meeting_date: '', host: '', recorder: '', attendance_count: 0, summary: '', notes: '' })
+const defaultForm = () => ({ theme: '', class_id: null, meeting_date: '', host: '', recorder: '', attendance_count: 0, summary: '', notes: '', teacher_attended: false, teacher_names: '' })
 const form = reactive(defaultForm())
 const rules = {
   theme: [{ required: true, message: '请填写班会主题', trigger: 'blur' }],

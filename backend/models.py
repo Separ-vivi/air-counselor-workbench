@@ -537,6 +537,9 @@ class ClassMeeting(Base):
     host = Column(String(80), default='')       # 主持人
     recorder = Column(String(80), default='')   # 记录人
     notes = Column(Text, default='')             # 备注
+    # v3j-D · D2: 班主任出席
+    teacher_attended = Column(Boolean, default=False)  # 班主任是否出席
+    teacher_names = Column(String(200), default='')    # 出席老师姓名(逗号分隔)
     created_at = Column(DateTime, default=datetime.now)
 
 

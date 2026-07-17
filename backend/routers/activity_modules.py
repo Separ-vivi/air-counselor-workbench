@@ -323,6 +323,9 @@ def _meeting_dict(m, cls_name):
         'host': getattr(m, 'host', '') or '',
         'recorder': getattr(m, 'recorder', '') or '',
         'notes': getattr(m, 'notes', '') or '',
+        # v3j-D · D2: 班主任出席
+        'teacher_attended': bool(getattr(m, 'teacher_attended', False)),
+        'teacher_names': getattr(m, 'teacher_names', '') or '',
     }
 
 
@@ -332,7 +335,7 @@ def _meeting_normalize_input(data: dict) -> dict:
         d['topic'] = d.pop('theme')
     if 'summary' in d and 'content_summary' not in d:
         d['content_summary'] = d.pop('summary')
-    allowed = {'class_id','meeting_date','topic','attendance_count','absent_students','content_summary','resolution','photo','host','recorder','notes'}
+    allowed = {'class_id','meeting_date','topic','attendance_count','absent_students','content_summary','resolution','photo','host','recorder','notes','teacher_attended','teacher_names'}
     return {k: v for k, v in d.items() if k in allowed}
 
 
