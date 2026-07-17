@@ -73,6 +73,29 @@ def get_class_summary(class_id: int, db: Session = Depends(get_db)):
         if grade_count > 0:
             fail_rate = round(warning_count * 100.0 / grade_count, 2)
 
+    # v3j-B: 追加前端需要的顶层字段（预警红/黄、就业签约、奖学金总额）
+    from models import WarningRecord as _WR, EmploymentRecord as _ER
+    warning_red_count = 0
+    warning_yellow_count = 0
+    if student_ids:
+        warning_red_count = db.query(_WR).filter(
+            _WR.student_id.in_(student_ids), _WR.warning_type == 'red').count()
+        warning_yellow_count = db.query(_WR).filter(
+            _WR.student_id.in_(student_ids), _WR.warning_type == 'yellow').count()
+
+    employed_count = 0
+    if student_ids:
+        # 就业签约：status 含 "签约"/"就业"/"录用"/"offer"
+        emps = db.query(_ER).filter(_ER.student_id.in_(student_ids)).all()
+        employed_count = sum(1 for e in emps if any(
+            kw in (e.status or '') for kw in ('签约', '就业', '录用', 'offer', 'Offer', 'OFFER')))
+
+    scholarship_total = 0
+    if student_ids:
+        sc_sum = db.query(func.sum(StudentScholarship.amount)).filter(
+            StudentScholarship.student_id.in_(student_ids)).scalar()
+        scholarship_total = float(sc_sum or 0)
+
     return {
         'id': cls.id,
         'class_name': cls.class_name,
@@ -84,6 +107,22 @@ def get_class_summary(class_id: int, db: Session = Depends(get_db)):
         'student_count': len(students),
         'male_count': sum(1 for s in students if s.gender == '男'),
         'female_count': sum(1 for s in students if s.gender == '女'),
+        # ===== v3j-B: flatten 顶层字段（前端 ClassSummary 直接读 summary?.xxx） =====
+        'fail_rate': fail_rate,
+        'avg_score': avg_score,
+        'grade_count': grade_count,
+        'warning_count': warning_count,
+        'warning_red_count': warning_red_count,
+        'warning_yellow_count': warning_yellow_count,
+        'party_member_count': party_members,
+        'psych_attention_count': psych_attention,
+        'hardship_count': hardship_count,
+        'leave_count': leave_count,
+        'discipline_count': discipline_count,
+        'activity_count': activity_count,
+        'employed_count': employed_count,
+        'scholarship_total': scholarship_total,
+        # ===== 保留 stats 结构兼容旧代码 =====
         'stats': {
             'grade_count': grade_count,
             'warning_count': warning_count,
@@ -95,6 +134,10 @@ def get_class_summary(class_id: int, db: Session = Depends(get_db)):
             'leave_count': leave_count,
             'discipline_count': discipline_count,
             'activity_count': activity_count,
+            'warning_red_count': warning_red_count,
+            'warning_yellow_count': warning_yellow_count,
+            'employed_count': employed_count,
+            'scholarship_total': scholarship_total,
         }
     }
 
@@ -180,12 +223,15 @@ def get_class_party_branch(class_id: int, db: Session = Depends(get_db)):
         ps = s.political_status or '群众'
         ps_counter[ps] += 1
         item = {'id': s.id, 'name': s.name, 'student_no': s.student_no, 'phone': s.phone,
-                'political_status': ps}
-        if '中共党员' in ps or ps in ('党员', '正式党员'):
+                'political_status': ps,
+                'join_league_date': getattr(s, 'join_league_date', '') or '',
+                'join_party_date': getattr(s, 'join_party_date', '') or ''}
+        # v3j-B: 修分类边界，"党员发展对象" 归入积极分子组，避免误判为群众
+        if '正式党员' in ps or '中共党员' in ps or ps == '党员':
             party_members.append(item)
         elif '预备' in ps:
             reserved_members.append(item)
-        elif '积极分子' in ps:
+        elif '发展对象' in ps or '积极分子' in ps:
             activists.append(item)
         elif '团员' in ps:
             league_members.append(item)
@@ -264,27 +310,92 @@ def get_class_grades(class_id: int, db: Session = Depends(get_db)):
     return result
 
 
+# v3j-B: stage 归一化映射（seed 存的原始值 → 前端 6 阶段体系）
+_STAGE_NORMALIZE = {
+    '申请入党': '入党申请人',
+    '入党申请人': '入党申请人',
+    '入党积极分子': '积极分子',
+    '积极分子': '积极分子',
+    '党员发展对象': '发展对象',
+    '发展对象': '发展对象',
+    '中共预备党员': '预备党员',
+    '预备党员': '预备党员',
+    '正式党员': '正式党员',
+    '中共党员': '正式党员',
+    '党员': '正式党员',
+    '共青团员': '群众',
+    '群众': '群众',
+    '': '群众',
+    None: '群众',
+}
+
+
+def _norm_stage(s):
+    if s in _STAGE_NORMALIZE:
+        return _STAGE_NORMALIZE[s]
+    # 兜底子串匹配
+    if not s:
+        return '群众'
+    if '正式党员' in s or '中共党员' in s or s == '党员':
+        return '正式党员'
+    if '预备' in s:
+        return '预备党员'
+    if '发展对象' in s:
+        return '发展对象'
+    if '积极分子' in s:
+        return '积极分子'
+    if '申请' in s:
+        return '入党申请人'
+    return '群众'
+
+
 @router.get('/{class_id}/party')
 def get_class_party(class_id: int, db: Session = Depends(get_db)):
-    """Tab: 党团发展 - 每学生一条主状态"""
+    """Tab: 党团发展 - 每学生返回当前阶段 + 完整历史（供 stepper 展示）"""
     students, _, _ = _class_student_map(db, class_id)
     result = []
     for s in students:
-        party = db.query(PartyProgress).filter(PartyProgress.student_id == s.id).order_by(desc(PartyProgress.stage_date)).first()
-        # 兼容旧字段 join_date：不存在直接用 stage_date
+        # 该学生的完整党团发展历程（按 stage_date 升序）
+        all_progress = db.query(PartyProgress).filter(
+            PartyProgress.student_id == s.id
+        ).order_by(PartyProgress.stage_date.asc()).all()
+        # 最新一条作为当前阶段
+        latest = all_progress[-1] if all_progress else None
         stage_date = None
-        if party:
-            stage_date = getattr(party, 'stage_date', None) or getattr(party, 'join_date', None)
+        if latest:
+            stage_date = getattr(latest, 'stage_date', None) or getattr(latest, 'join_date', None)
+
+        # 归一化后的当前阶段
+        current_stage_raw = (latest.stage if latest else None) or (s.political_status or '群众')
+        current_stage = _norm_stage(current_stage_raw)
+
+        # 完整轨迹（供前端 stepper 使用）
+        history = [
+            {
+                'stage': _norm_stage(p.stage),
+                'stage_raw': p.stage or '',
+                'stage_date': getattr(p, 'stage_date', '') or '',
+                'contact_person': p.contact_person or '',
+                'notes': p.notes or '',
+            }
+            for p in all_progress
+        ]
+
         result.append({
             'student_id': s.id,
             'student_no': s.student_no,
             'name': s.name,
             'student_name': s.name,
-            'stage': (party.stage if party else None) or (s.political_status or '群众'),
+            'stage': current_stage,
+            'stage_raw': current_stage_raw,
             'join_date': stage_date,
             'stage_date': stage_date,
-            'contact_person': party.contact_person if party else '',
-            'notes': party.notes if party else '',
+            'join_league_date': getattr(s, 'join_league_date', '') or '',
+            'join_party_date': getattr(s, 'join_party_date', '') or '',
+            'political_status': s.political_status or '',
+            'contact_person': latest.contact_person if latest else '',
+            'notes': latest.notes if latest else '',
+            'history': history,
         })
     return result
 

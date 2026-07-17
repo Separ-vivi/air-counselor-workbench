@@ -201,11 +201,29 @@ def seed_large_dataset():
                     off_addr = ''
                 province, cities = random.choice(PROVINCES)
                 city = random.choice(cities)
+                _ps = random.choices(POLITICAL_STATUS, weights=[10,55,15,8,8,4])[0]
+                # v3j-B: 生成入团/入党时间
+                _join_league = ''
+                _join_party = ''
+                if _ps != '群众':
+                    # 团员及以上：14-16 岁入团
+                    _lm = random.randint(1, 12)
+                    _ld = random.randint(1, 28)
+                    _ly = birth_year + random.randint(14, 16)
+                    _join_league = f'{_ly}-{_lm:02d}-{_ld:02d}'
+                if _ps in ('预备党员', '中共党员'):
+                    # 预备党员/正式党员：入党时间在入学 1-3 年后
+                    _pm = random.randint(1, 12)
+                    _pd = random.randint(1, 28)
+                    _py = grade_year + random.randint(1, 3)
+                    _join_party = f'{_py}-{_pm:02d}-{_pd:02d}'
                 stu = Student(
                     student_no=sno, name=name, pinyin_initial=pinyin_initial(name),
                     gender=gender, class_id=cobj.id,
                     birth_date=f'{birth_year}-{random.randint(1,12):02d}-{random.randint(1,28):02d}',
-                    political_status=random.choices(POLITICAL_STATUS, weights=[10,55,15,8,8,4])[0],
+                    political_status=_ps,
+                    join_league_date=_join_league,
+                    join_party_date=_join_party,
                     phone=gen_phone(), email=f'stu{sno}@fzu.edu.cn',
                     parent_phone=gen_phone(),
                     birth_source=f'{province}·{city}',

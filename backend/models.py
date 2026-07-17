@@ -70,6 +70,8 @@ class Student(Base):
     class_id = Column(Integer, ForeignKey('classes.id', ondelete='SET NULL'), nullable=True)
     birth_date = Column(String(20), default='')
     political_status = Column(String(50), default='')
+    join_league_date = Column(String(20), default='')  # 入团时间（团员及以上）
+    join_party_date = Column(String(20), default='')  # 入党时间（正式党员/预备党员）
     phone = Column(String(50), default='')
     email = Column(String(100), default='')
     parent_phone = Column(String(50), default='')
