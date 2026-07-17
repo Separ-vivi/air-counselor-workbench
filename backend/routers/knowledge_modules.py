@@ -291,9 +291,61 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
         except Exception:
             return False
 
-    MAX_PER_DIM = 20
+    MAX_PER_DIM = 6
+
+    # v3h: format 三种真实差异化渲染
+    def _render_section(title, lines, fmt):
+        """lines: 第一行为 header（如 '本周新增 X 条'）；后续以 '- ' 开头为条目；
+        含 '**' 或以 '\n' 起始为 tail 总览。按 fmt=bullet/paragraph/mixed 输出。"""
+        if not lines:
+            return title + '\n\n'
+        header = lines[0]
+        bullets = [ln for ln in lines[1:] if ln.startswith('- ')]
+        tails = [ln for ln in lines[1:] if not ln.startswith('- ')]
+        capped = bullets[:MAX_PER_DIM]
+        omitted = max(0, len(bullets) - MAX_PER_DIM)
+
+        if fmt == 'paragraph':
+            body = header
+            if capped:
+                sentences = [b[2:].strip().rstrip('。') for b in capped]
+                body += '\n\n主要开展情况：' + '；'.join(sentences) + '。'
+            if omitted:
+                body += f' 另有 {omitted} 条详情从略。'
+            tail_txt = '\n'.join([t for t in tails if t.strip()])
+            if tail_txt:
+                body += '\n\n' + tail_txt.replace('\n**', '**').strip()
+            return title + '\n' + body + '\n'
+
+        if fmt == 'mixed':
+            body = title + '\n' + header + '\n'
+            top = capped[:3]
+            rest = capped[3:]
+            if top:
+                body += '\n'.join(top) + '\n'
+            if rest:
+                more = '；'.join([b[2:].strip().rstrip('。') for b in rest])
+                body += f'\n此外还包括：{more}。\n'
+            if omitted:
+                body += f'- （另有 {omitted} 条从略）\n'
+            tail_txt = '\n'.join([t for t in tails if t.strip()])
+            if tail_txt:
+                body += tail_txt + '\n'
+            return body
+
+        # bullet（默认）
+        body = title + '\n' + header + '\n'
+        if capped:
+            body += '\n'.join(capped) + '\n'
+        if omitted:
+            body += f'- （另有 {omitted} 条从略）\n'
+        tail_txt = '\n'.join([t for t in tails if t.strip()])
+        if tail_txt:
+            body += tail_txt + '\n'
+        return body
+
     sections = [f'# 第 {today.isocalendar()[1]} 周工作汇总  ·  {ws} ~ {we}\n',
-                f'> 本周共 7 天，以下按业务维度回顾具体开展的工作。\n']
+                f'> 本周共 7 天，以下按业务维度回顾具体开展的工作。（format: {fmt}）\n']
 
     # ---------- 学业 ----------
     if 'academic' in dims:
@@ -311,7 +363,7 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
         # 挂科增量
         fail_this = db.query(GradeRecord).filter(GradeRecord.score < 60).count()
         lines.append(f'\n**学业总览**：累计挂科记录 {fail_this} 条，历史预警 {len(warns_all)} 条。')
-        sections.append('## 📚 学业跟踪\n' + '\n'.join(lines) + '\n')
+        sections.append(_render_section('## 📚 学业跟踪', lines, fmt))
 
     # ---------- 谈心谈话 ----------
     if 'psychology' in dims:
@@ -330,7 +382,7 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
                              (f' · 要点：{summary}' if summary else '') + follow)
         else:
             lines.append('本周未记录谈心谈话，可关注情绪波动学生主动约谈。')
-        sections.append('## 💚 谈心谈话\n' + '\n'.join(lines) + '\n')
+        sections.append(_render_section('## 💚 谈心谈话', lines, fmt))
 
     # ---------- 党团 ----------
     if 'party' in dims:
@@ -347,7 +399,7 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
                              (f' · {notes}' if notes else ''))
         else:
             lines.append('本周无党团发展节点变动。')
-        sections.append('## 🚩 党团建设\n' + '\n'.join(lines) + '\n')
+        sections.append(_render_section('## 🚩 党团建设', lines, fmt))
 
     # ---------- 资助 ----------
     if 'aid' in dims:
@@ -362,7 +414,7 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
                              (f' · {r.notes}' if r.notes else ''))
         else:
             lines.append('本周资助无变动，如临学期节点可发起复核。')
-        sections.append('## 💰 资助帮扶\n' + '\n'.join(lines) + '\n')
+        sections.append(_render_section('## 💰 资助帮扶', lines, fmt))
 
     # ---------- 就业 ----------
     if 'employment' in dims:
@@ -382,7 +434,7 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
                 lines.append(f'- {_fmt_date(r.offer_date or str(r.created_at)[:10])} · {name}（{cn}）· ' + ' / '.join(bits))
         else:
             lines.append('本周就业无进展，可推送校招信息或组织宣讲会。')
-        sections.append('## 🎯 就业跟踪\n' + '\n'.join(lines) + '\n')
+        sections.append(_render_section('## 🎯 就业跟踪', lines, fmt))
 
     # ---------- 日常（家校+违纪+走访） ----------
     if 'daily' in dims:
@@ -408,7 +460,7 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
                 lines.append(f'- {_fmt_date(r.visit_date)} · 走访 {name}（{cn}）· 寝室 {r.dorm_room or "?"} · 走访人：{r.visitor or "本人"}' + (f' · {sit}' if sit else ''))
         if not (fc or dc or vs):
             lines.append('本周日常事务平稳，无违纪、无重要家校沟通、无宿舍走访记录。')
-        sections.append('## 📖 日常事务\n' + '\n'.join(lines) + '\n')
+        sections.append(_render_section('## 📖 日常事务', lines, fmt))
 
     # ---------- 活动（含班会） ----------
     if 'activity' in dims:
@@ -431,7 +483,7 @@ def generate_weekly_summary(payload: dict = None, db: Session = Depends(get_db))
                              (f' · 结论：{(m.resolution or "").strip()[:40]}' if m.resolution else ''))
         if not (acts or meets):
             lines.append('本周无组织的学院活动或班会，可结合校历安排下周事项。')
-        sections.append('## 🎨 活动 & 班会\n' + '\n'.join(lines) + '\n')
+        sections.append(_render_section('## 🎨 活动 & 班会', lines, fmt))
 
     # ---------- 收尾：本周关键词 ----------
     sections.append('---\n')

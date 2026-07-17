@@ -364,6 +364,8 @@ def _psy_dict(r, db):
         'next_follow_date': r.next_follow_date, 'next_follow_up': r.next_follow_date,  # alias
         'attention_level': getattr(r, 'attention_level', '') or '',
         'counseling_count': getattr(r, 'counseling_count', 0) or 0,
+        'reminded': bool(getattr(r, 'reminded', False)),
+        'reminded_at': getattr(r, 'reminded_at', None).isoformat() if getattr(r, 'reminded_at', None) else None,
     }
 
 
@@ -652,3 +654,36 @@ def delete_family_contact(cid: int, db: Session = Depends(get_db)):
         db.delete(c)
         db.commit()
     return {'ok': True}
+
+
+
+# ===== v3j-D 补丁2: 心理关怀已提醒 toggle + 批量提醒 =====
+@router.patch('/psychology/{rec_id}/toggle-reminded')
+def toggle_psy_reminded(rec_id: int, db: Session = Depends(get_db)):
+    """切换心理档案的已提醒状态"""
+    from datetime import datetime as _dt
+    r = db.query(PsychologyRecord).get(rec_id)
+    if not r:
+        raise HTTPException(404, '记录不存在')
+    r.reminded = not bool(getattr(r, 'reminded', False))
+    r.reminded_at = _dt.now() if r.reminded else None
+    db.commit()
+    db.refresh(r)
+    return {'id': r.id, 'reminded': bool(r.reminded), 'reminded_at': r.reminded_at.isoformat() if r.reminded_at else None}
+
+
+@router.post('/psychology/batch-mark-reminded')
+def batch_mark_psy_reminded(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """批量标记心理档案已提醒。payload: {ids: [...], reminded: true/false}"""
+    from datetime import datetime as _dt
+    ids = payload.get('ids') or []
+    reminded = bool(payload.get('reminded', True))
+    if not ids:
+        return {'updated': 0}
+    now = _dt.now() if reminded else None
+    updated = db.query(PsychologyRecord).filter(PsychologyRecord.id.in_(ids)).update(
+        {PsychologyRecord.reminded: reminded, PsychologyRecord.reminded_at: now},
+        synchronize_session=False
+    )
+    db.commit()
+    return {'updated': updated, 'reminded': reminded}

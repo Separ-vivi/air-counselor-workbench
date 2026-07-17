@@ -272,6 +272,22 @@ async def startup():
         logger.info("Migration: warning_records 已添加 reminded / reminded_at 字段")
     except Exception as _e:
         logger.warning(f"Migration warning_records reminded 失败(可忽略): {_e}")
+
+    # v3j-D 补丁2: psychology_records 加 reminded / reminded_at 字段（SQLite 幂等）
+    try:
+        with engine.connect() as conn:
+            for sql in [
+                "ALTER TABLE psychology_records ADD COLUMN reminded INTEGER DEFAULT 0",
+                "ALTER TABLE psychology_records ADD COLUMN reminded_at TEXT",
+            ]:
+                try:
+                    conn.execute(text(sql))
+                    conn.commit()
+                except Exception:
+                    pass
+        logger.info("Migration: psychology_records 已添加 reminded / reminded_at 字段")
+    except Exception as _e:
+        logger.warning(f"Migration psychology_records reminded 失败(可忽略): {_e}")
     # v3j-D · D2: class_meetings 加 teacher_attended / teacher_names 字段
     try:
         from sqlalchemy import text
@@ -305,6 +321,18 @@ async def startup():
         logger.info("Migration: classes 已添加 slogan / features / office_location 字段")
     except Exception as _e:
         logger.warning(f"Migration classes 班级档案字段 失败(可忽略): {_e}")
+    # v3h · 记事本联动: notes 加 remind_at 字段
+    try:
+        from sqlalchemy import text
+        with SessionLocal() as _mdb:
+            try:
+                _mdb.execute(text("ALTER TABLE notes ADD COLUMN remind_at VARCHAR(30) DEFAULT ''"))
+                _mdb.commit()
+            except Exception:
+                _mdb.rollback()
+        logger.info("Migration: notes 已添加 remind_at 字段")
+    except Exception as _e:
+        logger.warning(f"Migration notes remind_at 失败(可忽略): {_e}")
     # 启动定时任务调度器
     scheduler.start()
     logger.info("定时任务调度器已启动")

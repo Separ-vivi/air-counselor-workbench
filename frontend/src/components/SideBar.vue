@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">v3j-D · 提醒+时间轴+分类+档案+导出+等级色</div>
+        <div class="brand-ver">v3h · Dashboard减重+日历统一+记事联动+浅蓝色系+批量提醒</div>
       </div>
     </div>
 
@@ -13,8 +13,8 @@
       :default-active="$route.path"
       router
       background-color="transparent"
-      text-color="#EAF3F7"
-      active-text-color="#F5F7F9"
+      text-color="#2E4A5E"
+      active-text-color="#1A3A50"
     >
       <el-menu-item index="/dashboard"><el-icon><DataBoard /></el-icon><span>驾驶舱</span></el-menu-item>
       <el-menu-item index="/students"><el-icon><User /></el-icon><span>学生管理</span></el-menu-item>
@@ -69,14 +69,13 @@
 .sidebar-root {
   width: 220px;
   height: 100vh;
-  background: linear-gradient(180deg,
-    rgba(220, 235, 250, 0.72) 0%,
-    rgba(225, 245, 240, 0.75) 100%);
-  backdrop-filter: blur(18px) saturate(1.2);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  color: #3A5A6E;
-  border-right: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 2px 0 14px rgba(93, 143, 160, 0.06);
+  /* v3h: 浅蓝色系统一，侧栏比主背景（#EEF3F8）深一档，纯色不做跨色相渐变 */
+  background: linear-gradient(180deg, #D6E2EE 0%, #C8D6E4 100%);
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  color: #2E4A5E;
+  border-right: 1px solid rgba(155, 180, 205, 0.4);
+  box-shadow: 2px 0 12px rgba(90, 120, 150, 0.08);
   display: flex;
   flex-direction: column;
   overflow-y: auto;

@@ -36,6 +36,17 @@
       </el-form>
     </el-card>
 
+    <!-- v3h A: 班级人数柱状图（从驾驶舱挪来） -->
+    <el-card shadow="never" style="margin-bottom: 16px" v-if="filteredClasses.length">
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <span>📊 各班学生人数对比</span>
+          <span style="font-size:12px;color:#909399">共 {{ filteredClasses.length }} 个班级 · 点击柱形跳转班级 360</span>
+        </div>
+      </template>
+      <div ref="classBarRef" style="width: 100%; height: 260px"></div>
+    </el-card>
+
     <el-row :gutter="16">
       <el-col v-for="c in filteredClasses" :key="c.id" :span="8" style="margin-bottom: 16px">
         <el-card shadow="hover" class="class-card" @click.stop="goClass(c.id)">
@@ -62,7 +73,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import * as echarts from 'echarts'
 import { useRouter } from 'vue-router'
 import { Refresh, Setting, Download } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -109,6 +121,47 @@ const filteredClasses = computed(() => {
 })
 
 const goClass = (id) => router.push(`/classes/${id}`)
+// v3h A: 班级人数柱状图
+const classBarRef = ref(null)
+let classBarChart = null
+const macaronColors = ['#F8B4B4','#F9E79F','#B7E4C7','#B7D8E4','#D5B7E4','#F5C7A0','#FCB69F','#A8E6CF','#FFD3B6','#FF8B94','#C7CEEA','#FEC8D8']
+
+function renderClassBar() {
+  if (!classBarRef.value) return
+  const cd = filteredClasses.value.map(c => ({ name: c.name, value: c.student_count || 0, id: c.id }))
+  if (!classBarChart) classBarChart = echarts.init(classBarRef.value)
+  classBarChart.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 8, right: 12, top: 20, bottom: 40, containLabel: true },
+    xAxis: { type: 'category', data: cd.map(x => x.name), axisLine: { lineStyle: { color: '#DCDFE6' } }, axisLabel: { color: '#606266', fontSize: 11, rotate: cd.length > 8 ? 20 : 0, interval: 0 } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed', color: '#E4E7ED' } }, axisLabel: { color: '#909399', fontSize: 11 } },
+    series: [{
+      type: 'bar', barWidth: '46%',
+      data: cd.map((x, i) => ({ value: x.value, name: x.name, itemStyle: { color: {
+        type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+        colorStops: [
+          { offset: 0, color: macaronColors[i % macaronColors.length] },
+          { offset: 1, color: '#FFFFFF' }
+        ]
+      }, borderRadius: [8, 8, 0, 0] } })),
+      label: { show: true, position: 'top', color: '#606266', fontSize: 11, fontWeight: 500 }
+    }]
+  })
+  classBarChart.off('click')
+  classBarChart.on('click', (params) => {
+    const idx = params?.dataIndex
+    const cls = filteredClasses.value[idx]
+    if (cls?.id) router.push({ path: `/class360/${cls.id}` })
+  })
+}
+
+const resizeClassBar = () => { try { classBarChart?.resize() } catch(e) {} }
+watch(filteredClasses, () => { nextTick(renderClassBar) })
+onUnmounted(() => {
+  window.removeEventListener('resize', resizeClassBar)
+  try { classBarChart?.dispose() } catch(e) {}
+})
+
 const reload = () => orgStore.loadTree(true)
 
 // v3j-B-b02 · 导出全部班级
@@ -125,6 +178,8 @@ const exportAll = async () => {
 }
 
 onMounted(() => {
+  window.addEventListener('resize', resizeClassBar)
+  nextTick(renderClassBar)
   if (!orgStore.orgTree.length) orgStore.loadTree()
   // reinit 后自动刷新组织树（数据库被重建，班级列表要重新拉）
   window.addEventListener('system-reinit-done', () => orgStore.loadTree(true))

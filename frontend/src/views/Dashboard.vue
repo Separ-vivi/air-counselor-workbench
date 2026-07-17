@@ -12,6 +12,19 @@
       <div class="hero-right">
         <div class="hero-time">{{ timeStr }}</div>
         <div class="hero-time-label">当前时间</div>
+        <div v-if="heroCountdowns.length" class="hero-cd-row">
+          <div
+            v-for="cd in heroCountdowns"
+            :key="cd.id"
+            class="hero-cd-chip"
+            :style="{ background: cdChipBg(cd.color) }"
+          >
+            <div class="hero-cd-title">{{ cd.title }}</div>
+            <div class="hero-cd-days" :class="daysClass(cd.days_left)">
+              {{ cd.days_left >= 0 ? `还有 ${cd.days_left} 天` : `已过 ${-cd.days_left} 天` }}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -46,7 +59,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="16">
         <el-card shadow="never" class="chart-card">
           <template #header>
             <div class="card-header">
@@ -57,94 +70,53 @@
           <div ref="majorPieRef" class="chart-box"></div>
         </el-card>
       </el-col>
-      <el-col :span="8">
-        <el-card shadow="never" class="chart-card">
+    </el-row>
+
+    <!-- v3h A: 本周待办中心（活动/班会/家访/todo/记事本提醒 聚合） -->
+    <el-row :gutter="16" style="margin-bottom: 16px">
+      <el-col :span="24">
+        <el-card shadow="never">
           <template #header>
             <div class="card-header">
-              <span>🏷️ 学生标签 Top</span>
-              <span class="chart-sub">热度前 8</span>
+              <span>🗓️ 本周待办中心</span>
+              <div>
+                <el-button text type="primary" size="small" @click="goWarning">查看学业预警</el-button>
+                <el-button text type="primary" size="small" @click="$router.push('/calendar')">打开日历</el-button>
+              </div>
             </div>
           </template>
-          <div ref="tagBarRef" class="chart-box"></div>
+          <el-empty v-if="!weekEvents.length" description="本周暂无待办事项" :image-size="80" />
+          <div v-else class="week-events-grid">
+            <div v-for="grp in weekEventsByDay" :key="grp.date" class="week-day-col">
+              <div class="week-day-head" :class="{ today: grp.date === todayStrKey }">
+                <div class="wd-date">{{ grp.mmdd }}</div>
+                <div class="wd-week">{{ grp.weekdayCn }}</div>
+              </div>
+              <div class="week-day-body">
+                <el-empty v-if="!grp.items.length" description="—" :image-size="0" style="padding: 8px 0; color:#C0C4CC; font-size:12px" />
+                <div
+                  v-for="ev in grp.items"
+                  :key="ev.id"
+                  class="week-ev-item"
+                  :style="{ borderLeftColor: evBarColor(ev.color) }"
+                  @click="ev.link && $router.push(ev.link)"
+                >
+                  <div class="ev-title">{{ ev.title }}</div>
+                  <div v-if="ev.meta" class="ev-meta">{{ ev.meta }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
     <el-row :gutter="16" style="margin-bottom: 16px">
       <el-col :span="24">
-        <el-card shadow="never" class="chart-card">
-          <template #header>
-            <div class="card-header">
-              <span>📊 各班学生人数对比</span>
-              <span class="chart-sub">{{ dash.total_classes }} 个班级 · 点击柱状图跳转班级 360</span>
-            </div>
-          </template>
-          <div ref="classBarRef" class="chart-box-wide"></div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="16" style="margin-bottom: 16px">
-      <el-col :span="12">
         <el-card shadow="never">
           <template #header>
             <div class="card-header">
-              <span>⚠️ 关注学生 (预警灯)</span>
-              <el-button text type="primary" size="small" @click="goWarning">查看全部</el-button>
-            </div>
-          </template>
-          <el-empty v-if="!warnings.length" description="暂无预警学生" :image-size="80" />
-          <el-table v-else :data="warnings.slice(0, 10)" size="small">
-            <el-table-column label="学生" prop="name" width="100">
-              <template #default="{ row }">
-                <el-link type="primary" @click="goStudent(row.id)">{{ row.name }}</el-link>
-              </template>
-            </el-table-column>
-            <el-table-column label="学号" prop="student_no" width="130" />
-            <el-table-column label="班级" prop="class_name" show-overflow-tooltip />
-            <el-table-column label="预警" prop="warning_reason" show-overflow-tooltip>
-              <template #default="{ row }">
-                <el-tag size="small" type="danger">{{ row.warning_reason || row.reason || '需关注' }}</el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-col>
-
-      <el-col :span="12">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>📅 近期动态</span>
-            </div>
-          </template>
-          <el-empty v-if="!recentActivities.length" description="暂无近期动态" :image-size="80" />
-          <el-timeline v-else style="max-height: 340px; overflow: auto">
-            <el-timeline-item
-              v-for="(item, idx) in recentActivities.slice(0, 12)"
-              :key="idx"
-              :timestamp="item.activity_date || item.time || item.date || item.created_at || '未标注日期'"
-              placement="top"
-              :type="idx === 0 ? 'primary' : 'success'"
-              :hollow="idx > 0"
-            >
-              <div class="timeline-title">{{ item.title || item.desc || item.content || '未命名' }}</div>
-              <div v-if="item.location || item.activity_type" class="timeline-meta">
-                <el-tag v-if="item.activity_type" size="small" effect="light">{{ item.activity_type }}</el-tag>
-                <span v-if="item.location" style="margin-left:6px;color:#909399">📍 {{ item.location }}</span>
-              </div>
-            </el-timeline-item>
-          </el-timeline>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="16" style="margin-bottom: 16px">
-      <el-col :span="8">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>📌 待办中心</span>
+              <span>📌 效率中心统计</span>
               <el-button text type="primary" size="small" @click="$router.push('/notes')">查看便签</el-button>
             </div>
           </template>
@@ -164,26 +136,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="16">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>⏳ 校历倒计时</span>
-              <el-button text type="primary" size="small" @click="$router.push('/calendar')">打开校历</el-button>
-            </div>
-          </template>
-          <el-empty v-if="!prodStats.countdowns_top || !prodStats.countdowns_top.length" description="暂无倒计时事件" :image-size="60" />
-          <div v-else class="cd-row">
-            <div v-for="cd in prodStats.countdowns_top" :key="cd.id" class="cd-card" :style="{ borderColor: cd.color || '#4A7A8C' }">
-              <div class="cd-title">{{ cd.title }}</div>
-              <div class="cd-date">{{ cd.target_date }}</div>
-              <div class="cd-days" :class="daysClass(cd.days_left)">
-                {{ cd.days_left >= 0 ? `还有 ${cd.days_left} 天` : `已过 ${-cd.days_left} 天` }}
-              </div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
+
     </el-row>
 
     <el-card shadow="never">
@@ -205,7 +158,7 @@ import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { useRouter } from 'vue-router'
 import { dashboard as getDashboard } from '@/api/modules'
-import { productivityDashboard } from '@/api/productivity'
+import { productivityDashboard, eventsApi, countdownsApi } from '@/api/productivity'
 
 const router = useRouter()
 const warnings = ref([])
@@ -220,8 +173,6 @@ const dash = ref({
 })
 const warningPieRef = ref(null)
 const majorPieRef = ref(null)
-const tagBarRef = ref(null)
-const classBarRef = ref(null)
 let charts = []
 
 const macaronColors = ['#F8B4B4','#F9E79F','#B7E4C7','#B7D8E4','#D5B7E4','#F5C7A0','#FCB69F','#A8E6CF','#FFD3B6','#FF8B94','#C7CEEA','#FEC8D8']
@@ -269,52 +220,6 @@ function renderCharts() {
     charts.push(c2)
   }
 
-  // ---- 标签 TOP 横向柱状 ----
-  if (tagBarRef.value) {
-    const c3 = echarts.init(tagBarRef.value)
-    const td = (dash.value.tag_distribution || []).slice(0, 8).reverse()
-    c3.setOption({
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      grid: { left: 8, right: 30, top: 12, bottom: 8, containLabel: true },
-      xAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed', color: '#E4E7ED' } }, axisLabel: { color: '#909399', fontSize: 11 } },
-      yAxis: { type: 'category', data: td.map(x => x.name), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#606266', fontSize: 12 } },
-      series: [{
-        type: 'bar', barWidth: 14, data: td.map((x, i) => ({ value: x.value, itemStyle: { color: x.color || macaronColors[i % macaronColors.length], borderRadius: [0, 6, 6, 0] } })),
-        label: { show: true, position: 'right', color: '#606266', fontSize: 11 }
-      }]
-    })
-    charts.push(c3)
-  }
-
-  // ---- 班级人数柱状 ----
-  if (classBarRef.value) {
-    const c4 = echarts.init(classBarRef.value)
-    const cd = dash.value.class_distribution || []
-    c4.setOption({
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      grid: { left: 8, right: 12, top: 20, bottom: 40, containLabel: true },
-      xAxis: { type: 'category', data: cd.map(x => x.name), axisLine: { lineStyle: { color: '#DCDFE6' } }, axisLabel: { color: '#606266', fontSize: 11, rotate: cd.length > 8 ? 20 : 0, interval: 0 } },
-      yAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed', color: '#E4E7ED' } }, axisLabel: { color: '#909399', fontSize: 11 } },
-      series: [{
-        type: 'bar', barWidth: '46%',
-        data: cd.map((x, i) => ({ value: x.value, itemStyle: { color: {
-          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: macaronColors[i % macaronColors.length] },
-            { offset: 1, color: '#FFFFFF' }
-          ]
-        }, borderRadius: [8, 8, 0, 0] } })),
-        label: { show: true, position: 'top', color: '#606266', fontSize: 11, fontWeight: 500 }
-      }]
-    })
-    c4.on('click', (params) => {
-      const name = params?.name
-      if (!name) return
-      // 跳到班级 360（用 class_name query）
-      router.push({ path: '/class360', query: { class_name: name } })
-    })
-    charts.push(c4)
-  }
 }
 
 function resizeCharts() { charts.forEach(c => { try { c.resize() } catch(e){} }) }
@@ -354,6 +259,59 @@ const greeting = computed(() => {
   if (h < 22) return '晚上好'
   return '夜深了'
 })
+
+// v3h A: 本周事件 + hero 倒计时
+const weekEvents = ref([])
+const heroCountdowns = ref([])
+
+const todayStrKey = computed(() => {
+  const n = now.value
+  const p = (x) => String(x).padStart(2, '0')
+  return `${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())}`
+})
+
+const weekEventsByDay = computed(() => {
+  const n = now.value
+  const start = new Date(n)
+  start.setDate(n.getDate() - ((n.getDay() + 6) % 7))  // 本周一
+  start.setHours(0,0,0,0)
+  const days = []
+  const wkCn = ['一','二','三','四','五','六','日']
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start)
+    d.setDate(start.getDate() + i)
+    const p = (x) => String(x).padStart(2, '0')
+    const key = `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`
+    days.push({
+      date: key,
+      mmdd: `${d.getMonth()+1}/${d.getDate()}`,
+      weekdayCn: '周' + wkCn[i],
+      items: [],
+    })
+  }
+  const map = Object.fromEntries(days.map(d => [d.date, d]))
+  for (const ev of weekEvents.value) {
+    if (map[ev.date]) map[ev.date].items.push(ev)
+  }
+  return days
+})
+
+const evBarColor = (c) => {
+  const m = {
+    blue: '#7BB6D6', orange: '#F5A76E', yellow: '#E8C86A', pink: '#F1A6B7',
+    green: '#8CC9A1', cyan: '#7EC4C0', purple: '#B29AC9', red: '#E88686',
+  }
+  return m[c] || '#909399'
+}
+const cdChipBg = (c) => {
+  const m = {
+    blue: 'rgba(123,182,214,0.16)', orange: 'rgba(245,167,110,0.16)',
+    yellow: 'rgba(232,200,106,0.18)', pink: 'rgba(241,166,183,0.18)',
+    green: 'rgba(140,201,161,0.18)', red: 'rgba(232,134,134,0.18)',
+    purple: 'rgba(178,154,201,0.18)',
+  }
+  return m[c] || 'rgba(150,170,190,0.15)'
+}
 
 const daysClass = (d) => {
   if (d === undefined || d === null) return ''
@@ -415,6 +373,15 @@ onMounted(async () => {
   } catch (e) {
     // 空态
   }
+  // v3h A: 本周事件
+  try {
+    const we = await eventsApi.week(0)
+    weekEvents.value = we?.events || []
+  } catch (e) { weekEvents.value = [] }
+  // v3h A: hero 倒计时（取最近 3 条）
+  try {
+    heroCountdowns.value = (prodStats.value.countdowns_top || []).slice(0, 3)
+  } catch (e) { heroCountdowns.value = [] }
 })
 </script>
 
@@ -634,4 +601,63 @@ onMounted(async () => {
 .timeline-title { font-size: 13px; color: #303133; font-weight: 500; line-height: 1.5; }
 .timeline-meta { margin-top: 4px; font-size: 12px; }
 .timeline-meta :deep(.el-tag) { border-radius: 6px; }
+
+/* v3h A · hero 右侧倒计时 chip */
+.hero-cd-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.hero-cd-chip {
+  padding: 8px 12px;
+  border-radius: 12px;
+  min-width: 100px;
+  text-align: center;
+}
+.hero-cd-title { font-size: 12px; color: #4A5A6A; font-weight: 500; }
+.hero-cd-days { font-size: 13px; margin-top: 3px; color: #3B6A7C; font-weight: 600; }
+.hero-cd-days.warning { color: #E6A23C; }
+.hero-cd-days.danger { color: #F56C6C; }
+
+/* v3h A · 本周待办中心 · 七日网格 */
+.week-events-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+.week-day-col {
+  border: 1px solid #E4EAF0;
+  border-radius: 10px;
+  background: #FBFCFE;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+}
+.week-day-head {
+  padding: 8px 10px;
+  border-bottom: 1px solid #EBEEF5;
+  background: rgba(238, 243, 248, 0.6);
+  border-radius: 10px 10px 0 0;
+}
+.week-day-head.today {
+  background: rgba(123, 182, 214, 0.18);
+  border-bottom-color: rgba(123, 182, 214, 0.35);
+}
+.wd-date { font-size: 15px; font-weight: 600; color: #3A5A6E; }
+.wd-week { font-size: 11px; color: #909399; margin-top: 2px; }
+.week-day-body { padding: 6px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.week-ev-item {
+  padding: 6px 8px;
+  background: #fff;
+  border-left: 3px solid #909399;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(60,80,100,0.04);
+  transition: transform .15s;
+}
+.week-ev-item:hover { transform: translateX(2px); box-shadow: 0 2px 6px rgba(60,80,100,0.08); }
+.ev-title { font-size: 12px; color: #303133; font-weight: 500; line-height: 1.4; word-break: break-all; }
+.ev-meta  { font-size: 11px; color: #909399; margin-top: 2px; }
 </style>

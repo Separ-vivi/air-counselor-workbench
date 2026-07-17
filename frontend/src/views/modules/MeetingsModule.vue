@@ -45,13 +45,15 @@
         <el-table-column label="主持人" prop="host" width="120" sortable="custom" />
         <el-table-column label="出席人数" prop="attendance_count" width="100" align="center" sortable="custom" />
         <el-table-column label="记录人" prop="recorder" width="120" sortable="custom" />
-        <el-table-column label="班主任出席" width="110" align="center">
+        <el-table-column label="班主任出席" min-width="180" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-tag v-if="row.teacher_attended" type="success" size="small">已出席</el-tag>
-            <el-tag v-else type="info" size="small" effect="plain">未出席</el-tag>
+            <template v-if="row.teacher_attended">
+              <el-tag type="success" size="small" style="margin-right:6px">已出席</el-tag>
+              <span v-if="row.teacher_names">{{ row.teacher_names }}</span>
+            </template>
+            <el-tag v-else type="info" size="small">未出席</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="出席老师" prop="teacher_names" width="140" show-overflow-tooltip />
         <el-table-column label="备注" prop="notes" show-overflow-tooltip />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
@@ -89,10 +91,15 @@
           <el-input-number v-model="form.attendance_count" :min="0" style="width: 100%" />
         </el-form-item>
         <el-form-item label="班主任出席">
-          <el-switch v-model="form.teacher_attended" active-text="出席" inactive-text="未出席" inline-prompt />
-        </el-form-item>
-        <el-form-item label="出席老师" v-if="form.teacher_attended">
-          <el-input v-model="form.teacher_names" placeholder="多位老师用逗号分隔" />
+          <div style="display:flex; gap:12px; align-items:center; width:100%">
+            <el-switch v-model="form.teacher_attended" active-text="出席" inactive-text="未出席" inline-prompt />
+            <el-input
+              v-if="form.teacher_attended"
+              v-model="form.teacher_names"
+              placeholder="老师姓名，多位用逗号分隔"
+              style="flex:1"
+            />
+          </div>
         </el-form-item>
         <el-form-item label="内容摘要">
           <el-input v-model="form.summary" type="textarea" :rows="3" />

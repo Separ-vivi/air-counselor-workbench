@@ -83,6 +83,9 @@
           <el-tag v-if="n.category === 'todo' && n.due_date" size="small" effect="plain" round :type="dueTagType(n.due_date, n.status)">
             <el-icon><Calendar /></el-icon>&nbsp;{{ formatDue(n.due_date) }}
           </el-tag>
+          <el-tag v-if="n.remind_at" size="small" effect="plain" round type="warning">
+            🔔 {{ formatRemind(n.remind_at) }}
+          </el-tag>
           <span v-if="n.tags" class="tag-list">#{{ n.tags }}</span>
         </div>
 
@@ -156,6 +159,16 @@
             placeholder="选择截止日期"
           />
         </el-form-item>
+        <el-form-item label="提醒">
+          <el-date-picker
+            v-model="form.remind_at"
+            type="datetime"
+            value-format="YYYY-MM-DD HH:mm"
+            format="YYYY-MM-DD HH:mm"
+            placeholder="选择提醒时间（会显示在日历）"
+            style="width:100%"
+          />
+        </el-form-item>
         <el-form-item label="标签">
           <el-input v-model="form.tags" placeholder="逗号分隔，如：期末,重要" />
         </el-form-item>
@@ -174,7 +187,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import {
   Plus, Search, Edit, Delete, Top, Check, Calendar, RefreshLeft,
   Promotion, FolderOpened
@@ -192,7 +205,7 @@ const dialogVisible = ref(false)
 const form = ref({
   id: null,
   title: '', content: '', category: 'memo', status: 'active',
-  priority: 0, due_date: '', tags: '', pinned: false, color: 'yellow',
+  priority: 0, due_date: '', remind_at: '', tags: '', pinned: false, color: 'yellow',
 })
 
 async function load() {
@@ -230,7 +243,7 @@ function onCreate() {
     id: null,
     title: '', content: '',
     category: activeTab.value || 'memo',
-    status: 'active', priority: 0, due_date: '', tags: '',
+    status: 'active', priority: 0, due_date: '', remind_at: '', tags: '',
     pinned: false, color: 'yellow',
   }
   dialogVisible.value = true
@@ -277,7 +290,31 @@ async function onTogglePin(n) {
   load()
 }
 
-onMounted(load)
+const route = useRoute()
+onMounted(async () => {
+  // 支持 Calendar drawer 跳来自动打开新建
+  const q = route.query || {}
+  if (q.create) {
+    activeTab.value = String(q.create)
+  }
+  await load()
+  if (q.create) {
+    form.value = {
+      id: null,
+      title: '',
+      content: '',
+      category: String(q.create),
+      status: 'active',
+      priority: 0,
+      due_date: q.due || '',
+      remind_at: q.remind || '',
+      tags: '',
+      pinned: false,
+      color: 'yellow',
+    }
+    dialogVisible.value = true
+  }
+})
 
 const router = useRouter()
 
@@ -336,6 +373,14 @@ function dueTagType(d, st) {
   return ''
 }
 
+function formatRemind(t) {
+  if (!t) return ''
+  const s = String(t).replace('T', ' ')
+  // 只保留 MM-DD HH:mm
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/)
+  if (m) return `${m[2]}-${m[3]} ${m[4]}:${m[5]}`
+  return s.slice(5, 16)
+}
 function catLabel(c) {
   return { todo: '待办', memo: '备忘', idea: '想法' }[c] || '备忘'
 }

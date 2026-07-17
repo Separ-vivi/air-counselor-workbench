@@ -25,6 +25,7 @@ def _note_dict(n: Note) -> dict:
         'status': n.status or 'active',
         'priority': int(n.priority or 0),
         'due_date': n.due_date or '',
+        'remind_at': (n.remind_at or '') if hasattr(n, 'remind_at') else '',
         'tags': n.tags or '',
         'pinned': bool(n.pinned),
         'color': n.color or 'yellow',
@@ -72,6 +73,7 @@ def create_note(payload: dict, db: Session = Depends(get_db)):
         status=payload.get('status', 'active'),
         priority=int(payload.get('priority', 0) or 0),
         due_date=payload.get('due_date', '') or '',
+        remind_at=payload.get('remind_at', '') or '',
         tags=payload.get('tags', '') or '',
         pinned=bool(payload.get('pinned', False)),
         color=payload.get('color', 'yellow') or 'yellow',
@@ -89,7 +91,7 @@ def update_note(nid: int, payload: dict, db: Session = Depends(get_db)):
     n = db.query(Note).get(nid)
     if not n:
         raise HTTPException(404, '记事不存在')
-    for k in ['title', 'content', 'category', 'status', 'due_date', 'tags', 'color']:
+    for k in ['title', 'content', 'category', 'status', 'due_date', 'remind_at', 'tags', 'color']:
         if k in payload:
             setattr(n, k, payload.get(k) or '')
     if 'priority' in payload:
@@ -400,3 +402,157 @@ def productivity_dashboard(db: Session = Depends(get_db)):
         'countdowns_top': [_cd_dict(c) for c in cds],
         'projects_active': projects_active,
     }
+
+
+# ========================================================================
+# v3h · /events 聚合接口 & 本周待办中心
+# ========================================================================
+
+def _to_dt(s):
+    """把 YYYY-MM-DD[ HH:MM] 转成可比较的字符串（保留 10 位日期即可）"""
+    return (s or '')[:10]
+
+
+@router.get('/events')
+def list_events(start: str = '', end: str = '', db: Session = Depends(get_db)):
+    """v3h · 统一事件聚合：校历/todo/memo提醒/项目节点/活动/班会/家校
+    query: start/end (YYYY-MM-DD)；不传则默认前后各 30 天。
+    返回按日期分组的事件列表，每项含 { id, date, type, color, title, meta, link }
+    """
+    from models import (
+        Activity, ClassMeeting, FamilyContact, Project
+    )
+    today = date.today()
+    start = start or (today - timedelta(days=30)).strftime('%Y-%m-%d')
+    end = end or (today + timedelta(days=60)).strftime('%Y-%m-%d')
+
+    def _in(d):
+        d = _to_dt(d)
+        return d and start <= d <= end
+
+    events = []
+
+    # 1) 校历倒计时（countdowns 表）
+    for c in db.query(Countdown).all():
+        if _in(c.target_date):
+            events.append({
+                'id': f'cd-{c.id}',
+                'date': _to_dt(c.target_date),
+                'type': 'countdown',
+                'color': c.color or 'blue',
+                'title': c.title,
+                'meta': c.category or 'general',
+                'description': c.description or '',
+                'link': '/calendar',
+            })
+
+    # 2) 待办 Todo（notes.category='todo' 且有 due_date）
+    for n in db.query(Note).filter(Note.category == 'todo').all():
+        if _in(n.due_date):
+            events.append({
+                'id': f'todo-{n.id}',
+                'date': _to_dt(n.due_date),
+                'type': 'todo',
+                'color': 'orange',
+                'title': n.title,
+                'meta': '待办' + (' · 已完成' if n.status == 'done' else ''),
+                'description': (n.content or '')[:100],
+                'link': '/notes',
+                'done': n.status == 'done',
+            })
+
+    # 3) 备忘录提醒（notes.remind_at）
+    for n in db.query(Note).all():
+        r = getattr(n, 'remind_at', '') or ''
+        if r and _in(r):
+            events.append({
+                'id': f'memo-{n.id}',
+                'date': _to_dt(r),
+                'type': 'memo',
+                'color': n.color or 'yellow',
+                'title': n.title,
+                'meta': '记事本提醒',
+                'description': (n.content or '')[:100],
+                'link': '/notes',
+            })
+
+    # 4) 项目关键节点（start_date / end_date）
+    for pr in db.query(Project).all():
+        if _in(pr.start_date):
+            events.append({
+                'id': f'proj-s-{pr.id}',
+                'date': _to_dt(pr.start_date),
+                'type': 'project',
+                'color': 'purple',
+                'title': f'📌 {pr.name} · 启动',
+                'meta': '项目节点',
+                'description': (pr.description or '')[:100],
+                'link': f'/projects',
+            })
+        if _in(pr.end_date):
+            events.append({
+                'id': f'proj-e-{pr.id}',
+                'date': _to_dt(pr.end_date),
+                'type': 'project',
+                'color': 'purple',
+                'title': f'🏁 {pr.name} · 收尾',
+                'meta': '项目节点',
+                'description': (pr.description or '')[:100],
+                'link': f'/projects',
+            })
+
+    # 5) 活动
+    for a in db.query(Activity).all():
+        if _in(a.activity_date):
+            events.append({
+                'id': f'act-{a.id}',
+                'date': _to_dt(a.activity_date),
+                'type': 'activity',
+                'color': 'pink',
+                'title': f'🎨 {a.title or "活动"}',
+                'meta': (a.activity_type or '活动') + (f' · 📍{a.location}' if getattr(a, 'location', '') else ''),
+                'description': (getattr(a, 'description', '') or '')[:100],
+                'link': '/module/activities',
+            })
+
+    # 6) 班会
+    for m in db.query(ClassMeeting).all():
+        if _in(m.meeting_date):
+            events.append({
+                'id': f'mt-{m.id}',
+                'date': _to_dt(m.meeting_date),
+                'type': 'meeting',
+                'color': 'green',
+                'title': f'📢 班会 · {m.topic or "常规班会"}',
+                'meta': f'出席 {m.attendance_count or 0} 人',
+                'description': (m.resolution or '')[:100],
+                'link': '/module/meetings',
+            })
+
+    # 7) 家校沟通
+    for f in db.query(FamilyContact).all():
+        if _in(f.contact_date):
+            events.append({
+                'id': f'fc-{f.id}',
+                'date': _to_dt(f.contact_date),
+                'type': 'family',
+                'color': 'cyan',
+                'title': f'📞 家校 · {f.topic or "常规沟通"}',
+                'meta': (f.contact_method or '电话') + (f' · {f.parent_name}' if f.parent_name else ''),
+                'description': (getattr(f, 'notes', '') or '')[:100],
+                'link': '/module/family',
+            })
+
+    events.sort(key=lambda x: (x['date'], x['type']))
+    return {'events': events, 'start': start, 'end': end, 'count': len(events)}
+
+
+@router.get('/events/week')
+def list_week_events(offset: int = 0, db: Session = Depends(get_db)):
+    """v3h · 本周（Mon-Sun）事件聚合，供 Dashboard 本周待办中心用
+    offset: 0=本周，-1=上周，1=下周
+    """
+    today = date.today() + timedelta(weeks=offset)
+    ws = today - timedelta(days=today.weekday())
+    we = ws + timedelta(days=6)
+    return list_events(start=ws.strftime('%Y-%m-%d'), end=we.strftime('%Y-%m-%d'), db=db)

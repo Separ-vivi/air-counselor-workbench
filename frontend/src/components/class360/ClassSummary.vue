@@ -65,9 +65,7 @@
         <el-descriptions-item label="班级口号">
           <span :class="{ 'archive-empty': !archive.slogan }">{{ archive.slogan || '未填写' }}</span>
         </el-descriptions-item>
-        <el-descriptions-item label="办公地点">
-          <span :class="{ 'archive-empty': !archive.office_location }">{{ archive.office_location || '未填写' }}</span>
-        </el-descriptions-item>
+
         <el-descriptions-item label="班级特色" :span="2">
           <div v-if="archive.features" style="white-space: pre-line">{{ archive.features }}</div>
           <span v-else class="archive-empty">未填写（可点击右上「编辑档案」补充班级亮点、荣誉、传统等）</span>
@@ -90,9 +88,7 @@
         <el-form-item label="班级口号">
           <el-input v-model="editForm.slogan" placeholder="一句话代表班级精神" />
         </el-form-item>
-        <el-form-item label="办公地点">
-          <el-input v-model="editForm.office_location" placeholder="如：机械楼 302" />
-        </el-form-item>
+
         <el-form-item label="班级特色">
           <el-input v-model="editForm.features" type="textarea" :rows="4" placeholder="班级亮点、荣誉、传统等，多条可换行" />
         </el-form-item>

@@ -208,6 +208,8 @@ class PsychologyRecord(Base):
     next_follow_date = Column(String(20), default='')
     attention_level = Column(String(20), default='')   # 关注等级：一级关注/二级关注/三级关注/普通
     counseling_count = Column(Integer, default=0)       # 累计咨询次数
+    reminded = Column(Boolean, default=False)           # v3j-D 补丁2: 已提醒（air 反馈）
+    reminded_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     student = relationship('Student', back_populates='psychology_records')
 
@@ -631,6 +633,7 @@ class Note(Base):
     status = Column(String(20), default='active', index=True)  # active/done/archived
     priority = Column(Integer, default=0)  # 0-低 1-中 2-高
     due_date = Column(String(20), default='')  # YYYY-MM-DD (todo 用)
+    remind_at = Column(String(30), default='')  # v3h: 提醒时间 YYYY-MM-DD 或 YYYY-MM-DD HH:MM
     tags = Column(String(200), default='')  # 逗号分隔
     pinned = Column(Boolean, default=False)
     color = Column(String(20), default='yellow')  # 便签色 yellow/pink/blue/green/purple/orange

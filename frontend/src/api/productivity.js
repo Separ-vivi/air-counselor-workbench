@@ -45,3 +45,9 @@ export const summariesApi = {
 
 // ---------- 效率中心汇总 ----------
 export const productivityDashboard = () => http.get('/productivity/dashboard')
+
+// ---------- v3h · 统一事件聚合（日历/驾驶舱本周待办用） ----------
+export const eventsApi = {
+  list:  (start, end) => http.get('/events', { params: { start, end } }),
+  week:  (offset = 0) => http.get('/events/week', { params: { offset } }),
+}

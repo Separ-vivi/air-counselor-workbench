@@ -5,6 +5,12 @@
       <div>
         <el-button :icon="Bell" @click="loadReminders">提醒 ({{ reminders.length }})</el-button>
         <el-button
+          type="warning"
+          :disabled="!checkedRows.length"
+          :loading="batchReminding"
+          @click="onBatchMarkReminded(true)"
+        >批量标记已提醒（{{ checkedRows.length }}）</el-button>
+        <el-button
           type="success"
           :icon="Download"
           :disabled="!checkedRows.length"
@@ -28,6 +34,12 @@
             <el-option v-for="l in levels" :key="l" :label="l" :value="l" />
           </el-select>
         </el-form-item>
+        <el-form-item label="提醒状态">
+          <el-select v-model="filter.reminded_state" placeholder="全部" clearable style="width: 140px">
+            <el-option label="仅未提醒" value="unreminded" />
+            <el-option label="仅已提醒" value="reminded" />
+          </el-select>
+        </el-form-item>
       </el-form>
     </el-card>
 
@@ -37,7 +49,7 @@
 
     <el-card shadow="never">
       <el-table
-        :data="list"
+        :data="filteredList"
         v-loading="loading"
         stripe
         border
@@ -63,6 +75,18 @@
         <el-table-column label="咨询次数" prop="counseling_count" width="100" align="center" sortable="custom" />
         <el-table-column label="下次跟进" prop="next_follow_up" width="130" sortable="custom" />
         <el-table-column label="备注" prop="notes" show-overflow-tooltip />
+        <el-table-column label="已提醒" prop="reminded" width="90" align="center">
+          <template #default="{ row }">
+            <el-switch
+              v-model="row.reminded"
+              :loading="row._remindLoading"
+              @change="toggleReminded(row)"
+              inline-prompt
+              active-text="已"
+              inactive-text="未"
+            />
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openCreate(row)">编辑</el-button>
@@ -108,7 +132,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Bell, Download } from '@element-plus/icons-vue'
 import { psychology as psyApi } from '@/api/modules'
@@ -122,7 +146,7 @@ const levels = ['一级关注', '二级关注', '三级关注', '普通']
 const list = ref([])
 const reminders = ref([])
 const loading = ref(false)
-const filter = reactive({ student_id: null, attention_level: '', kw: '' })
+const filter = reactive({ student_id: null, attention_level: '', kw: '', reminded_state: '' })
 
 // v3j-B-b03 · 排序 + 搜索 + 多选
 const sortBy = ref('assessment_date')
@@ -156,6 +180,45 @@ const lvTagStyle = (l) => {
   if (l.includes('三')) return { background: '#B5EAD7', color: '#1F5A46', border: 'none', fontWeight: 600 }
   if (l.includes('普通')) return { background: '#C7CEEA', color: '#3B4B7A', border: 'none', fontWeight: 600 }  // 普通 → 紫
   return { background: '#F0F2F5', color: '#909399', border: 'none' }
+}
+
+// v3h: 前端二次过滤（提醒状态）
+const filteredList = computed(() => {
+  let rs = list.value
+  if (filter.reminded_state === 'reminded') rs = rs.filter((r) => !!r.reminded)
+  else if (filter.reminded_state === 'unreminded') rs = rs.filter((r) => !r.reminded)
+  return rs
+})
+
+// v3h: 单条切换已提醒
+const toggleReminded = async (row) => {
+  row._remindLoading = true
+  try {
+    const res = await psyApi.toggleReminded(row.id)
+    row.reminded = !!res?.reminded
+    row.reminded_at = res?.reminded_at || null
+    ElMessage.success(row.reminded ? '已标记为已提醒' : '已恢复为未提醒')
+  } catch (e) {
+    row.reminded = !row.reminded
+    ElMessage.error('切换提醒状态失败')
+  } finally {
+    row._remindLoading = false
+  }
+}
+
+// v3h: 批量标记已提醒
+const batchReminding = ref(false)
+const onBatchMarkReminded = async (reminded) => {
+  if (!checkedRows.value.length) { ElMessage.warning('请先勾选要提醒的记录'); return }
+  batchReminding.value = true
+  try {
+    const ids = checkedRows.value.map(r => r.id)
+    const res = await psyApi.batchMarkReminded(ids, reminded)
+    ElMessage.success(`已批量标记 ${res?.updated ?? ids.length} 条为${reminded ? '已提醒' : '未提醒'}`)
+    reload()
+  } catch (e) {
+    ElMessage.error('批量标记失败')
+  } finally { batchReminding.value = false }
 }
 
 const reload = async () => {

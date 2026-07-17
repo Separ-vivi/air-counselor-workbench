@@ -16,6 +16,7 @@ export const grades = {
   recalculateWarnings: () => http.post('/grades/recalculate'),
   /** v3j-D · D1: 切换预警已提醒状态 */
   toggleWarningReminded: (id) => http.patch(`/grades/warnings/${id}/toggle-reminded`),
+  batchMarkWarningReminded: (ids, reminded = true) => http.post('/grades/warnings/batch-mark-reminded', { ids, reminded }),
   exportAll: () => http.get('/grades/export', { responseType: 'blob' }),
   /** v3j-B-b02 · 按 ID 列表批量导出成绩记录 */
   exportByIds: (ids) => http.post('/grades/export', { ids }, { responseType: 'blob' }),
@@ -56,7 +57,9 @@ export const psychology = {
   /** v3j-B-b03 · 按 ID 列表批量导出 */
   exportByIds: (ids) => http.post('/psychology/export', { ids }, { responseType: 'blob' }),
   /** v3j-B-b03 · 按当前搜索导出全部 */
-  exportAll: (params = {}) => http.get('/psychology/export/all', { params, responseType: 'blob' })
+  exportAll: (params = {}) => http.get('/psychology/export/all', { params, responseType: 'blob' }),
+  toggleReminded: (id) => http.patch(`/psychology/${id}/toggle-reminded`),
+  batchMarkReminded: (ids, reminded = true) => http.post('/psychology/batch-mark-reminded', { ids, reminded })
 }
 
 /** 家庭联络 */

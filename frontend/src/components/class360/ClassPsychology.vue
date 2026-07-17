@@ -47,35 +47,53 @@
           <el-table-column label="咨询次数" prop="counseling_count" width="100" align="center" sortable />
           <el-table-column label="备注" prop="notes" show-overflow-tooltip sortable />
         </el-table>
-        <!-- v3j-D · D1: 时间轴视图 -->
+        <!-- v3h: 时间轴按学生分组（每个学生一张卡，卡内 mini timeline） -->
         <div v-else class="psy-timeline-wrap">
-          <el-empty v-if="!timelineRecords.length" description="暂无心理记录" />
-          <el-timeline v-else>
-            <el-timeline-item
-              v-for="item in timelineRecords"
-              :key="item.id"
-              :timestamp="item.assessment_date || '未填写日期'"
-              :color="timelineDotColor(item.attention_level)"
-              placement="top"
+          <el-empty v-if="!timelineGroups.length" description="暂无心理记录" />
+          <div v-else class="psy-student-groups">
+            <el-card
+              v-for="grp in timelineGroups"
+              :key="grp.student_id"
+              shadow="hover"
+              class="psy-student-group-card"
             >
-              <div class="psy-timeline-card">
-                <div class="psy-timeline-head">
-                  <span class="psy-stu">{{ item.student_name }}</span>
-                  <span class="psy-no">{{ item.student_no }}</span>
-                  <el-tag :style="levelTagStyle(item.attention_level)" size="small">
-                    {{ item.attention_level || '-' }}
+              <template #header>
+                <div class="psy-group-head">
+                  <span class="psy-stu">{{ grp.student_name }}</span>
+                  <span class="psy-no">{{ grp.student_no }}</span>
+                  <el-tag :style="levelTagStyle(grp.latest_level)" size="small">
+                    {{ grp.latest_level || '-' }}
                   </el-tag>
-                  <span v-if="item.counseling_count" class="psy-meta">咨询 {{ item.counseling_count }} 次</span>
-                  <span v-if="item.location" class="psy-meta">📍 {{ item.location }}</span>
+                  <span class="psy-meta">共 {{ grp.items.length }} 次记录</span>
                 </div>
-                <div v-if="item.topic" class="psy-topic"><strong>主题：</strong>{{ item.topic }}</div>
-                <div v-if="item.summary" class="psy-summary">{{ item.summary }}</div>
-                <div v-if="item.next_follow_date" class="psy-meta psy-follow">
-                  🕒 下次跟进：{{ item.next_follow_date }}
-                </div>
-              </div>
-            </el-timeline-item>
-          </el-timeline>
+              </template>
+              <el-timeline>
+                <el-timeline-item
+                  v-for="item in grp.items"
+                  :key="item.id"
+                  :timestamp="item.assessment_date || '未填写日期'"
+                  :color="timelineDotColor(item.attention_level)"
+                  placement="top"
+                >
+                  <div class="psy-timeline-card">
+                    <div class="psy-timeline-head">
+                      <el-tag :style="levelTagStyle(item.attention_level)" size="small">
+                        {{ item.attention_level || '-' }}
+                      </el-tag>
+                      <span v-if="item.counseling_count" class="psy-meta">咨询 {{ item.counseling_count }} 次</span>
+                      <span v-if="item.location" class="psy-meta">📍 {{ item.location }}</span>
+                    </div>
+                    <div v-if="item.topic" class="psy-topic"><strong>主题：</strong>{{ item.topic }}</div>
+                    <div v-if="item.summary" class="psy-summary">{{ item.summary }}</div>
+                    <div v-if="item.notes" class="psy-summary">{{ item.notes }}</div>
+                    <div v-if="item.next_follow_date || item.next_follow_up" class="psy-meta psy-follow">
+                      🕒 下次跟进：{{ item.next_follow_date || item.next_follow_up }}
+                    </div>
+                  </div>
+                </el-timeline-item>
+              </el-timeline>
+            </el-card>
+          </div>
         </div>
       </el-card>
     </template>
@@ -120,6 +138,44 @@ const timelineRecords = computed(() => {
     const db = b.assessment_date || ''
     return db.localeCompare(da)
   })
+})
+
+// v3h: 按学生分组的时间轴
+const timelineGroups = computed(() => {
+  const map = new Map()
+  for (const r of records.value) {
+    const key = r.student_id || r.student_no || r.student_name || 'unknown'
+    if (!map.has(key)) {
+      map.set(key, {
+        student_id: r.student_id,
+        student_no: r.student_no || '',
+        student_name: r.student_name || '未知学生',
+        items: [],
+      })
+    }
+    map.get(key).items.push(r)
+  }
+  const arr = Array.from(map.values())
+  // 组内按测评日期倒序
+  arr.forEach((g) => {
+    g.items.sort((a, b) => (b.assessment_date || '').localeCompare(a.assessment_date || ''))
+    g.latest_level = g.items[0]?.attention_level || ''
+  })
+  // 组间：一级 > 二级 > 三级 > 普通 > 空
+  const levelRank = (l) => {
+    const s = String(l || '')
+    if (s.includes('一')) return 1
+    if (s.includes('二')) return 2
+    if (s.includes('三')) return 3
+    if (s.includes('普通')) return 4
+    return 5
+  }
+  arr.sort((a, b) => {
+    const r = levelRank(a.latest_level) - levelRank(b.latest_level)
+    if (r !== 0) return r
+    return (b.items[0]?.assessment_date || '').localeCompare(a.items[0]?.assessment_date || '')
+  })
+  return arr
 })
 const timelineDotColor = (l) => {
   const s = String(l || '')
@@ -274,6 +330,28 @@ onMounted(fetchData)
 .psy-follow {
   margin-top: 6px;
   color: #E6A23C;
+}
+/* v3h: 按学生分组卡片 */
+.psy-student-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.psy-student-group-card {
+  border-radius: 10px !important;
+}
+.psy-student-group-card :deep(.el-card__header) {
+  padding: 12px 16px;
+  background: rgba(238, 243, 248, 0.6);
+}
+.psy-student-group-card :deep(.el-card__body) {
+  padding: 12px 16px;
+}
+.psy-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 

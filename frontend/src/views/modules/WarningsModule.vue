@@ -6,6 +6,12 @@
         <el-button :icon="Refresh" @click="reload">刷新</el-button>
         <el-button type="primary" :icon="Refresh" :loading="recalcing" @click="doRecalc">重新计算</el-button>
         <el-button
+          type="warning"
+          :disabled="!checkedRows.length"
+          :loading="batchReminding"
+          @click="onBatchMarkReminded(true)"
+        >批量标记已提醒（{{ checkedRows.length }}）</el-button>
+        <el-button
           type="success"
           :icon="Download"
           :disabled="!checkedRows.length"
@@ -218,16 +224,16 @@ const levelBg = (l) => {
   if (!l) return '#F5F7FA'
   const s = String(l)
   if (s.includes('一级') || s.includes('红')) return '#FDECEC'  // 浅红
-  if (s.includes('二级') || s.includes('橙')) return '#FEF4E7'  // 浅橙
-  if (s.includes('三级') || s.includes('黄') || s.includes('蓝')) return '#FEF9E7'  // 浅黄
+  if (s.includes('二级') || s.includes('黄') || s.includes('橙')) return '#FEF9E7'  // 浅黄
+  if (s.includes('三级') || s.includes('蓝')) return '#ECF5FF'  // 浅蓝
   return '#F5F7FA'
 }
 const levelFg = (l) => {
   if (!l) return '#909399'
   const s = String(l)
-  if (s.includes('一级') || s.includes('红')) return '#F56C6C'
-  if (s.includes('二级') || s.includes('橙')) return '#E6A23C'
-  if (s.includes('三级') || s.includes('黄') || s.includes('蓝')) return '#B88F00'
+  if (s.includes('一级') || s.includes('红')) return '#F56C6C'   // 红
+  if (s.includes('二级') || s.includes('黄') || s.includes('橙')) return '#E6A23C'  // 黄（对齐顶部统计）
+  if (s.includes('三级') || s.includes('蓝')) return '#409EFF'  // 蓝（对齐顶部统计）
   return '#909399'
 }
 // 兼容旧引用

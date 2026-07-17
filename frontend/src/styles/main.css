@@ -9,10 +9,10 @@
   --color-sidebar: #4A7A8C;
   --color-sidebar-hover: #5D8FA0;
   --color-sidebar-active: #3B6A7C;
-  --color-topbar: #F5F7F9;
-  --color-page-bg: #EDF1F4;          /* 雾灰白 */
+  --color-topbar: #F5F9FC;  /* 极浅蓝白 v3h */
+  --color-page-bg: #EEF3F8;          /* 浅蓝底 v3h 统一色系 */
   --color-card-bg: #FFFFFF;
-  --color-card-border: #DDE4EA;
+  --color-card-border: #D8E1EC;
   --color-text-primary: #3A3A3A;
   --color-text-secondary: #7B7B7B;
   --color-text-inverse: #FFFFFF;

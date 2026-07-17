@@ -172,8 +172,9 @@ const types = ['学术科技', '文体艺术', '志愿公益', '思政教育', '
 
 // v3j-D · D2: 活动类型筛选（含 seed 里的所有类型）
 const filterType = ref('')
+// v3j-D 补丁2: 筛选选项完全从真实数据抽取（不掺硬编码常量，避免筛不到）
 const allTypes = computed(() => {
-  const s = new Set(types)
+  const s = new Set()
   list.value.forEach((r) => { if (r.activity_type) s.add(r.activity_type) })
   return Array.from(s)
 })

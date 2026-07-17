@@ -637,3 +637,22 @@ def get_grades_by_class(
         'stats': stats,
     }
 
+
+
+
+# v3j-D 补丁2: 学业预警批量提醒
+@router.post('/warnings/batch-mark-reminded')
+def batch_mark_warning_reminded(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """批量标记预警已提醒。payload: {ids: [...], reminded: true/false}"""
+    from datetime import datetime as _dt
+    ids = payload.get('ids') or []
+    reminded = bool(payload.get('reminded', True))
+    if not ids:
+        return {'updated': 0}
+    now = _dt.now() if reminded else None
+    updated = db.query(WarningRecord).filter(WarningRecord.id.in_(ids)).update(
+        {WarningRecord.reminded: reminded, WarningRecord.reminded_at: now},
+        synchronize_session=False
+    )
+    db.commit()
+    return {'updated': updated, 'reminded': reminded}
