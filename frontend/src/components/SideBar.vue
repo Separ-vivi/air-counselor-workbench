@@ -13,8 +13,8 @@
       :default-active="$route.path"
       router
       background-color="transparent"
-      text-color="#2E4A5E"
-      active-text-color="#1A3A50"
+      text-color="#12324D"
+      active-text-color="#0B2A48"
     >
       <el-menu-item index="/dashboard"><el-icon><DataBoard /></el-icon><span>驾驶舱</span></el-menu-item>
       <el-menu-item index="/students"><el-icon><User /></el-icon><span>学生管理</span></el-menu-item>
@@ -69,17 +69,31 @@
 .sidebar-root {
   width: 220px;
   height: 100vh;
-  /* v3h: 浅蓝色系统一，侧栏比主背景（#EEF3F8）深一档，纯色不做跨色相渐变 */
-  background: linear-gradient(180deg, #D6E2EE 0%, #C8D6E4 100%);
-  backdrop-filter: blur(18px) saturate(1.15);
-  -webkit-backdrop-filter: blur(18px) saturate(1.15);
-  color: #2E4A5E;
-  border-right: 1px solid rgba(155, 180, 205, 0.4);
-  box-shadow: 2px 0 12px rgba(90, 120, 150, 0.08);
+  /* v4-hotfix1: air 要图1 那种明亮蓝→接近白渐变 + iOS 磨砂金属高光 */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.10) 22%, rgba(255,255,255,0.00) 55%, rgba(255,255,255,0.28) 100%),
+    linear-gradient(180deg, #7DB4DD 0%, #9CC7E5 32%, #BFDBEE 62%, #DFECF7 88%, #E8F1FA 100%);
+  backdrop-filter: blur(22px) saturate(200%);
+  -webkit-backdrop-filter: blur(22px) saturate(200%);
+  color: #1E3A56;
+  border-right: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: inset 1px 0 0 rgba(255,255,255,0.55), 2px 0 14px rgba(90,130,170,0.14);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  position: relative;
 }
+/* v4-hotfix1: 侧栏顶部再叠一条金属高光条，营造光泽反射 */
+.sidebar-root::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 90px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+.sidebar-root > * { position: relative; z-index: 1; }
 
 .brand {
   padding: 18px 16px 14px;
@@ -90,7 +104,7 @@
 }
 .brand-icon {
   font-size: 22px !important;
-  color: #3B6A7C;
+  color: #1F4A6B;
   flex-shrink: 0;
 }
 .brand-info {
@@ -101,7 +115,7 @@
 .brand-text {
   font-weight: 600;
   font-size: 14px;
-  color: #2E4A5E;
+  color: #12324D;
   letter-spacing: 0.3px;
   white-space: nowrap;
   overflow: hidden;
@@ -109,7 +123,7 @@
   line-height: 1.3;
 }
 .brand-ver {
-  color: rgba(59, 106, 124, 0.68);
+  color: rgba(30, 60, 90, 0.68);
   font-size: 11px;
   margin-top: 2px;
   letter-spacing: 0.5px;
@@ -123,7 +137,7 @@
 }
 :deep(.el-menu-item),
 :deep(.el-sub-menu__title) {
-  color: #3A5A6E !important;
+  color: #12324D !important;
   border-radius: 10px !important;
   margin: 3px 10px !important;
   transition: all .2s ease;
@@ -131,15 +145,17 @@
 }
 :deep(.el-menu-item:hover),
 :deep(.el-sub-menu__title:hover) {
-  background: rgba(122, 168, 184, 0.14) !important;
-  color: #2E4A5E !important;
+  background: rgba(255, 255, 255, 0.42) !important;
+  color: #0B2A48 !important;
+  backdrop-filter: blur(8px);
 }
 :deep(.el-menu-item.is-active) {
-  background: rgba(122, 168, 184, 0.22) !important;
-  color: #2E4A5E !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+  color: #0B2A48 !important;
   font-weight: 600;
-  box-shadow: 0 2px 6px rgba(93, 143, 160, 0.12);
+  box-shadow: 0 2px 6px rgba(60, 110, 150, 0.18), inset 0 1px 0 rgba(255,255,255,0.8);
   position: relative;
+  backdrop-filter: blur(8px);
 }
 :deep(.el-menu-item.is-active)::before {
   content: '';
@@ -149,7 +165,7 @@
   bottom: 22%;
   width: 3px;
   border-radius: 2px;
-  background: linear-gradient(180deg, #7AA8B8 0%, #5D8FA0 100%);
+  background: linear-gradient(180deg, #4A90C7 0%, #2A6FA8 100%);
 }
 :deep(.el-sub-menu .el-menu-item) {
   min-width: unset !important;

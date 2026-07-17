@@ -499,9 +499,14 @@ onMounted(async () => {
   border: none;
 }
 .stat-card :deep(.el-card__body) {
+  /* v4-hotfix1: air 要数字文字全居中，不要左对齐 */
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 14px;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 18px 12px !important;
 }
 .stat-icon {
   width: 52px;
@@ -514,15 +519,19 @@ onMounted(async () => {
   line-height: 1;                       /* v4: emoji 严格垂直居中 */
   font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
 }
+.stat-body { text-align: center; width: 100%; }
 .stat-body .stat-label {
-  color: #909399;
+  color: #7B8B9C;
   font-size: 13px;
+  text-align: center;
 }
 .stat-body .stat-value {
-  color: #303133;
-  font-size: 22px;
-  font-weight: 600;
+  color: #1E3A56;
+  font-size: 24px;
+  font-weight: 700;
   margin-top: 4px;
+  text-align: center;
+  letter-spacing: 0.5px;
 }
 .card-header {
   display: flex;
@@ -639,24 +648,26 @@ onMounted(async () => {
 .triple-card :deep(.el-card__body) { padding: 12px 16px; }
 
 .mini-week-grid {
+  /* v4-hotfix1: air 要 4+3 布局，不要挤成一排 */
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
   padding: 4px 0;
 }
 .mini-day {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(200, 215, 230, 0.55);
-  border-radius: 8px;
-  padding: 8px 4px 6px;
-  min-height: 78px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+  padding: 10px 6px 8px;
+  min-height: 84px;
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
   transition: transform .15s, box-shadow .15s;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(10px) saturate(160%);
+  -webkit-backdrop-filter: blur(10px) saturate(160%);
+  box-shadow: 0 2px 8px rgba(120, 155, 195, 0.08), inset 0 1px 0 rgba(255,255,255,0.7);
 }
 .mini-day:hover {
   transform: translateY(-2px);
@@ -668,8 +679,8 @@ onMounted(async () => {
   box-shadow: 0 2px 8px rgba(230,110,90,0.16);
 }
 .mini-day.is-today .mini-mmdd { color: #C15E5E; }
-.mini-week { font-size: 11px; color: #7B8B9C; font-weight: 500; }
-.mini-mmdd { font-size: 15px; color: #3B5A7A; font-weight: 700; margin: 2px 0 6px; }
+.mini-week { font-size: 12px; color: #4A6B87; font-weight: 600; letter-spacing: 0.5px; }
+.mini-mmdd { font-size: 17px; color: #1E3A56; font-weight: 700; margin: 3px 0 8px; letter-spacing: 0.3px; }
 .mini-dots {
   display: flex;
   flex-wrap: wrap;
@@ -678,8 +689,8 @@ onMounted(async () => {
   align-items: center;
 }
 .mini-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   display: inline-block;
 }
