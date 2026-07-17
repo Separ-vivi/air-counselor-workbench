@@ -99,11 +99,10 @@
         <el-table-column label="班级" prop="class_name" min-width="160" show-overflow-tooltip sortable="custom" />
         <el-table-column label="预警等级" prop="warning_level" width="120" sortable="custom">
           <template #default="{ row }">
-            <span :style="{
-              background: levelBg(row.warning_level),
-              color: levelFg(row.warning_level),
-              padding: '3px 10px', borderRadius: '10px', fontWeight: 600, fontSize: '12px'
-            }">{{ row.warning_level || '-' }}</span>
+            <span :style="{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: levelFg(row.warning_level), fontWeight: 600 }">
+              <span :style="{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: levelFg(row.warning_level), flex: '0 0 8px' }"></span>
+              {{ row.warning_level || '-' }}
+            </span>
           </template>
         </el-table-column>
         <el-table-column label="预警原因" prop="warning_reason" min-width="200" show-overflow-tooltip />

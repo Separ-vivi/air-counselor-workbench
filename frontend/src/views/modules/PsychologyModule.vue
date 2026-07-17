@@ -56,7 +56,7 @@
         <el-table-column label="班级" prop="class_name" min-width="140" show-overflow-tooltip sortable="custom" />
         <el-table-column label="关注等级" prop="attention_level" width="120" sortable="custom">
           <template #default="{ row }">
-            <el-tag :type="lvTag(row.attention_level)" size="small">{{ row.attention_level || '-' }}</el-tag>
+            <el-tag :style="lvTagStyle(row.attention_level)" size="small">{{ row.attention_level || '-' }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="测评日期" prop="assessment_date" width="130" sortable="custom" />
@@ -146,6 +146,16 @@ const lvTag = (l) => {
   if (l.includes('二')) return 'warning'
   if (l.includes('三')) return 'info'
   return ''
+}
+
+// v3j-D · 心理关注等级马卡龙化（对齐 ClassPsychology）
+const lvTagStyle = (l) => {
+  if (!l) return { background: '#F0F2F5', color: '#909399', border: 'none' }  // 无档案 → 灰
+  if (l.includes('一')) return { background: '#FF9AA2', color: '#7A2E36', border: 'none', fontWeight: 600 }
+  if (l.includes('二')) return { background: '#FFDAC1', color: '#8A4E1F', border: 'none', fontWeight: 600 }
+  if (l.includes('三')) return { background: '#B5EAD7', color: '#1F5A46', border: 'none', fontWeight: 600 }
+  if (l.includes('普通')) return { background: '#C7CEEA', color: '#3B4B7A', border: 'none', fontWeight: 600 }  // 普通 → 紫
+  return { background: '#F0F2F5', color: '#909399', border: 'none' }
 }
 
 const reload = async () => {

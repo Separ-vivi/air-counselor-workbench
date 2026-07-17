@@ -5,14 +5,12 @@
     </el-row>
 
     <template v-else>
-      <el-row :gutter="16" style="margin-bottom: 16px">
-        <el-col :span="6" v-for="stat in statCards" :key="stat.label">
-          <el-card shadow="hover" class="stat-card">
-            <div class="stat-label">{{ stat.label }}</div>
-            <div class="stat-value" :style="{ color: stat.color }">{{ stat.value }}</div>
-          </el-card>
-        </el-col>
-      </el-row>
+      <div class="psy-stat-row">
+        <el-card shadow="hover" class="stat-card psy-stat-cell" v-for="stat in statCards" :key="stat.label">
+          <div class="stat-label">{{ stat.label }}</div>
+          <div class="stat-value" :style="{ color: stat.color }">{{ stat.value }}</div>
+        </el-card>
+      </div>
 
       <el-card shadow="never" style="margin-bottom: 16px">
         <template #header>
@@ -109,7 +107,8 @@ const statCards = ref([
   { label: '心理档案总数', value: 0, color: '#409EFF' },
   { label: '一级重点关注', value: 0, color: '#F56C6C' },
   { label: '二级关注', value: 0, color: '#E6A23C' },
-  { label: '三级关注', value: 0, color: '#909399' }
+  { label: '三级关注', value: 0, color: '#67C23A' },
+  { label: '普通关注', value: 0, color: '#909399' }
 ])
 
 // v3j-C c02-hotfix2 · 心理关注 tag 底色对齐饼图马卡龙
@@ -127,15 +126,17 @@ const timelineDotColor = (l) => {
   if (s.includes('一')) return '#FF9AA2'
   if (s.includes('二')) return '#FFDAC1'
   if (s.includes('三')) return '#B5EAD7'
-  return '#C7CEEA'
+  if (s.includes('普通')) return '#C7CEEA'
+  return '#DCDFE6'  // 无档案 → 灰
 }
 
 const levelTagStyle = (l) => {
-  if (!l) return { background: '#F5F7FA', color: '#909399', border: 'none' }
+  if (!l) return { background: '#F0F2F5', color: '#909399', border: 'none' }  // 无档案 → 灰
   if (l.includes('一')) return { background: '#FF9AA2', color: '#7A2E36', border: 'none', fontWeight: 600 }
   if (l.includes('二')) return { background: '#FFDAC1', color: '#8A4E1F', border: 'none', fontWeight: 600 }
   if (l.includes('三')) return { background: '#B5EAD7', color: '#1F5A46', border: 'none', fontWeight: 600 }
-  return { background: '#F5F7FA', color: '#909399', border: 'none' }
+  if (l.includes('普通')) return { background: '#C7CEEA', color: '#3B4B7A', border: 'none', fontWeight: 600 }  // 普通 → 紫
+  return { background: '#F0F2F5', color: '#909399', border: 'none' }  // 兜底 → 灰
 }
 const levelTag = () => ''  
 
@@ -157,17 +158,19 @@ const fetchData = async () => {
 
 const computeStats = () => {
   const total = records.value.length
-  const cnt = { '一级': 0, '二级': 0, '三级': 0 }
+  const cnt = { '一级': 0, '二级': 0, '三级': 0, '普通': 0 }
   records.value.forEach((r) => {
     const lv = r.attention_level || ''
     if (lv.includes('一')) cnt['一级']++
     else if (lv.includes('二')) cnt['二级']++
     else if (lv.includes('三')) cnt['三级']++
+    else if (lv.includes('普通')) cnt['普通']++
   })
   statCards.value[0].value = total
   statCards.value[1].value = cnt['一级']
   statCards.value[2].value = cnt['二级']
   statCards.value[3].value = cnt['三级']
+  statCards.value[4].value = cnt['普通']
 }
 
 const renderChart = () => {
@@ -179,11 +182,12 @@ const renderChart = () => {
   }
   if (!chartIns) chartIns = echarts.init(chartRef.value)
   const data = [
-    // v3j-C c02: 心理关注饼图改马卡龙 3 色 + 淡蓝无档案
+    // v3j-D · 心理关注饼图：4 档马卡龙 + 灰色无档案
     { name: '一级重点关注', value: statCards.value[1].value, itemStyle: { color: '#FF9AA2' } },
     { name: '二级关注', value: statCards.value[2].value, itemStyle: { color: '#FFDAC1' } },
     { name: '三级关注', value: statCards.value[3].value, itemStyle: { color: '#B5EAD7' } },
-    { name: '无档案', value: Math.max(0, totalStudentCount.value - records.value.length), itemStyle: { color: '#C7CEEA' } }
+    { name: '普通关注', value: statCards.value[4].value, itemStyle: { color: '#C7CEEA' } },
+    { name: '无档案', value: Math.max(0, totalStudentCount.value - records.value.length), itemStyle: { color: '#DCDFE6' } }
   ]
   chartIns.setOption({
     tooltip: { trigger: 'item' },
@@ -270,5 +274,17 @@ onMounted(fetchData)
 .psy-follow {
   margin-top: 6px;
   color: #E6A23C;
+}
+
+
+.psy-stat-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.psy-stat-cell {
+  flex: 1 1 0;
+  min-width: 130px;
 }
 </style>

@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">v3j-D · 提醒+时间轴+分类+档案+导出</div>
+        <div class="brand-ver">v3j-D · 提醒+时间轴+分类+档案+导出+等级色</div>
       </div>
     </div>
 
