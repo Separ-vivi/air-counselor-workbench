@@ -419,11 +419,15 @@ onMounted(async () => {
   padding: 24px 32px;
   margin-bottom: 20px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 8px 32px rgba(180, 190, 220, 0.15);
+  /* v4-hotfix3: hero 卡实体白 92% + 淡蓝描边 */
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid rgba(190, 215, 235, 0.75);
+  box-shadow:
+    0 2px 12px rgba(90, 130, 170, 0.10),
+    0 8px 32px rgba(90, 130, 170, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 .hero-left { flex: 1; }
 .hero-greeting {
@@ -479,16 +483,23 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   border-radius: 16px !important;
-  background: rgba(255, 255, 255, 0.65) !important;
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.7) !important;
-  box-shadow: 0 4px 16px rgba(180, 190, 220, 0.12);
-  transition: transform 0.2s, box-shadow 0.2s;
+  /* v4-hotfix3: 每列卡片实体白 92% + 淡蓝描边 */
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid rgba(190, 215, 235, 0.75) !important;
+  box-shadow:
+    0 2px 10px rgba(90, 130, 170, 0.10),
+    0 6px 20px rgba(90, 130, 170, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 .dashboard :deep(.el-col > .el-card:hover) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(180, 190, 220, 0.18);
+  box-shadow:
+    0 4px 14px rgba(90, 130, 170, 0.18),
+    0 12px 28px rgba(90, 130, 170, 0.14);
+  border-color: rgba(150, 195, 225, 0.85) !important;
 }
 .dashboard :deep(.el-col > .el-card > .el-card__body) {
   flex: 1;
@@ -658,8 +669,9 @@ onMounted(async () => {
 }
 .mini-day {
   position: relative;
-  background: linear-gradient(160deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.42) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  /* v4-hotfix3: 每格实体白 + 淡蓝描边, 与卡片背景形成明确网格边界 (hover 效果保留) */
+  background: linear-gradient(160deg, #FFFFFF 0%, #F5FAFE 100%);
+  border: 1px solid rgba(190, 215, 235, 0.7);
   border-radius: 16px;
   padding: 12px 10px 10px;
   min-height: 108px;
@@ -667,12 +679,10 @@ onMounted(async () => {
   flex-direction: column;
   align-items: flex-start;
   cursor: pointer;
-  transition: transform .2s cubic-bezier(.4,0,.2,1), box-shadow .2s;
-  backdrop-filter: blur(14px) saturate(180%);
-  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  transition: transform .2s cubic-bezier(.4,0,.2,1), box-shadow .2s, border-color .2s;
   box-shadow:
-    0 2px 10px rgba(120, 155, 195, 0.10),
-    inset 0 1px 0 rgba(255,255,255,0.9);
+    0 1px 4px rgba(90, 130, 170, 0.06),
+    inset 0 1px 0 rgba(255,255,255,0.95);
 }
 .mini-day:hover {
   transform: translateY(-3px) scale(1.02);
@@ -728,6 +738,6 @@ onMounted(async () => {
   text-align: center;
   box-shadow: 0 2px 4px rgba(90,140,200,0.30);
 }
-.mini-empty { color: #B8C4D0; font-size: 11px; margin-top: auto; font-style: italic; }
+.mini-empty { color: #7A8FA5; font-size: 11px; margin-top: auto; font-style: italic; letter-spacing: 0.3px; }
 
 </style>

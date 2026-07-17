@@ -69,42 +69,29 @@
 .sidebar-root {
   width: 220px;
   height: 100vh;
-  /* v4-hotfix1: air 要图1 那种明亮蓝→接近白渐变 + iOS 磨砂金属高光 */
+  /* v4-hotfix3: 中饱和蓝渐变 - 不要浅到白与主背景糊掉，保留一层顶部微白光营造 iOS 磨砂反射 */
   background:
-    /* v4-hotfix2: 三层高光让磨砂金属更明显 */
-    linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.20) 12%, rgba(255,255,255,0.00) 38%, rgba(255,255,255,0.15) 62%, rgba(255,255,255,0.42) 100%),
-    linear-gradient(135deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.00) 45%, rgba(255,255,255,0.18) 100%),
-    /* 主色：饱和蓝金属渐变 */
-    linear-gradient(165deg, #6EAAD8 0%, #5A9CCF 22%, #82BAE0 48%, #ABD1EC 72%, #D8E9F5 100%);
-  backdrop-filter: blur(28px) saturate(220%);
-  -webkit-backdrop-filter: blur(28px) saturate(220%);
-  color: #12324D;
-  border-right: 1px solid rgba(255, 255, 255, 0.7);
+    linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.00) 45%, rgba(255,255,255,0.15) 100%),
+    linear-gradient(180deg, #5A9DD1 0%, #78B4DE 32%, #9EC8E7 62%, #B8D6EB 90%, #C4DDEE 100%);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  color: #0E2A44;
+  border-right: 1px solid rgba(255, 255, 255, 0.65);
   box-shadow:
-    inset 1px 0 0 rgba(255,255,255,0.65),
-    inset -1px 0 0 rgba(255,255,255,0.20),
-    2px 0 18px rgba(70,120,170,0.18);
+    inset 1px 0 0 rgba(255,255,255,0.58),
+    2px 0 16px rgba(60, 110, 165, 0.20);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   position: relative;
 }
-/* v4-hotfix2: 侧栏顶部+底部双高光条 + 中部微光斑，营造 iOS 金属反射 */
+/* v4-hotfix3: 只保留顶部一层柔和高光条 (110px), 去掉双光条避免过反光 */
 .sidebar-root::before {
   content: '';
   position: absolute;
   left: 0; right: 0; top: 0;
-  height: 130px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.12) 55%, rgba(255,255,255,0) 100%);
-  pointer-events: none;
-  z-index: 0;
-}
-.sidebar-root::after {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 100px;
-  background: linear-gradient(0deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0) 100%);
+  height: 110px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.10) 55%, rgba(255,255,255,0) 100%);
   pointer-events: none;
   z-index: 0;
 }
