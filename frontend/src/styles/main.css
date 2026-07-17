@@ -10,7 +10,7 @@
   --color-sidebar-hover: #5D8FA0;
   --color-sidebar-active: #3B6A7C;
   --color-topbar: #F5F9FC;  /* 极浅蓝白 v3h */
-  --color-page-bg: #EEF3F8;          /* 浅蓝底 v3h 统一色系 */
+  --color-page-bg: #F8FBFD;          /* 浅蓝底 v3h 统一色系 */
   --color-card-bg: #FFFFFF;
   --color-card-border: #D8E1EC;
   --color-text-primary: #3A3A3A;
@@ -471,14 +471,15 @@ a:hover {
    V3-G 全站时尚化增强（air 反馈：风格要跟驾驶舱一致，时尚一点；禁止深底深字）
    ======================================================================== */
 
-/* ---- v4 · 主背景接近白 + 气泡磨砂显性（air 硬指令：浅到接近白 + 气泡回来） ---- */
+/* ---- v4-hotfix2 · 底色真正浅白 + 气泡改成半透明可见的柔和圆斑 ---- */
 .app-content {
   background:
-    radial-gradient(circle at 10% 8%,  rgba(155, 200, 235, 0.55), transparent 44%),
-    radial-gradient(circle at 88% 12%, rgba(175, 220, 240, 0.55), transparent 48%),
-    radial-gradient(circle at 65% 95%, rgba(165, 210, 240, 0.50), transparent 52%),
-    radial-gradient(circle at 30% 60%, rgba(200, 225, 245, 0.42), transparent 46%),
-    linear-gradient(180deg, #F8FBFE 0%, #F0F7FC 100%) !important;
+    radial-gradient(circle at  8% 10%, rgba(135, 190, 235, 0.22), transparent 36%),
+    radial-gradient(circle at 92% 15%, rgba(180, 220, 245, 0.20), transparent 38%),
+    radial-gradient(circle at 68% 92%, rgba(155, 205, 240, 0.18), transparent 40%),
+    radial-gradient(circle at 22% 68%, rgba(210, 230, 250, 0.15), transparent 34%),
+    radial-gradient(circle at 50% 45%, rgba(200, 225, 250, 0.10), transparent 30%),
+    linear-gradient(180deg, #FDFEFF 0%, #F7FAFD 100%) !important;
 }
 
 /* ---- 所有卡片：统一微毛玻璃 + 圆角 + hover 上浮 ---- */

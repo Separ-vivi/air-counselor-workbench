@@ -90,15 +90,17 @@
             >
               <div class="mini-week">{{ grp.weekdayCn }}</div>
               <div class="mini-mmdd">{{ grp.mmdd }}</div>
-              <div class="mini-dots">
+              <div v-if="grp.items.length" class="mini-dots">
                 <span
-                  v-for="(ev, di) in grp.items.slice(0, 4)"
+                  v-for="(ev, di) in grp.items.slice(0, 5)"
                   :key="di"
                   class="mini-dot"
                   :style="{ background: evBarColor(ev.color) }"
                 ></span>
-                <span v-if="grp.items.length > 4" class="mini-more">+{{ grp.items.length - 4 }}</span>
+                <span v-if="grp.items.length > 5" class="mini-more">+{{ grp.items.length - 5 }}</span>
               </div>
+              <div v-else class="mini-empty">无事项</div>
+              <span v-if="grp.items.length" class="mini-badge">{{ grp.items.length }}</span>
             </div>
           </div>
         </el-card>
@@ -648,55 +650,84 @@ onMounted(async () => {
 .triple-card :deep(.el-card__body) { padding: 12px 16px; }
 
 .mini-week-grid {
-  /* v4-hotfix1: air 要 4+3 布局，不要挤成一排 */
+  /* v4-hotfix2: iOS 大数字风，4+3 布局，每格更大更精致 */
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  padding: 4px 0;
+  gap: 10px;
+  padding: 6px 2px;
 }
 .mini-day {
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 12px;
-  padding: 10px 6px 8px;
-  min-height: 84px;
+  position: relative;
+  background: linear-gradient(160deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.42) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  padding: 12px 10px 10px;
+  min-height: 108px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   cursor: pointer;
-  transition: transform .15s, box-shadow .15s;
-  backdrop-filter: blur(10px) saturate(160%);
-  -webkit-backdrop-filter: blur(10px) saturate(160%);
-  box-shadow: 0 2px 8px rgba(120, 155, 195, 0.08), inset 0 1px 0 rgba(255,255,255,0.7);
+  transition: transform .2s cubic-bezier(.4,0,.2,1), box-shadow .2s;
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  box-shadow:
+    0 2px 10px rgba(120, 155, 195, 0.10),
+    inset 0 1px 0 rgba(255,255,255,0.9);
 }
 .mini-day:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(90,130,170,0.14);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 22px rgba(90,130,170,0.22), inset 0 1px 0 rgba(255,255,255,1);
+  border-color: rgba(180, 215, 240, 1);
 }
 .mini-day.is-today {
-  background: linear-gradient(180deg, #FFE9E4 0%, #FFD8CF 100%);
-  border-color: #F5A99A;
-  box-shadow: 0 2px 8px rgba(230,110,90,0.16);
+  background: linear-gradient(160deg, #A8D0F5 0%, #7EB6E5 50%, #6BA8DC 100%);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 16px rgba(90,150,215,0.35), inset 0 1px 0 rgba(255,255,255,0.8);
 }
-.mini-day.is-today .mini-mmdd { color: #C15E5E; }
-.mini-week { font-size: 12px; color: #4A6B87; font-weight: 600; letter-spacing: 0.5px; }
-.mini-mmdd { font-size: 17px; color: #1E3A56; font-weight: 700; margin: 3px 0 8px; letter-spacing: 0.3px; }
+.mini-day.is-today .mini-mmdd,
+.mini-day.is-today .mini-week { color: #FFFFFF; text-shadow: 0 1px 2px rgba(50,90,140,0.35); }
+.mini-day.is-today .mini-badge { background: rgba(255,255,255,0.95); color: #4A85C0; }
+.mini-week { font-size: 11px; color: #6B85A0; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; }
+.mini-mmdd { font-size: 22px; color: #1E3A56; font-weight: 800; margin: 4px 0 auto; letter-spacing: -0.5px; line-height: 1; font-family: -apple-system, "SF Pro Display", "PingFang SC", sans-serif; }
 .mini-dots {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
-  justify-content: center;
+  gap: 4px;
+  justify-content: flex-start;
   align-items: center;
+  margin-top: 6px;
+  width: 100%;
 }
 .mini-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   display: inline-block;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.10);
 }
 .mini-more {
   font-size: 10px;
-  color: #909399;
+  color: #7B8B9C;
   margin-left: 2px;
+  font-weight: 600;
 }
+
+.mini-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #7EB6E5 0%, #5A9CCF 100%);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(90,140,200,0.30);
+}
+.mini-empty { color: #B8C4D0; font-size: 11px; margin-top: auto; font-style: italic; }
+
 </style>
