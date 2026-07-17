@@ -4,12 +4,22 @@
       <h2>👥 学生干部</h2>
       <div>
         <el-button :icon="Document" @click="loadDirectory">干部名录</el-button>
+        <el-button
+          type="success"
+          :icon="Download"
+          :disabled="!checkedRows.length"
+          @click="exportSelected"
+        >导出选中（{{ checkedRows.length }}）</el-button>
+        <el-button :icon="Download" @click="exportAll">导出全部</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreate(null)">新增干部</el-button>
       </div>
     </div>
 
     <el-card shadow="never" style="margin-bottom: 16px">
       <el-form :inline="true">
+        <el-form-item label="搜索">
+          <el-input v-model="filter.kw" placeholder="学号/姓名/职务/组织" clearable style="width: 240px" />
+        </el-form-item>
         <el-form-item label="学生">
           <StudentSelect v-model="filter.student_id" style="width: 260px" @change="reload" />
         </el-form-item>
@@ -25,23 +35,33 @@
     </el-card>
 
     <el-card shadow="never">
-      <el-table :data="list" v-loading="loading" stripe border max-height="600">
-        <el-table-column label="学生" prop="student_name" width="110">
+      <el-table
+        :data="list"
+        v-loading="loading"
+        stripe
+        border
+        max-height="600"
+        row-key="id"
+        @selection-change="onSelectionChange"
+        @sort-change="onSort"
+      >
+        <el-table-column type="selection" width="45" reserve-selection />
+        <el-table-column label="学生" prop="student_name" width="110" sortable="custom">
           <template #default="{ row }">
             <el-link type="primary" @click="$router.push(`/students/${row.student_id}`)">{{ row.student_name }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column label="学号" prop="student_no" width="140" />
+        <el-table-column label="学号" prop="student_no" width="140" sortable="custom" />
         <el-table-column label="班级" prop="class_name" min-width="140" show-overflow-tooltip />
-        <el-table-column label="职务" prop="position" width="180" show-overflow-tooltip />
-        <el-table-column label="级别" prop="level" width="100">
+        <el-table-column label="职务" prop="position" width="180" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="级别" prop="level" width="100" sortable="custom">
           <template #default="{ row }">
             <el-tag :type="levelTag(row.level)" size="small">{{ row.level || '-' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="组织" prop="organization" min-width="160" show-overflow-tooltip />
-        <el-table-column label="任职起始" prop="start_date" width="130" />
-        <el-table-column label="任职结束" prop="end_date" width="130" />
+        <el-table-column label="组织" prop="organization" min-width="160" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="任职起始" prop="start_date" width="130" sortable="custom" />
+        <el-table-column label="任职结束" prop="end_date" width="130" sortable="custom" />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openCreate(row)">编辑</el-button>
@@ -102,17 +122,34 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Document } from '@element-plus/icons-vue'
+import { Plus, Document, Download } from '@element-plus/icons-vue'
 import { cadres as cadresApi } from '@/api/modules'
 import { useStudentStore } from '@/stores/student'
 import StudentSelect from '@/components/StudentSelect.vue'
+import { triggerDownload, stampedName } from '@/utils/download'
 
 const studentStore = useStudentStore()
 const levels = ['校级', '院级', '班级', '团支部']
 const list = ref([])
 const directory = ref([])
 const loading = ref(false)
-const filter = reactive({ student_id: null, position: '', level: '' })
+const filter = reactive({ student_id: null, position: '', level: '', kw: '' })
+
+// v3j-B-b03 · 排序 + 搜索 + 多选
+const sortBy = ref('position')
+const sortOrder = ref('asc')
+const checkedRows = ref([])
+const onSelectionChange = (rows) => { checkedRows.value = rows }
+const onSort = ({ prop, order }) => {
+  sortBy.value = prop || 'position'
+  sortOrder.value = order === 'ascending' ? 'asc' : (order === 'descending' ? 'desc' : 'asc')
+  reload()
+}
+let _searchTimer = null
+watch(() => filter.kw, () => {
+  clearTimeout(_searchTimer)
+  _searchTimer = setTimeout(() => reload(), 300)
+})
 
 const levelTag = (l) => {
   if (l === '校级') return 'danger'
@@ -121,17 +158,43 @@ const levelTag = (l) => {
   return 'info'
 }
 
+const buildParams = () => {
+  const params = {}
+  if (filter.student_id) params.student_id = filter.student_id
+  if (filter.position) params.position = filter.position
+  if (filter.level) params.level = filter.level
+  if (filter.kw) params.search = filter.kw
+  return params
+}
+
 const reload = async () => {
   loading.value = true
   try {
-    const params = {}
-    if (filter.student_id) params.student_id = filter.student_id
-    if (filter.position) params.position = filter.position
-    if (filter.level) params.level = filter.level
+    const params = buildParams()
+    if (sortBy.value) params.sort_by = sortBy.value
+    if (sortOrder.value) params.order = sortOrder.value
     const res = await cadresApi.list(params)
     list.value = Array.isArray(res) ? res : (res?.items || [])
   } finally { loading.value = false }
 }
+
+const exportSelected = async () => {
+  if (!checkedRows.value.length) { ElMessage.warning('请先勾选要导出的干部记录'); return }
+  try {
+    const ids = checkedRows.value.map(r => r.id)
+    const blob = await cadresApi.exportByIds(ids)
+    triggerDownload(blob, stampedName(`学生干部_选中${ids.length}条`))
+    ElMessage.success(`已导出 ${ids.length} 条`)
+  } catch (e) { ElMessage.error('导出失败') }
+}
+const exportAll = async () => {
+  try {
+    const blob = await cadresApi.exportAll(buildParams())
+    triggerDownload(blob, stampedName(`学生干部_全部`))
+    ElMessage.success('已导出全部')
+  } catch (e) { ElMessage.error('导出失败') }
+}
+
 const dirDlg = ref(false)
 const loadDirectory = async () => {
   try {
