@@ -65,26 +65,29 @@
 </script>
 
 <style scoped>
-/* V4-hotfix6: 侧边栏改深空蓝 (Linear/Notion 风) - 跟主内容清新蓝白形成经典明暗对比, 不再泛白土气 */
+/* V4-hotfix7: 中饱和蓝回归 (air: 深空蓝太深, 上一版方向对) - 但真正干掉"白边土"四个真凶: 顶白光叠加/inset白线/border白/底部泛白 */
 .sidebar-root {
   width: 220px;
   height: 100vh;
-  background: linear-gradient(180deg, #1E2B40 0%, #263650 55%, #2C3E58 100%);
-  color: #D9E2EE;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 2px 0 16px rgba(20, 35, 60, 0.28);
+  /* 单层中饱和蓝渐变, 收敛底部不再泛白到 #C4DDEE */
+  background: linear-gradient(180deg, #5A9DD1 0%, #78B4DE 40%, #A0C9E7 100%);
+  color: #0E2A44;
+  /* 边框改冷调蓝细边, 不再是白 */
+  border-right: 1px solid rgba(150, 190, 225, 0.5);
+  /* 去 inset 白线, 只留右侧投影 */
+  box-shadow: 2px 0 14px rgba(60, 110, 165, 0.22);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   position: relative;
 }
-/* 顶部一层极淡冷光, 只做质感不做白光 */
+/* 顶部质感光条: 80px + 起点透明度降到 0.28 (原 0.55), 只保留一丝 iOS 磨砂反射不刺眼 */
 .sidebar-root::before {
   content: '';
   position: absolute;
   left: 0; right: 0; top: 0;
-  height: 90px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 60%, rgba(255,255,255,0) 100%);
+  height: 80px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.06) 60%, rgba(255,255,255,0) 100%);
   pointer-events: none;
   z-index: 0;
 }
@@ -92,16 +95,16 @@
 
 .brand {
   padding: 18px 16px 14px;
-  /* 分界线清晰: 白半透 iOS 磨砂风 */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  /* v4-hotfix6 沿用: 分界线白半透 iOS 磨砂风 + 底部阴影双层 */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 1px 0 rgba(30, 70, 110, 0.12);
   display: flex;
   align-items: center;
   gap: 10px;
 }
 .brand-icon {
   font-size: 22px !important;
-  color: #7FB4E5;
+  color: #1F4A6B;
   flex-shrink: 0;
 }
 .brand-info {
@@ -112,7 +115,7 @@
 .brand-text {
   font-weight: 600;
   font-size: 14px;
-  color: #EEF3FA;
+  color: #12324D;
   letter-spacing: 0.3px;
   white-space: nowrap;
   overflow: hidden;
@@ -120,7 +123,7 @@
   line-height: 1.3;
 }
 .brand-ver {
-  color: rgba(200, 215, 235, 0.6);
+  color: rgba(30, 60, 90, 0.68);
   font-size: 11px;
   margin-top: 2px;
   letter-spacing: 0.5px;
@@ -134,7 +137,7 @@
 }
 :deep(.el-menu-item),
 :deep(.el-sub-menu__title) {
-  color: #B8C6D8 !important;
+  color: #12324D !important;
   border-radius: 10px !important;
   margin: 3px 10px !important;
   transition: all .2s ease;
@@ -142,15 +145,17 @@
 }
 :deep(.el-menu-item:hover),
 :deep(.el-sub-menu__title:hover) {
-  background: rgba(255, 255, 255, 0.06) !important;
-  color: #FFFFFF !important;
+  background: rgba(255, 255, 255, 0.42) !important;
+  color: #0B2A48 !important;
+  backdrop-filter: blur(8px);
 }
 :deep(.el-menu-item.is-active) {
-  background: linear-gradient(135deg, rgba(74,138,199,0.28), rgba(74,138,199,0.16)) !important;
-  color: #FFFFFF !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+  color: #0B2A48 !important;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(20, 40, 70, 0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+  box-shadow: 0 2px 6px rgba(60, 110, 150, 0.18), inset 0 1px 0 rgba(255,255,255,0.8);
   position: relative;
+  backdrop-filter: blur(8px);
 }
 :deep(.el-menu-item.is-active)::before {
   content: '';
@@ -160,7 +165,7 @@
   bottom: 22%;
   width: 3px;
   border-radius: 2px;
-  background: linear-gradient(180deg, #7FB4E5 0%, #4A90C7 100%);
+  background: linear-gradient(180deg, #4A90C7 0%, #2A6FA8 100%);
 }
 :deep(.el-sub-menu .el-menu-item) {
   min-width: unset !important;
@@ -180,14 +185,14 @@
   opacity: 0.85;
 }
 :deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
-  color: #A8C0DC !important;
+  color: #3B6A7C !important;
 }
 .footer-hint {
   padding: 12px 20px;
   font-size: 12px;
-  color: rgba(200, 215, 235, 0.55);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.15);
+  color: rgba(58, 90, 110, 0.7);
+  border-top: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 -1px 0 rgba(30, 70, 110, 0.12);
 }
-.footer-hint .text-muted { color: rgba(200, 215, 235, 0.35); }
+.footer-hint .text-muted { color: rgba(58, 90, 110, 0.5); }
 </style>
