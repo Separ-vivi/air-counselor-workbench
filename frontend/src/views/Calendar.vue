@@ -1,7 +1,7 @@
 <template>
   <div class="calendar-page">
     <div class="page-header">
-      <h2>📅 统一日程本</h2>
+      <h2>统一日程本</h2>
       <div class="header-actions">
         <el-radio-group v-model="viewMode" size="default" @change="onViewChange">
           <el-radio-button label="month">月视图</el-radio-button>

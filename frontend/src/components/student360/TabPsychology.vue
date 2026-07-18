@@ -1,6 +1,6 @@
 <template>
   <CrudPanel
-    title="💚 心理谈心记录"
+    title="心理谈心记录"
     :columns="columns"
     :fields="fields"
     :rows="rows"

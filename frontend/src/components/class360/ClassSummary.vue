@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h3 style="margin-top:0">📊 班级概览</h3>
+    <h3 style="margin-top:0">班级概览</h3>
     <el-row :gutter="12">
       <el-col :span="6">
         <div class="stat-card" :style="cardStyle('blue')">
@@ -58,7 +58,7 @@
     <el-divider />
     <div class="macaron-card class-archive">
       <div class="archive-head">
-        <h3 style="margin:0">📇 班级档案</h3>
+        <h3 style="margin:0">班级档案</h3>
         <el-button size="small" type="primary" @click="openEdit">编辑档案</el-button>
       </div>
       <el-descriptions :column="2" size="small" border style="margin-top:10px">

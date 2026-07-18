@@ -1,6 +1,6 @@
 <template>
   <CrudPanel
-    title="🎯 党团发展进程"
+    title="党团发展进程"
     :columns="columns"
     :fields="fields"
     :rows="rows"

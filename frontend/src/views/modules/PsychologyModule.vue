@@ -1,7 +1,7 @@
 <template>
   <div class="module-page">
     <div class="page-header">
-      <h2>💚 心理关怀</h2>
+      <h2>心理关怀</h2>
       <div>
         <el-button :icon="Bell" @click="loadReminders">提醒 ({{ reminders.length }})</el-button>
         <el-button

@@ -1,7 +1,7 @@
 <template>
   <div class="sys-settings">
     <div class="page-header">
-      <h2>⚙️ 系统设置 · 数据管理</h2>
+      <h2>系统设置 · 数据管理</h2>
       <el-button :icon="Refresh" @click="loadHealth" :loading="loadingHealth">刷新健康状态</el-button>
     </div>
 

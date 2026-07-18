@@ -23,10 +23,10 @@
 
     <el-tabs v-model="activeTab" @tab-change="onTabChange" class="cat-tabs">
       <el-tab-pane label="全部" name="" />
-      <el-tab-pane label="☑️ 待办" name="todo" />
-      <el-tab-pane label="📄 备忘" name="memo" />
-      <el-tab-pane label="💡 想法" name="idea" />
-      <el-tab-pane label="📥 归档" name="archived" />
+      <el-tab-pane label="待办" name="todo" />
+      <el-tab-pane label="备忘" name="memo" />
+      <el-tab-pane label="想法" name="idea" />
+      <el-tab-pane label="归档" name="archived" />
     </el-tabs>
 
     <div v-if="activeTab === 'todo'" class="filter-row">

@@ -1,7 +1,7 @@
 <template>
   <div class="projects-page">
     <div class="page-header">
-      <h2>📌 项目追踪</h2>
+      <h2>项目追踪</h2>
       <div class="header-actions">
         <el-input
           v-model="keyword"

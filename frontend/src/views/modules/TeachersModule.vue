@@ -1,7 +1,7 @@
 <template>
   <div class="module-page">
     <div class="page-header">
-      <h2>🧑‍🏫 班主任管理</h2>
+      <h2>班主任管理</h2>
       <div>
         <el-button
           type="success"

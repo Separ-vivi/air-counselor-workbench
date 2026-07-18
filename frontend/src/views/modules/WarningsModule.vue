@@ -1,7 +1,7 @@
 <template>
   <div class="module-page">
     <div class="page-header">
-      <h2>🚦 学业预警</h2>
+      <h2>学业预警</h2>
       <div>
         <el-button :icon="Refresh" @click="reload">刷新</el-button>
         <el-button type="primary" :icon="Refresh" :loading="recalcing" @click="doRecalc">重新计算</el-button>

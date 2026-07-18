@@ -1,7 +1,7 @@
 <template>
   <div class="tpl-page">
     <div class="page-header">
-      <h2>📄 文档模板</h2>
+      <h2>文档模板</h2>
       <div class="header-actions">
         <el-button :icon="Document" @click="drawerVisible = true">📎 已生成文档</el-button>
         <el-button type="primary" :icon="Plus" @click="onCreate">新建模板</el-button>

@@ -1,7 +1,7 @@
 <template>
   <div class="module-page">
     <div class="page-header">
-      <h2>🏠 家庭联络</h2>
+      <h2>家庭联络</h2>
       <el-button type="primary" :icon="Plus" @click="openCreate(null)">新增记录</el-button>
     </div>
 

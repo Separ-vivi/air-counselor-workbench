@@ -1,12 +1,12 @@
 <template>
   <div class="org-management">
     <div class="page-header">
-      <h2>🏛️ 组织架构管理</h2>
+      <h2>组织架构管理</h2>
       <p class="sub">年级 / 专业 / 班级 三级架构 · 全 CRUD</p>
     </div>
 
     <el-tabs v-model="active" type="border-card">
-      <el-tab-pane label="🎯 年级" name="grade">
+      <el-tab-pane label="年级" name="grade">
         <div class="tab-actions">
           <el-button type="primary" :icon="Plus" @click="openGrade(null)">新增年级</el-button>
         </div>
@@ -30,7 +30,7 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="🎓 专业" name="major">
+      <el-tab-pane label="专业" name="major">
         <div class="tab-actions">
           <el-select v-model="filterGradeIdM" placeholder="按年级筛选" clearable style="width: 200px; margin-right: 12px" @change="loadMajors">
             <el-option v-for="g in grades" :key="g.id" :label="g.grade_name" :value="g.id" />
@@ -56,7 +56,7 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="🏫 班级" name="class">
+      <el-tab-pane label="班级" name="class">
         <div class="tab-actions">
           <el-select v-model="filterGradeIdC" placeholder="按年级筛选" clearable style="width: 180px; margin-right: 8px" @change="loadClasses">
             <el-option v-for="g in grades" :key="g.id" :label="g.grade_name" :value="g.id" />

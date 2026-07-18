@@ -38,7 +38,7 @@
     <el-row :gutter="16" style="margin-bottom: 16px">
       <el-col :span="6" v-for="stat in statCards" :key="stat.label">
         <el-card shadow="hover" class="stat-card" :body-style="{ padding: '20px' }">
-          <div class="stat-icon" :style="{ background: stat.bg }">{{ stat.icon }}</div>
+          <div class="stat-icon" :style="{ background: stat.bg, color: stat.color }"><el-icon :size="26"><component :is="stat.icon" /></el-icon></div>
           <div class="stat-body">
             <div class="stat-label">{{ stat.label }}</div>
             <div class="stat-value">{{ stat.value }}</div>
@@ -54,15 +54,15 @@
         <el-card shadow="never" class="chart-card triple-card">
           <template #header>
             <div class="card-header">
-              <span>🎯 预警灯分布</span>
+              <span class="ch-title">预警灯分布</span>
               <el-button text type="primary" size="small" @click="goWarning">查看学业预警</el-button>
             </div>
           </template>
           <div ref="warningPieRef" class="chart-box"></div>
           <div class="chart-legend">
-            <span class="lg-dot" style="background:#F8B4B4"></span>红牌 {{ dash.red_count }}
-            <span class="lg-dot" style="background:#F9E79F; margin-left:12px"></span>黄牌 {{ dash.yellow_count }}
-            <span class="lg-dot" style="background:#B7E4C7; margin-left:12px"></span>正常 {{ dash.normal_count }}
+            <span class="lg-dot" style="background:#F5B7B7"></span>红牌 {{ dash.red_count }}
+            <span class="lg-dot" style="background:#F5D78A; margin-left:12px"></span>黄牌 {{ dash.yellow_count }}
+            <span class="lg-dot" style="background:#8FD5C4; margin-left:12px"></span>正常 {{ dash.normal_count }}
           </div>
         </el-card>
       </el-col>
@@ -70,7 +70,7 @@
         <el-card shadow="never" class="chart-card triple-card">
           <template #header>
             <div class="card-header">
-              <span>🎓 专业人数分布</span>
+              <span class="ch-title">专业人数分布</span>
               <el-button text type="primary" size="small" @click="$router.push('/classes')">查看班级</el-button>
             </div>
           </template>
@@ -81,7 +81,7 @@
         <el-card shadow="never" class="triple-card">
           <template #header>
             <div class="card-header">
-              <span>🗓️ 本周待办</span>
+              <span class="ch-title">本周待办</span>
               <el-button text type="primary" size="small" @click="$router.push('/calendar')">打开日历</el-button>
             </div>
           </template>
@@ -119,7 +119,7 @@
         <el-card shadow="never">
           <template #header>
             <div class="card-header">
-              <span>📌 效率中心统计</span>
+              <span class="ch-title">效率中心统计</span>
               <el-button text type="primary" size="small" @click="$router.push('/notes')">查看便签</el-button>
             </div>
           </template>
@@ -144,11 +144,11 @@
 
     <el-card shadow="never">
       <template #header>
-        <span>⚡ 快捷入口</span>
+        <span class="ch-title">快捷入口</span>
       </template>
       <div class="shortcuts">
         <div class="sc-item" v-for="s in shortcuts" :key="s.to" @click="$router.push(s.to)">
-          <div class="sc-icon" :style="{ background: s.bg }">{{ s.icon }}</div>
+          <div class="sc-icon" :style="{ background: s.bg, color: s.color }"><el-icon :size="22"><component :is="s.icon" /></el-icon></div>
           <div class="sc-label">{{ s.label }}</div>
         </div>
       </div>
@@ -160,7 +160,12 @@
 import { useWeather } from '@/composables/useWeather'
 const { weather } = useWeather()
 
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick, markRaw } from 'vue'
+import {
+  UserFilled, Reading, Flag, Trophy,
+  Document, School, OfficeBuilding, UploadFilled,
+  DataAnalysis, Warning, Medal, Sunny
+} from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import { useRouter } from 'vue-router'
 import { dashboard as getDashboard } from '@/api/modules'
@@ -181,7 +186,7 @@ const warningPieRef = ref(null)
 const majorPieRef = ref(null)
 let charts = []
 
-const macaronColors = ['#F8B4B4','#F9E79F','#B7E4C7','#B7D8E4','#D5B7E4','#F5C7A0','#FCB69F','#A8E6CF','#FFD3B6','#FF8B94','#C7CEEA','#FEC8D8']
+const iceMintColors = ['#5B92E5','#7BCFCB','#8FA9E5','#4FC3B8','#B7D8E4','#C7CEEA','#A8E6CF','#93C4E8','#B7E4E0','#DAE8F7','#6EAECF','#94D2C8']
 
 function renderCharts() {
   // 销毁旧实例
@@ -193,15 +198,17 @@ function renderCharts() {
     const c1 = echarts.init(warningPieRef.value)
     c1.setOption({
       tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+      legend: { show: false },
       series: [{
-        type: 'pie', radius: ['55%', '78%'], center: ['50%', '50%'],
+        type: 'pie', radius: ['55%', '78%'], center: ['50%', '45%'],
         avoidLabelOverlap: false,
-        label: { show: true, position: 'center', formatter: () => `{a|${dash.value.total_students}}\n{b|全体学生}`, rich: { a:{fontSize:26,fontWeight:600,color:'#4A6A7A'}, b:{fontSize:12,color:'#909BA6',padding:[4,0,0,0]} } },
+        itemStyle: { borderRadius: 6, borderColor: '#FFFFFF', borderWidth: 2 },
+        label: { show: true, position: 'center', formatter: () => `{a|${dash.value.total_students}}\n{b|全体学生}`, rich: { a:{fontSize:28,fontWeight:700,color:'#2E5A7F'}, b:{fontSize:12,color:'#8FA9E5',padding:[4,0,0,0]} } },
         labelLine: { show: false },
         data: [
-          { value: dash.value.red_count, name: '红牌', itemStyle: { color: '#F8B4B4' } },
-          { value: dash.value.yellow_count, name: '黄牌', itemStyle: { color: '#F9E79F' } },
-          { value: dash.value.normal_count, name: '正常', itemStyle: { color: '#B7E4C7' } }
+          { value: dash.value.red_count,    name: '红牌', itemStyle: { color: '#F5B7B7' } },
+          { value: dash.value.yellow_count, name: '黄牌', itemStyle: { color: '#F5D78A' } },
+          { value: dash.value.normal_count, name: '正常', itemStyle: { color: '#8FD5C4' } }
         ]
       }]
     })
@@ -214,13 +221,14 @@ function renderCharts() {
     const md = dash.value.major_distribution || []
     c2.setOption({
       tooltip: { trigger: 'item', formatter: '{b}: {c} 人 ({d}%)' },
-      legend: { bottom: 4, textStyle: { fontSize: 11, color: '#606266' }, itemWidth: 10, itemHeight: 10 },
+      legend: { bottom: 4, textStyle: { fontSize: 11, color: '#5B92E5' }, itemWidth: 10, itemHeight: 10 },
       series: [{
-        type: 'pie', radius: ['40%', '68%'], center: ['50%', '42%'],
-        avoidLabelOverlap: true,
-        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
-        label: { show: false }, labelLine: { show: false },
-        data: md.map((x, i) => ({ value: x.value, name: x.name, itemStyle: { color: macaronColors[i % macaronColors.length] } }))
+        type: 'pie', radius: ['55%', '78%'], center: ['50%', '45%'],
+        avoidLabelOverlap: false,
+        itemStyle: { borderRadius: 6, borderColor: '#FFFFFF', borderWidth: 2 },
+        label: { show: true, position: 'center', formatter: () => `{a|${md.length}}\n{b|专业数}`, rich: { a:{fontSize:28,fontWeight:700,color:'#2E5A7F'}, b:{fontSize:12,color:'#8FA9E5',padding:[4,0,0,0]} } },
+        labelLine: { show: false },
+        data: md.map((x, i) => ({ value: x.value, name: x.name, itemStyle: { color: iceMintColors[i % iceMintColors.length] } }))
       }]
     })
     charts.push(c2)
@@ -349,22 +357,23 @@ const daysClass = (d) => {
 }
 
 const statCards = ref([
-  // v4-hotfix5: 清新马卡龙渐变 + 活动黄→薰衣草紫（air 拒绝黄）
-  { label: '在校学生', value: 0, icon: '👥', bg: 'linear-gradient(135deg, #C4E0F5 0%, #93C4E8 100%)' },
-  { label: '班级数量', value: 0, icon: '🎓', bg: 'linear-gradient(135deg, #C7E9D4 0%, #92CFB0 100%)' },
-  { label: '党员/发展对象', value: 0, icon: '🚩', bg: 'linear-gradient(135deg, #F5D0D8 0%, #E9A9B5 100%)' },
-  { label: '本月活动', value: 0, icon: '🎨', bg: 'linear-gradient(135deg, #DDD0F0 0%, #B396E0 100%)' }
+  // v4-hotfix11: 冰蓝薄荷主题, el-icon SVG + 主题色底
+  { label: '在校学生',       value: 0, icon: markRaw(UserFilled), bg: 'rgba(91, 146, 229, 0.14)',  color: '#5B92E5' },
+  { label: '班级数量',       value: 0, icon: markRaw(Reading),    bg: 'rgba(79, 195, 184, 0.14)',  color: '#4FC3B8' },
+  { label: '党员/发展对象', value: 0, icon: markRaw(Flag),       bg: 'rgba(143, 169, 229, 0.14)', color: '#7B92D6' },
+  { label: '本月活动',       value: 0, icon: markRaw(Trophy),     bg: 'rgba(123, 207, 203, 0.16)', color: '#5FB8AC' }
 ])
 
 const shortcuts = [
-  { icon: '📋', label: '学生管理', to: '/students', bg: '#E1F0FF' },
-  { icon: '🎓', label: '班级管理', to: '/classes', bg: '#E8F5E9' },
-  { icon: '🏛️', label: '组织架构', to: '/org', bg: '#E8E4F5' },
-  { icon: '📥', label: '智能导入', to: '/smart-import', bg: '#F3E5F5' },
-  { icon: '📊', label: '成绩管理', to: '/module/grades', bg: '#E0F7FA' },
-  { icon: '⚠️', label: '预警管理', to: '/module/warnings', bg: '#FFEBEE' },
-  { icon: '🚩', label: '党团发展', to: '/module/party', bg: '#FCE4EC' },
-  { icon: '💚', label: '心理档案', to: '/module/psychology', bg: '#E8F5E9' }
+  // v4-hotfix11: 冰蓝薄荷 4 色轮播, 保持视觉区分度
+  { icon: markRaw(UserFilled),     label: '学生管理', to: '/students',        bg: 'rgba(91, 146, 229, 0.10)',  color: '#5B92E5' },
+  { icon: markRaw(School),         label: '班级管理', to: '/classes',         bg: 'rgba(79, 195, 184, 0.12)',  color: '#4FC3B8' },
+  { icon: markRaw(OfficeBuilding), label: '组织架构', to: '/org',             bg: 'rgba(143, 169, 229, 0.12)', color: '#7B92D6' },
+  { icon: markRaw(UploadFilled),   label: '智能导入', to: '/smart-import',    bg: 'rgba(123, 207, 203, 0.14)', color: '#5FB8AC' },
+  { icon: markRaw(DataAnalysis),   label: '成绩管理', to: '/module/grades',   bg: 'rgba(91, 146, 229, 0.10)',  color: '#5B92E5' },
+  { icon: markRaw(Warning),        label: '预警管理', to: '/module/warnings', bg: 'rgba(79, 195, 184, 0.12)',  color: '#4FC3B8' },
+  { icon: markRaw(Flag),           label: '党团发展', to: '/module/party',    bg: 'rgba(143, 169, 229, 0.12)', color: '#7B92D6' },
+  { icon: markRaw(Sunny),          label: '心理档案', to: '/module/psychology', bg: 'rgba(123, 207, 203, 0.14)', color: '#5FB8AC' }
 ]
 
 const goStudent = (id) => router.push(`/students/${id}`)
@@ -554,16 +563,16 @@ onMounted(async () => {
   padding: 18px 12px !important;
 }
 .stat-icon {
+  /* v4-hotfix11: el-icon SVG 版, 尺寸由 :size 控制, color 走 stat.color 主题色 */
   width: 52px;
   height: 52px;
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
-  line-height: 1;                       /* v4: emoji 严格垂直居中 */
-  font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+  transition: transform .2s ease;
 }
+.stat-card:hover .stat-icon { transform: scale(1.05); }
 .stat-body { text-align: center; width: 100%; }
 .stat-body .stat-label {
   color: #7B8B9C;
@@ -595,17 +604,19 @@ onMounted(async () => {
   cursor: pointer;
   transition: background 0.2s;
 }
-.sc-item:hover { background: #F5F7FA; }
+.sc-item:hover { background: rgba(91, 146, 229, 0.06); }
 .sc-icon {
+  /* v4-hotfix11: el-icon SVG, 主题色底 */
   width: 46px;
   height: 46px;
   border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
   margin-bottom: 8px;
+  transition: transform .2s ease;
 }
+.sc-item:hover .sc-icon { transform: scale(1.06); }
 .sc-label {
   font-size: 13px;
   color: #303133;
@@ -615,16 +626,21 @@ onMounted(async () => {
 .prod-item {
   flex: 1;
   text-align: center;
-  padding: 18px 8px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #F7FAFD 0%, #EDF3FA 100%);
-  border: 1px solid rgba(200, 215, 235, 0.55);
+  padding: 20px 8px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #FFFFFF 0%, #F3F8FE 100%);
+  border: 1px solid rgba(91, 146, 229, 0.10);
+  transition: transform .2s ease, box-shadow .2s ease;
 }
-.prod-num { font-size: 32px; font-weight: 700; color: #3A4A5A; letter-spacing: 0.5px; }
-.prod-num.warning { color: #E6A23C; }
-.prod-num.danger { color: #F56C6C; }
-.prod-num.success { color: #67C23A; }
-.prod-label { color: #8CA0B4; font-size: 12px; margin-top: 6px; letter-spacing: 0.3px; }
+.prod-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(91, 146, 229, 0.10);
+}
+.prod-num { font-size: 32px; font-weight: 700; color: #2E5A7F; letter-spacing: 0.5px; }
+.prod-num.warning { color: #5B92E5; }
+.prod-num.danger { color: #4FC3B8; }
+.prod-num.success { color: #8FA9E5; }
+.prod-label { color: rgba(91, 146, 229, 0.70); font-size: 12px; margin-top: 6px; letter-spacing: 0.3px; font-weight: 500; }
 .cd-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .cd-card {
   border-left: 4px solid #4A7A8C;
@@ -662,8 +678,9 @@ onMounted(async () => {
   display: flex;
   justify-content: center;
   font-size: 12px;
-  color: #606266;
+  color: #5B92E5;
   padding: 4px 0 2px;
+  font-weight: 500;
 }
 .lg-dot {
   display: inline-block;
@@ -709,10 +726,10 @@ onMounted(async () => {
 }
 .mini-day {
   position: relative;
-  /* v4-hotfix5: 清新蓝白，与卡片主色统一，去暖调 */
-  background: linear-gradient(160deg, #FFFFFF 0%, #F1F7FC 100%);
-  border: 1px solid rgba(200, 215, 235, 0.6);
-  border-radius: 16px;
+  /* v4-hotfix11: 冰蓝薄荷主题描边, 与整体色调呼应 */
+  background: linear-gradient(160deg, #FFFFFF 0%, #F3F8FE 100%);
+  border: 1px solid rgba(91, 146, 229, 0.14);
+  border-radius: 14px;
   padding: 12px 10px 10px;
   min-height: 108px;
   display: flex;
@@ -730,17 +747,17 @@ onMounted(async () => {
   border-color: rgba(180, 215, 240, 1);
 }
 .mini-day.is-today {
-  /* v4-hotfix5: 今日格降饱和收敛为清新主色蓝，不再刺眼 */
-  background: linear-gradient(160deg, #B4D4EC 0%, #8CB8DE 100%);
-  border-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 14px rgba(90, 130, 180, 0.22), inset 0 1px 0 rgba(255,255,255,0.85);
+  /* v4-hotfix11: 冰蓝薄荷主题渐变（跟侧栏同色系呼应）*/
+  background: linear-gradient(135deg, #A6D5DE 0%, #7BCFCB 55%, #8FA9E5 100%);
+  border-color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 14px rgba(91, 146, 229, 0.24), inset 0 1px 0 rgba(255,255,255,0.85);
 }
 /* v4-hotfix6: 今日格背景已改浅蓝双色，文字改深色避免白字糊 */
-.mini-day.is-today .mini-mmdd { color: #1B3552; text-shadow: 0 1px 1px rgba(255,255,255,0.55); }
-.mini-day.is-today .mini-week { color: #35597E; text-shadow: 0 1px 1px rgba(255,255,255,0.55); }
-.mini-day.is-today .mini-empty { color: #4A6A88; font-style: normal; font-weight: 500; }
-.mini-day.is-today .mini-badge { background: rgba(255,255,255,0.95); color: #4A85C0; }
-.mini-week { font-size: 11px; color: #6B85A0; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; }
+.mini-day.is-today .mini-mmdd { color: #FFFFFF; text-shadow: 0 1px 2px rgba(46, 90, 127, 0.35); }
+.mini-day.is-today .mini-week { color: rgba(255,255,255,0.92); text-shadow: 0 1px 2px rgba(46, 90, 127, 0.35); }
+.mini-day.is-today .mini-empty { color: rgba(255,255,255,0.88); font-style: normal; font-weight: 500; }
+.mini-day.is-today .mini-badge { background: rgba(255,255,255,0.95); color: #5B92E5; }
+.mini-week { font-size: 11px; color: #5B92E5; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; }
 .mini-mmdd { font-size: 22px; color: #1E3A56; font-weight: 800; margin: 4px 0 auto; letter-spacing: -0.5px; line-height: 1; font-family: -apple-system, "SF Pro Display", "PingFang SC", sans-serif; }
 .mini-dots {
   display: flex;
@@ -773,14 +790,21 @@ onMounted(async () => {
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: linear-gradient(135deg, #7EB6E5 0%, #5A9CCF 100%);
+  background: linear-gradient(135deg, #5B92E5 0%, #4FC3B8 100%);
   color: #FFFFFF;
   font-size: 11px;
   font-weight: 700;
   line-height: 18px;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(90,140,200,0.30);
+  box-shadow: 0 2px 4px rgba(91,146,229,0.30);
 }
-.mini-empty { color: #7A8FA5; font-size: 11px; margin-top: auto; font-style: italic; letter-spacing: 0.3px; }
+.mini-empty { color: rgba(79, 195, 184, 0.65); font-size: 11px; margin-top: auto; font-style: italic; letter-spacing: 0.3px; }
 
+/* v4-hotfix11: 卡片头标题统一（去 emoji 后的纯文字样式）*/
+.ch-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #2E5A7F;
+  letter-spacing: 0.4px;
+}
 </style>

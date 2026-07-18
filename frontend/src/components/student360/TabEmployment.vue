@@ -1,6 +1,6 @@
 <template>
   <CrudPanel
-    title="💼 就业信息 / 求职进度"
+    title="就业信息 / 求职进度"
     :columns="columns"
     :fields="fields"
     :rows="rows"

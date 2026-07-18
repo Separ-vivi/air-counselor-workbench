@@ -1,6 +1,6 @@
 <template>
   <CrudPanel
-    title="🏠 家庭联络记录"
+    title="家庭联络记录"
     :columns="columns"
     :fields="fields"
     :rows="rows"

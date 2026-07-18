@@ -13,8 +13,8 @@
       :default-active="$route.path"
       router
       background-color="transparent"
-      text-color="#FFFFFF"
-      active-text-color="#FFFFFF"
+      text-color="rgba(255,255,255,0.86)"
+      active-text-color="rgba(255,255,255,0.86)"
     >
       <el-menu-item index="/dashboard"><el-icon><DataBoard /></el-icon><span>驾驶舱</span></el-menu-item>
       <el-menu-item index="/students"><el-icon><User /></el-icon><span>学生管理</span></el-menu-item>
@@ -100,7 +100,7 @@
 }
 .brand-icon {
   font-size: 22px !important;
-  color: #FFFFFF;
+  color: rgba(255, 255, 255, 0.94);
   flex-shrink: 0;
 }
 .brand-info {
@@ -111,7 +111,7 @@
 .brand-text {
   font-weight: 600;
   font-size: 14px;
-  color: #FFFFFF;
+  color: rgba(255, 255, 255, 0.94);
   letter-spacing: 0.3px;
   white-space: nowrap;
   overflow: hidden;

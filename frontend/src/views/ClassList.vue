@@ -1,7 +1,7 @@
 <template>
   <div class="class-list">
     <div class="page-header">
-      <h2>🎓 班级管理</h2>
+      <h2>班级管理</h2>
       <div>
         <el-button :icon="Refresh" @click="reload">刷新组织树</el-button>
         <el-button :icon="Download" @click="exportAll">导出全部</el-button>

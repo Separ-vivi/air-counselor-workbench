@@ -1,7 +1,7 @@
 <template>
   <div class="ws-page">
     <div class="page-header">
-      <h2>📊 周汇总</h2>
+      <h2>周汇总</h2>
       <div class="header-actions">
         <el-button type="primary" :icon="MagicStick" @click="onGenerate" :loading="generating">
           自动生成本周汇总

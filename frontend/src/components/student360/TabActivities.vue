@@ -5,7 +5,7 @@
       本表关联的是"活动报名/参与"关系记录。若要新建活动本身，请去 <router-link to="/module/activities">活动管理</router-link>。
     </div>
     <CrudPanel
-      title="🎨 活动参与"
+      title="活动参与"
       :columns="columns"
       :fields="fields"
       :rows="rows"

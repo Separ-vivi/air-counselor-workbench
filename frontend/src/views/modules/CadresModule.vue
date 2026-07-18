@@ -1,7 +1,7 @@
 <template>
   <div class="module-page">
     <div class="page-header">
-      <h2>👥 学生干部</h2>
+      <h2>学生干部</h2>
       <div>
         <el-button :icon="Document" @click="loadDirectory">干部名录</el-button>
         <el-button

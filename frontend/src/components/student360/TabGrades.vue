@@ -1,6 +1,6 @@
 <template>
   <CrudPanel
-    title="📊 学业成绩明细"
+    title="学业成绩明细"
     :columns="columns"
     :fields="fields"
     :rows="rows"

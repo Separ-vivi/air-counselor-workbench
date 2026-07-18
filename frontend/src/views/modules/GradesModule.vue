@@ -1,7 +1,7 @@
 <template>
   <div class="module-page">
     <div class="page-header">
-      <h2>📊 成绩管理</h2>
+      <h2>成绩管理</h2>
       <div>
         <el-button
           type="success"
@@ -15,8 +15,8 @@
     </div>
 
     <el-tabs v-model="tab" style="margin-bottom: 16px">
-      <el-tab-pane label="👤 按学生查看" name="student" />
-      <el-tab-pane label="🏫 按班级查看" name="class" />
+      <el-tab-pane label="按学生查看" name="student" />
+      <el-tab-pane label="按班级查看" name="class" />
     </el-tabs>
 
     <!-- 按学生视图 -->

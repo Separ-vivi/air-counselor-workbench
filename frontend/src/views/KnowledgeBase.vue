@@ -1,7 +1,7 @@
 <template>
   <div class="kb-page">
     <div class="page-header">
-      <h2>📚 知识库</h2>
+      <h2>知识库</h2>
       <div class="header-actions">
         <el-select v-model="typeFilter" placeholder="全部分类" clearable style="width:180px" @change="load">
           <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />

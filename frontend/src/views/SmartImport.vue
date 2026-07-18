@@ -7,7 +7,7 @@
       </el-button>
     </div>
     <div class="page-header">
-      <h2>📥 智能导入</h2>
+      <h2>智能导入</h2>
       <p class="sub">支持 6 种台账类型 · 3 步走完成 · 自动字段映射 + 冲突策略</p>
     </div>
 

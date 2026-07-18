@@ -1,7 +1,7 @@
 <template>
   <div class="module-page">
     <div class="page-header">
-      <h2>🎨 活动管理</h2>
+      <h2>活动管理</h2>
       <div>
         <el-button
           type="success"

@@ -2,7 +2,7 @@
   <div>
     <!-- 基本信息卡（只读汇总 · 已在顶部卡片显示，此处补充详细字段） -->
     <div class="macaron-card">
-      <h3>📋 基础信息详细</h3>
+      <h3>基础信息详细</h3>
       <el-descriptions :column="3" size="small" border>
         <el-descriptions-item label="学号">{{ student?.student_no || '—' }}</el-descriptions-item>
         <el-descriptions-item label="姓名">{{ student?.name || '—' }}</el-descriptions-item>
@@ -26,7 +26,7 @@
     <!-- 学籍异动子分区 -->
     <div class="macaron-card">
       <CrudPanel
-        title="🔄 学籍异动记录"
+        title="学籍异动记录"
         :columns="columns"
         :fields="fields"
         :rows="rows"

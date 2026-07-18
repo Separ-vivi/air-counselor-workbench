@@ -5,7 +5,7 @@
       本表关联的是"学生参与专项工作项目的进度"。项目本身需要在工作台"项目追踪"页新建（V3-B 阶段），此处仅登记该生在具体项目中的进度、材料状态。
     </div>
     <CrudPanel
-      title="📎 专项工作参与记录"
+      title="专项工作参与记录"
       :columns="columns"
       :fields="fields"
       :rows="rows"

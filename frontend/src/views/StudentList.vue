@@ -1,7 +1,7 @@
 <template>
   <div class="student-list">
     <div class="page-header">
-      <h2>📋 学生管理</h2>
+      <h2>学生管理</h2>
       <div class="header-actions">
         <el-button
           :type="showAllIdCards ? 'warning' : 'default'"
@@ -101,7 +101,7 @@
         <el-table-column label="生源地" prop="birth_source" width="140" show-overflow-tooltip sortable="custom" />
         <el-table-column label="身份证号" prop="id_card" min-width="140" sortable="custom">
           <template #default="{ row }">
-            <span v-if="row.id_card && row.id_card.length >= 10" style="font-family: monospace">
+            <span v-if="row.id_card && row.id_card.length >= 10">
               {{ showAllIdCards ? row.id_card : (row.id_card.slice(0,6) + '********' + row.id_card.slice(-4)) }}
             </span>
             <span v-else style="color:#c0c4cc">—</span>

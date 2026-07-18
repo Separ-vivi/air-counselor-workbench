@@ -1,6 +1,6 @@
 <template>
   <CrudPanel
-    title="👥 学生工作 / 干部任职"
+    title="学生工作 / 干部任职"
     :columns="columns"
     :fields="fields"
     :rows="rows"

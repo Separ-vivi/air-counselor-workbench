@@ -1,7 +1,7 @@
 <template>
   <div class="faq-page">
     <div class="page-header">
-      <h2>❓ FAQ 常见问题</h2>
+      <h2>FAQ 常见问题</h2>
       <div class="header-actions">
         <el-select v-model="categoryFilter" placeholder="全部分类" clearable style="width:180px">
           <el-option v-for="c in categoryOptions" :key="c" :label="c" :value="c" />
