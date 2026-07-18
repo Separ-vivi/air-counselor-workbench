@@ -487,8 +487,7 @@ onMounted(async () => {
   margin-top: 8px;
   padding: 4px 12px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(91, 146, 229, 0.10) 0%, rgba(79, 195, 184, 0.12) 100%);
-  border: 1px solid rgba(91, 146, 229, 0.18);
+  background: linear-gradient(135deg, rgba(91, 146, 229, 0.08) 0%, rgba(79, 195, 184, 0.10) 100%);
   font-size: 13px;
   color: #4A6A82;
 }
