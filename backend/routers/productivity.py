@@ -387,6 +387,11 @@ def productivity_dashboard(db: Session = Depends(get_db)):
         Note.category == 'todo', Note.status == 'active',
         Note.due_date >= today_str, Note.due_date <= week_later,
     ).count()
+    # 已过期未完成（有截止日且早于今天）
+    todo_overdue = db.query(Note).filter(
+        Note.category == 'todo', Note.status == 'active',
+        Note.due_date != '', Note.due_date < today_str,
+    ).count()
 
     # 倒计时 top 3
     cds = db.query(Countdown).filter(
@@ -399,6 +404,7 @@ def productivity_dashboard(db: Session = Depends(get_db)):
     return {
         'todo_active': todo_active,
         'todo_urgent_week': todo_urgent,
+        'todo_overdue': todo_overdue,
         'countdowns_top': [_cd_dict(c) for c in cds],
         'projects_active': projects_active,
     }
