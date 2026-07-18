@@ -27,7 +27,7 @@ jobs:
       - name: Install & Build Frontend
         working-directory: frontend
         run: |
-          npm install --no-audit --no-fund --prefer-offline
+          npm install --no-audit --no-fund --legacy-peer-deps
           npm run build
 
       - name: Extract meta
