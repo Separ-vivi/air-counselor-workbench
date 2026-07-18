@@ -1,0 +1,164 @@
+name: Build Portable Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/portable.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install & Build Frontend
+        working-directory: frontend
+        run: |
+          npm install --no-audit --no-fund --prefer-offline
+          npm run build
+
+      - name: Extract meta
+        id: meta
+        run: |
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+          # 从 commit message 抽版本号 (V5-a, V4-hotfix12, v3j-C 等), 找不到用 short-sha
+          VER=$(echo "$COMMIT_MSG" | grep -oE '^V[0-9][a-z0-9\-]*' | head -1 || true)
+          if [ -z "$VER" ]; then
+            VER=$(echo "$COMMIT_MSG" | grep -oE '^v[0-9][a-zA-Z0-9\-]*' | head -1 || true)
+          fi
+          if [ -z "$VER" ]; then VER="build"; fi
+          DATE=$(date +%Y%m%d-%H%M)
+          TAG="portable-${VER}-${SHA_SHORT}"
+          echo "sha_short=${SHA_SHORT}" >> $GITHUB_OUTPUT
+          echo "date=${DATE}" >> $GITHUB_OUTPUT
+          echo "ver=${VER}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "commit_msg=${COMMIT_MSG}" >> $GITHUB_OUTPUT
+
+      - name: Assemble Portable Package
+        run: |
+          set -e
+          PKG_NAME="air-counselor-workbench-portable-${{ steps.meta.outputs.ver }}"
+          mkdir -p "$PKG_NAME"
+
+          # 后端代码 (剔除 __pycache__/*.pyc)
+          rsync -a --exclude='__pycache__' --exclude='*.pyc' --exclude='*.log' \
+                --exclude='data/*.db' --exclude='data/*.db-journal' \
+                backend "$PKG_NAME/"
+
+          # 前端 build 产物
+          mkdir -p "$PKG_NAME/frontend"
+          cp -r frontend/dist "$PKG_NAME/frontend/dist"
+
+          # requirements.txt 提到根目录方便用户运行 pip install
+          cp backend/requirements.txt "$PKG_NAME/requirements.txt"
+
+          # 启动脚本 · Windows
+          cat > "$PKG_NAME/启动.bat" <<'BAT'
+          @echo off
+          chcp 65001 > nul
+          title 辅导员工作平台
+          echo ===============================================
+          echo   辅导员工作平台 · 便携版
+          echo   端口 http://127.0.0.1:8000
+          echo ===============================================
+          echo.
+          cd /d "%~dp0backend"
+          python main.py
+          if errorlevel 1 (
+            echo.
+            echo [错误] 启动失败, 请先安装依赖:
+            echo   pip install -r ..\requirements.txt
+            pause
+          )
+          BAT
+
+          # 首次安装脚本 · Windows
+          cat > "$PKG_NAME/首次安装_依赖.bat" <<'BAT'
+          @echo off
+          chcp 65001 > nul
+          title 首次安装 Python 依赖
+          echo 正在安装依赖 (需要 Python 3.10+ 与 pip)...
+          cd /d "%~dp0"
+          python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+          echo.
+          echo 安装完成, 请双击 启动.bat 使用软件
+          pause
+          BAT
+
+          # README
+          cat > "$PKG_NAME/README-便携版.md" <<EOF
+          # 辅导员工作平台 · 便携版
+
+          - 版本: **${{ steps.meta.outputs.ver }}**
+          - Commit: \`${{ steps.meta.outputs.sha_short }}\`
+          - 打包时间: ${{ steps.meta.outputs.date }}
+
+          ## 快速开始
+
+          ### 首次使用
+          1. 确保本机已装 Python 3.10+ (下载 https://www.python.org , 勾选 Add to PATH)
+          2. 双击 \`首次安装_依赖.bat\` 安装 Python 库
+          3. 双击 \`启动.bat\` 打开软件
+          4. 浏览器访问 http://127.0.0.1:8000
+
+          ### 后续更新
+          从 [Releases](https://github.com/Separ-vivi/air-counselor-workbench/releases) 下载最新 zip, 用 \`backend\` 和 \`frontend\` 覆盖当前目录即可 (数据库 backend/data/*.db 会保留不受影响)
+
+          ## 端口
+          单进程架构, 只占一个端口 8000
+
+          ## 数据位置
+          - SQLite: \`backend/data/\`
+          - 上传附件: \`backend/uploads/\` (如启用)
+          EOF
+
+          # 打 zip (保留中文文件名)
+          zip -rq "${PKG_NAME}.zip" "$PKG_NAME"
+          ls -lh *.zip
+          echo "PKG_FILE=${PKG_NAME}.zip" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: "便携版 · ${{ steps.meta.outputs.ver }} · ${{ steps.meta.outputs.sha_short }}"
+          body: |
+            ## 辅导员工作平台便携版 · ${{ steps.meta.outputs.ver }}
+
+            **本波 commit**: `${{ steps.meta.outputs.sha_short }}` — ${{ steps.meta.outputs.commit_msg }}
+
+            **构建时间**: ${{ steps.meta.outputs.date }} (北京)
+
+            ---
+
+            ## 首次使用
+            1. 下载下方 zip, 解压
+            2. 装 Python 3.10+ (若已有跳过)
+            3. 双击 `首次安装_依赖.bat`
+            4. 双击 `启动.bat`, 浏览器打开 http://127.0.0.1:8000
+
+            ## 已有便携版更新
+            用本包的 `backend` 和 `frontend` 目录覆盖当前便携版即可, `backend/data/*.db` 数据自动保留。
+
+            ---
+
+            由 GitHub Actions 自动构建, 不消耗任何扣子积分。
+          files: ${{ env.PKG_FILE }}
+          draft: false
+          prerelease: false
+          make_latest: 'true'
