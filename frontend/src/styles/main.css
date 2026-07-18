@@ -6,11 +6,11 @@
 
 :root {
   /* 主题色 */
-  --color-sidebar: #4A7A8C;
-  --color-sidebar-hover: #5D8FA0;
-  --color-sidebar-active: #3B6A7C;
+  --color-sidebar: #5B92E5;
+  --color-sidebar-hover: #7BCFCB;
+  --color-sidebar-active: #4A7ACC;
   --color-topbar: #F5F9FC;  /* 极浅蓝白 v3h */
-  --color-page-bg: #EEF3F9;          /* v4-hotfix5: 清新极浅蓝灰基调 */
+  --color-page-bg: #ECF1F7;          /* v4-hotfix10: ⑤ 冰蓝薄荷同色系 bg */
   --color-card-bg: #FFFFFF;
   --color-card-border: #D8E1EC;
   --color-text-primary: #3A3A3A;
@@ -113,7 +113,7 @@ a:hover {
 /* ---------- 卡片 ---------- */
 .macaron-card {
   /* v4-hotfix5: 清新蓝白极简，air 拒绝奶油/黄 → 走浅蓝白冷调 */
-  background: linear-gradient(180deg, #FFFFFF 0%, #F6FAFE 100%);
+  background: linear-gradient(180deg, #FFFFFF 0%, #F3F8FE 100%);
   border: 1px solid rgba(200, 215, 235, 0.55);
   border-radius: 16px;
   box-shadow: 0 2px 10px rgba(90, 130, 180, 0.06), 0 6px 22px rgba(90, 130, 180, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);

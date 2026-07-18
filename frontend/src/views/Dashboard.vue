@@ -7,6 +7,13 @@
           <span class="hero-date-main">{{ dateStr }}</span>
           <span class="hero-date-week">{{ weekdayStr }}</span>
         </div>
+        <div class="hero-weather" v-if="weather.loaded">
+          <span class="hero-weather-icon">{{ weather.icon }}</span>
+          <span class="hero-weather-city">{{ weather.city }}</span>
+          <span class="hero-weather-dot">·</span>
+          <span class="hero-weather-temp">{{ weather.tempC }}°C</span>
+          <span v-if="weather.desc" class="hero-weather-desc">{{ weather.desc }}</span>
+        </div>
         <div class="hero-sub">辅导员工作台 · 一切从容如常</div>
       </div>
       <div class="hero-right">
@@ -150,6 +157,9 @@
 </template>
 
 <script setup>
+import { useWeather } from '@/composables/useWeather'
+const { weather } = useWeather()
+
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { useRouter } from 'vue-router'
@@ -410,6 +420,7 @@ onMounted(async () => {
   padding: 8px;
   min-height: calc(100vh - 100px);
   background: transparent;
+  /* V4-hotfix10: 主区 ⑤ 冰蓝薄荷同色系, 底色由父容器决定, 此处保持透明避免叠色冲突 */
 }
 
 /* ============ 顶部 hero 时钟卡片 ============ */
@@ -421,7 +432,8 @@ onMounted(async () => {
   margin-bottom: 20px;
   border-radius: 20px;
   /* v4-hotfix5: 清新极简 hero，浅蓝白作视觉焦点 */
-  background: linear-gradient(160deg, #FFFFFF 0%, #EEF5FD 100%);
+  background: linear-gradient(160deg, #FFFFFF 0%, #E8F1FB 100%);
+  /* V4-hotfix10: Hero 保浅色, 深字, 与深蓝侧栏形成明暗对比 */
   border: 1px solid rgba(200, 215, 235, 0.6);
   box-shadow:
     0 2px 12px rgba(90, 130, 180, 0.08),
@@ -458,11 +470,34 @@ onMounted(async () => {
   font-size: 13px;
   margin-top: 8px;
 }
+/* V4-hotfix10: 日期下加一行天气小字 - air 20:15 定案位置 */
+.hero-weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(91, 146, 229, 0.10) 0%, rgba(79, 195, 184, 0.12) 100%);
+  border: 1px solid rgba(91, 146, 229, 0.18);
+  font-size: 13px;
+  color: #4A6A82;
+}
+.hero-weather-icon { font-size: 15px; line-height: 1; }
+.hero-weather-city { font-weight: 500; color: #2E5A7F; }
+.hero-weather-dot { color: #A0B4C4; margin: 0 2px; }
+.hero-weather-temp {
+  font-weight: 600;
+  color: #1B4166;
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  letter-spacing: 0.3px;
+}
+.hero-weather-desc { color: #6B84A0; margin-left: 4px; }
 .hero-right { text-align: right; }
 .hero-time {
   font-size: 42px;
   font-weight: 300;
-  color: #4A6A7A;
+  color: #2E5A7F;
   font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
   letter-spacing: 2px;
   line-height: 1;
@@ -483,7 +518,7 @@ onMounted(async () => {
   flex-direction: column;
   border-radius: 16px !important;
   /* v4-hotfix5: 清新蓝白极简 · air 拒绝奶油 → 浅蓝白 + 淡蓝描边 */
-  background: linear-gradient(180deg, #FFFFFF 0%, #F6FAFE 100%) !important;
+  background: linear-gradient(180deg, #FFFFFF 0%, #F3F8FE 100%) !important;
   border: 1px solid rgba(200, 215, 235, 0.55) !important;
   box-shadow:
     0 2px 10px rgba(90, 130, 180, 0.06),

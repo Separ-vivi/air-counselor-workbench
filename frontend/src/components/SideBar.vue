@@ -13,8 +13,8 @@
       :default-active="$route.path"
       router
       background-color="transparent"
-      text-color="#12324D"
-      active-text-color="#0B2A48"
+      text-color="#FFFFFF"
+      active-text-color="#FFFFFF"
     >
       <el-menu-item index="/dashboard"><el-icon><DataBoard /></el-icon><span>驾驶舱</span></el-menu-item>
       <el-menu-item index="/students"><el-icon><User /></el-icon><span>学生管理</span></el-menu-item>
@@ -65,29 +65,26 @@
 </script>
 
 <style scoped>
-/* V4-hotfix7: 中饱和蓝回归 (air: 深空蓝太深, 上一版方向对) - 但真正干掉"白边土"四个真凶: 顶白光叠加/inset白线/border白/底部泛白 */
+/* V4-hotfix10 (air 2026-07-18): B 冰蓝薄荷渐变侧栏 - 从"你好计时器"卡拿到的 B 色系锁到侧栏, 深底 + 白字 高对比不刺眼 */
 .sidebar-root {
   width: 220px;
   height: 100vh;
-  /* v4-hotfix9: air 反馈"蓝色饱和度太高再浅点 + 深字看不清" - 起点/终点同步降饱和提亮一档, 深字在更浅蓝底上对比自然够; 仍两色渐变, 终点收敛避开 hotfix5 泛白清零列表 */
-  background: linear-gradient(180deg, #6DA3CE 0%, #95C0E0 100%);
-  color: #0E2A44;
-  /* 边框改冷调蓝细边, 不再是白 */
-  border-right: 1px solid rgba(150, 190, 225, 0.5);
-  /* 去 inset 白线, 只留右侧投影 */
-  box-shadow: 2px 0 14px rgba(60, 110, 165, 0.22);
+  background: linear-gradient(180deg, #5B92E5 0%, #7BCFCB 100%);
+  color: #FFFFFF;
+  border-right: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 2px 0 16px rgba(50, 100, 160, 0.24);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   position: relative;
 }
-/* 顶部质感光条: 80px + 起点透明度降到 0.28 (原 0.55), 只保留一丝 iOS 磨砂反射不刺眼 */
+/* 顶部质感光条: 淡白, 不刺眼 */
 .sidebar-root::before {
   content: '';
   position: absolute;
   left: 0; right: 0; top: 0;
   height: 80px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.06) 60%, rgba(255,255,255,0) 100%);
+  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 60%, rgba(255,255,255,0) 100%);
   pointer-events: none;
   z-index: 0;
 }
@@ -95,16 +92,15 @@
 
 .brand {
   padding: 18px 16px 14px;
-  /* v4-hotfix6 沿用: 分界线白半透 iOS 磨砂风 + 底部阴影双层 */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 1px 0 rgba(30, 70, 110, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.10);
   display: flex;
   align-items: center;
   gap: 10px;
 }
 .brand-icon {
   font-size: 22px !important;
-  color: #1F4A6B;
+  color: #FFFFFF;
   flex-shrink: 0;
 }
 .brand-info {
@@ -115,7 +111,7 @@
 .brand-text {
   font-weight: 600;
   font-size: 14px;
-  color: #12324D;
+  color: #FFFFFF;
   letter-spacing: 0.3px;
   white-space: nowrap;
   overflow: hidden;
@@ -123,7 +119,7 @@
   line-height: 1.3;
 }
 .brand-ver {
-  color: rgba(30, 60, 90, 0.68);
+  color: rgba(255, 255, 255, 0.78);
   font-size: 11px;
   margin-top: 2px;
   letter-spacing: 0.5px;
@@ -137,7 +133,7 @@
 }
 :deep(.el-menu-item),
 :deep(.el-sub-menu__title) {
-  color: #12324D !important;
+  color: #FFFFFF !important;
   border-radius: 10px !important;
   margin: 3px 10px !important;
   transition: all .2s ease;
@@ -145,15 +141,15 @@
 }
 :deep(.el-menu-item:hover),
 :deep(.el-sub-menu__title:hover) {
-  background: rgba(255, 255, 255, 0.42) !important;
-  color: #0B2A48 !important;
+  background: rgba(255, 255, 255, 0.20) !important;
+  color: #FFFFFF !important;
   backdrop-filter: blur(8px);
 }
 :deep(.el-menu-item.is-active) {
-  background: rgba(255, 255, 255, 0.62) !important;
-  color: #0B2A48 !important;
+  background: rgba(255, 255, 255, 0.32) !important;
+  color: #FFFFFF !important;
   font-weight: 600;
-  box-shadow: 0 2px 6px rgba(60, 110, 150, 0.18), inset 0 1px 0 rgba(255,255,255,0.8);
+  box-shadow: 0 2px 6px rgba(40, 90, 140, 0.20), inset 0 1px 0 rgba(255,255,255,0.6);
   position: relative;
   backdrop-filter: blur(8px);
 }
@@ -165,7 +161,8 @@
   bottom: 22%;
   width: 3px;
   border-radius: 2px;
-  background: linear-gradient(180deg, #4A90C7 0%, #2A6FA8 100%);
+  background: #FFFFFF;
+  box-shadow: 0 0 6px rgba(255,255,255,0.6);
 }
 :deep(.el-sub-menu .el-menu-item) {
   min-width: unset !important;
@@ -185,14 +182,15 @@
   opacity: 0.85;
 }
 :deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
-  color: #3B6A7C !important;
+  color: #FFFFFF !important;
+  background: rgba(255, 255, 255, 0.10) !important;
 }
 .footer-hint {
   padding: 12px 20px;
   font-size: 12px;
-  color: rgba(58, 90, 110, 0.7);
-  border-top: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 -1px 0 rgba(30, 70, 110, 0.12);
+  color: rgba(255, 255, 255, 0.78);
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.10);
 }
-.footer-hint .text-muted { color: rgba(58, 90, 110, 0.5); }
+.footer-hint .text-muted { color: rgba(255, 255, 255, 0.62); }
 </style>
