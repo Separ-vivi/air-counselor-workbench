@@ -28,7 +28,6 @@
         <template #title><el-icon><UserFilled /></el-icon><span>学生与班级</span></template>
         <el-menu-item index="/students"><el-icon><User /></el-icon><span>学生管理</span></el-menu-item>
         <el-menu-item index="/classes"><el-icon><OfficeBuilding /></el-icon><span>班级管理</span></el-menu-item>
-        <el-menu-item index="/module/teachers"><el-icon><Medal /></el-icon><span>班主任</span></el-menu-item>
       </el-sub-menu>
 
       <!-- 第3组 业务模块 -->
@@ -53,7 +52,6 @@
         <el-menu-item index="/projects"><el-icon><Collection /></el-icon><span>项目追踪</span></el-menu-item>
         <el-menu-item index="/semester-report"><el-icon><TrendCharts /></el-icon><span>学期报表</span></el-menu-item>
         <el-menu-item index="/summary"><el-icon><PieChart /></el-icon><span>周汇总</span></el-menu-item>
-        <el-menu-item index="/org"><el-icon><Grid /></el-icon><span>三级架构</span></el-menu-item>
       </el-sub-menu>
 
       <!-- 第5组 知识中心 -->

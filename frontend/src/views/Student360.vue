@@ -208,12 +208,13 @@
         暂无标签，请先在「学生管理 → 管理标签」中创建
       </div>
       <div v-else class="s360-tag-check-list">
-        <div v-for="tag in allTags" :key="tag.id" class="s360-tag-check-item" @click="toggleTag(tag)">
-          <el-checkbox :model-value="isTagChecked(tag.id)" @click.stop />
-          <span class="tag-pill-s360" :style="{ background: tag.color + '22', color: tag.color, borderColor: tag.color + '44' }">
+        <div v-for="tag in allTags" :key="tag.id" class="s360-tag-check-item">
+          <el-checkbox :model-value="isTagChecked(tag.id)" @click="toggleTag(tag)" />
+          <span class="tag-pill-s360" :style="{ background: tag.color + '22', color: tag.color, borderColor: tag.color + '44' }" @click="toggleTag(tag)">
             <span class="tag-dot-s360" :style="{ background: tag.color }"></span>
             {{ tag.name }}
           </span>
+          <el-button link type="danger" size="small" @click="removeTagFromStudent(tag)" style="margin-left:auto">×</el-button>
         </div>
       </div>
     </el-dialog>
@@ -470,6 +471,14 @@ async function toggleTag(tag) {
       studentTags.value.push(tag)
     }
   } catch { ElMessage.error('操作失败') }
+}
+
+async function removeTagFromStudent(tag) {
+  try {
+    await tagsApi.removeStudentTag(sid.value, tag.id)
+    studentTags.value = studentTags.value.filter(t => t.id !== tag.id)
+    ElMessage.success(`已移除标签「${tag.name}」`)
+  } catch { ElMessage.error('移除标签失败') }
 }
 
 // 编辑基础信息

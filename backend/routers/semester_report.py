@@ -4,7 +4,7 @@
 import io
 import logging
 from datetime import datetime
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, case, distinct
 from sqlalchemy.orm import Session
@@ -348,12 +348,12 @@ def activity_stats(db: Session = Depends(get_db)):
 # ============================================================
 @router.get('/export')
 def export_semester_report(db: Session = Depends(get_db)):
-    """导出学期报表为 Excel（多 Sheet）"""
+    """导出学期报表为 Excel（多 Sheet）- 空数据时返回空白模板不报 500"""
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font, Alignment, PatternFill
     except ImportError:
-        return {'error': 'openpyxl 未安装，无法导出 Excel'}
+        raise HTTPException(500, 'openpyxl 未安装，无法导出 Excel，请在 requirements.txt 中添加 openpyxl')
 
     wb = Workbook()
 
@@ -691,9 +691,13 @@ def export_semester_report(db: Session = Depends(get_db)):
         pass
 
     # ---------- 写入 buffer 并返回 ----------
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
+    try:
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+    except Exception as e:
+        logger.error(f'semester report export save failed: {e}')
+        raise HTTPException(500, f'Excel 生成失败: {type(e).__name__}: {str(e)}')
 
     filename = f"学期报表_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     return StreamingResponse(

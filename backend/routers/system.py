@@ -156,6 +156,12 @@ def seed_holidays_endpoint(overwrite: bool = False):
     return {'ok': True, 'stats': seed_holidays(overwrite=overwrite)}
 
 
+# backup endpoint moved to system_backup.py (zip format)
+
+
+# restore endpoint moved to system_backup.py (zip format)
+
+
 @router.delete('/clear-business')
 def clear_business_data():
     """清空业务数据（保留 组织架构/系统配置/知识库）"""

@@ -412,30 +412,34 @@ const historyLoading = ref(false)
 const backupHistory = ref([])
 const historyLoaded = ref(false)
 
-function onBackup() {
+async function onBackup() {
   backupLoading.value = true
-  // 使用 fetch 下载 zip
-  fetch('/api/system/backup')
-    .then(resp => {
-      if (!resp.ok) throw new Error('备份失败')
-      return resp.blob()
-    })
-    .then(blob => {
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[-T:]/g, '')
-      a.download = `backup_${stamp}.zip`
-      a.click()
-      URL.revokeObjectURL(url)
-      ElMessage.success('✅ 备份下载完成')
-      loadBackupHistory()
-    })
-    .catch(() => {
-      // fallback: 直接打开
-      window.open('/api/system/backup', '_blank')
-    })
-    .finally(() => { backupLoading.value = false })
+  try {
+    const resp = await fetch('/api/system/backup')
+    if (!resp.ok) {
+      if (resp.status === 404) {
+        ElMessage.error('❌ 备份文件不存在，请稍后重试')
+      } else {
+        const errText = await resp.text().catch(() => '')
+        ElMessage.error('❌ 备份失败：' + (errText || resp.statusText || '未知错误'))
+      }
+      return
+    }
+    const blob = await resp.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[-T:]/g, '')
+    a.download = `backup_${stamp}.zip`
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('✅ 备份下载完成')
+    loadBackupHistory()
+  } catch (e) {
+    ElMessage.error('❌ 备份失败：' + (e?.message || '网络错误'))
+  } finally {
+    backupLoading.value = false
+  }
 }
 
 function onRestoreBefore(file) {
@@ -458,18 +462,20 @@ async function onRestore({ file }) {
   const fd = new FormData()
   fd.append('file', file)
   try {
-    const res = await system.restore(fd)
+    const res = await http.post('/system/restore', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
     ElMessage.success(`✅ 恢复完成：${res?.message || 'OK'}`)
     await loadHealth()
   } catch (e) {
-    ElMessage.error('恢复失败：' + (e?.message || e))
+    ElMessage.error('❌ 恢复失败：' + (e?.response?.data?.detail || e?.message || e))
   }
 }
 
 async function loadBackupHistory() {
   historyLoading.value = true
   try {
-    const data = await http.get('/system/backup/history')
+    const data = await http.get('/system/backups')
     backupHistory.value = Array.isArray(data) ? data : (data?.files || [])
     historyLoaded.value = true
   } catch {
@@ -479,7 +485,7 @@ async function loadBackupHistory() {
 }
 
 function downloadBackupFile(row) {
-  const url = `/api/system/backup/download?file=${encodeURIComponent(row.name)}`
+  const url = `/api/system/backups/download?file=${encodeURIComponent(row.name)}`
   window.open(url, '_blank')
 }
 

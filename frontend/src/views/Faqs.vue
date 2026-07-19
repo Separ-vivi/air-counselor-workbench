@@ -16,9 +16,12 @@
           <el-button :icon="Download">导出</el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="excel">导出 Excel</el-dropdown-item>
-              <el-dropdown-item command="csv">导出 CSV</el-dropdown-item>
-              <el-dropdown-item command="json">导出 JSON</el-dropdown-item>
+              <el-dropdown-item command="excel">Excel (.xlsx)</el-dropdown-item>
+              <el-dropdown-item command="csv">CSV (.csv)</el-dropdown-item>
+              <el-dropdown-item command="json">JSON (.json)</el-dropdown-item>
+              <el-dropdown-item command="pdf">PDF (.pdf)</el-dropdown-item>
+              <el-dropdown-item command="docx">Word (.docx)</el-dropdown-item>
+              <el-dropdown-item command="md">Markdown (.md)</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -173,14 +176,28 @@ async function onDelete(f) {
 }
 
 function onExport(format) {
+  const stamp = new Date().toISOString().slice(0, 10)
   const url = `/api/faqs/export?format=${format}`
+  const extMap = { excel: 'xlsx', csv: 'csv', json: 'json', pdf: 'pdf', docx: 'docx', md: 'md' }
+  const ext = extMap[format] || format
   if (format === 'json') {
     fetch(url).then(r => r.json()).then(data => {
-      const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'})
-      downloadBlob(blob, `FAQ导出_${new Date().toISOString().slice(0,10)}.json`)
-    })
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      downloadBlob(blob, `FAQ导出_${stamp}.json`)
+    }).catch(() => ElMessage.error('导出失败'))
+  } else if (format === 'md') {
+    fetch(url).then(r => r.text()).then(text => {
+      const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' })
+      downloadBlob(blob, `FAQ导出_${stamp}.md`)
+    }).catch(() => ElMessage.error('导出失败'))
   } else {
-    window.open(url, '_blank')
+    // excel, csv, pdf, docx — backend returns binary file
+    fetch(url).then(r => {
+      if (!r.ok) throw new Error('导出失败')
+      return r.blob()
+    }).then(blob => {
+      downloadBlob(blob, `FAQ导出_${stamp}.${ext}`)
+    }).catch(() => ElMessage.error('导出失败'))
   }
 }
 function downloadBlob(blob, filename) {

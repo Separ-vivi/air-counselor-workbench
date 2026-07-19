@@ -12,7 +12,7 @@ const routes = [
   { path: '/students/:id',     name: 'student360',       component: () => import('@/views/Student360.vue'),        meta: { title: '学生 360' }, props: true },
   { path: '/classes',          name: 'classes',          component: () => import('@/views/ClassList.vue'),         meta: { title: '班级管理' } },
   { path: '/classes/:id',      name: 'class360',         component: () => import('@/views/Class360.vue'),          meta: { title: '班级 360' }, props: true },
-  { path: '/org',              name: 'org',              component: () => import('@/views/OrgManagement.vue'),     meta: { title: '三级架构' } },
+  // { path: '/org',              name: 'org',              component: () => import('@/views/OrgManagement.vue'),     meta: { title: '三级架构' } },
   { path: '/smart-import',     name: 'smartImport',      component: () => import('@/views/SmartImport.vue'),       meta: { title: '智能导入' } },
 
   // 10 个模块列表页
@@ -49,7 +49,7 @@ const router = createRouter({
 })
 
 router.afterEach((to) => {
-  document.title = `${to.meta?.title || '辅导员工作平台'} · V5-e`
+  document.title = `${to.meta?.title || '辅导员工作平台'} · V5-f`
 })
 
 export default router

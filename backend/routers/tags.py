@@ -1,15 +1,10 @@
-"""标签管理路由 - V5-d 扩展
-包含标签 CRUD 和学生-标签关联操作
-"""
+"""标签管理路由"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from pydantic import BaseModel
 from database import get_db
 from models import Tag, Student, student_tags
 from schemas import TagCreate, TagUpdate, TagOut
-
-# ===== 标签管理路由（原有功能） =====
 
 router = APIRouter(prefix='/api/tags', tags=['标签管理'])
 
@@ -121,74 +116,6 @@ def remove_tag_from_student(tag_id: int, student_id: int, db: Session = Depends(
         raise HTTPException(404, '学生或标签不存在')
 
     if tag in student.tags:
-        student.tags.remove(tag)
-        db.commit()
-    return {'message': '移除成功'}
-
-
-# ===== V5-d: 学生维度的标签操作端点 =====
-
-class StudentTagAdd(BaseModel):
-    """给学生添加标签的请求体"""
-    tag_id: int
-
-# 学生标签路由（独立 router，前缀为 /api）
-student_tag_router = APIRouter(prefix='/api', tags=['学生标签'])
-
-
-@student_tag_router.get('/students/{student_id}/tags')
-def get_student_tags(student_id: int, db: Session = Depends(get_db)):
-    """获取学生的所有标签"""
-    student = db.query(Student).get(student_id)
-    if not student:
-        raise HTTPException(404, '学生不存在')
-
-    tags = student.tags.all() if hasattr(student.tags, 'all') else list(student.tags)
-    return [
-        {
-            'id': t.id,
-            'name': t.name,
-            'group_name': t.group_name,
-            'color': t.color,
-        }
-        for t in tags
-    ]
-
-
-@student_tag_router.post('/students/{student_id}/tags')
-def add_student_tag(student_id: int, data: StudentTagAdd, db: Session = Depends(get_db)):
-    """给学生添加标签（请求体: {tag_id}）"""
-    student = db.query(Student).get(student_id)
-    if not student:
-        raise HTTPException(404, '学生不存在')
-
-    tag = db.query(Tag).get(data.tag_id)
-    if not tag:
-        raise HTTPException(404, '标签不存在')
-
-    # 检查是否已存在
-    existing_tags = student.tags.all() if hasattr(student.tags, 'all') else list(student.tags)
-    if tag in existing_tags:
-        return {'message': '标签已存在'}
-
-    student.tags.append(tag)
-    db.commit()
-    return {'message': '添加成功'}
-
-
-@student_tag_router.delete('/students/{student_id}/tags/{tag_id}')
-def remove_student_tag(student_id: int, tag_id: int, db: Session = Depends(get_db)):
-    """移除学生标签"""
-    student = db.query(Student).get(student_id)
-    if not student:
-        raise HTTPException(404, '学生不存在')
-
-    tag = db.query(Tag).get(tag_id)
-    if not tag:
-        raise HTTPException(404, '标签不存在')
-
-    existing_tags = student.tags.all() if hasattr(student.tags, 'all') else list(student.tags)
-    if tag in existing_tags:
         student.tags.remove(tag)
         db.commit()
     return {'message': '移除成功'}

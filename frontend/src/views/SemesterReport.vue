@@ -32,7 +32,7 @@
           <template #header>
             <div class="card-header"><span class="ch-title">政治面貌分布</span></div>
           </template>
-          <div v-if="summaryData" ref="politicalPieRef" class="chart-box"></div>
+          <div v-if="summaryData" ref="politicalPieRef" class="chart-box" style="height:280px"></div>
           <el-empty v-else description="暂无数据" :image-size="80" />
         </el-card>
       </el-col>
@@ -41,7 +41,7 @@
           <template #header>
             <div class="card-header"><span class="ch-title">校区 / 性别分布</span></div>
           </template>
-          <div v-if="summaryData" ref="campusGenderBarRef" class="chart-box"></div>
+          <div v-if="summaryData" ref="campusGenderBarRef" class="chart-box" style="height:280px"></div>
           <el-empty v-else description="暂无数据" :image-size="80" />
         </el-card>
       </el-col>
@@ -76,7 +76,7 @@
           <template #header>
             <div class="card-header"><span class="ch-title">各班平均成绩</span></div>
           </template>
-          <div v-if="academicsData && academicsData.class_avg" ref="classAvgBarRef" class="chart-box-wide"></div>
+          <div v-if="academicsData && academicsData.class_avg" ref="classAvgBarRef" class="chart-box-wide" style="height:300px"></div>
           <el-empty v-else description="暂无数据" :image-size="80" />
         </el-card>
       </el-col>
@@ -123,7 +123,7 @@
           <template #header>
             <div class="card-header"><span class="ch-title">就业状态分布</span></div>
           </template>
-          <div v-if="employmentData && employmentData.distribution" ref="employmentPieRef" class="chart-box-wide"></div>
+          <div v-if="employmentData && employmentData.distribution" ref="employmentPieRef" class="chart-box-wide" style="height:300px"></div>
           <el-empty v-else description="暂无数据" :image-size="80" />
         </el-card>
       </el-col>
@@ -160,7 +160,7 @@
           <template #header>
             <div class="card-header"><span class="ch-title">活动参与人次 Top 10</span></div>
           </template>
-          <div v-if="activitiesData && activitiesData.top10" ref="activitiesBarRef" class="chart-box-wide"></div>
+          <div v-if="activitiesData && activitiesData.top10" ref="activitiesBarRef" class="chart-box-wide" style="height:300px"></div>
           <el-empty v-else description="暂无数据" :image-size="80" />
         </el-card>
       </el-col>
@@ -169,7 +169,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { Download, Refresh, User, UserFilled, WarningFilled, TrendCharts } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -235,6 +235,14 @@ function disposeCharts() {
 
 function initChart(domRef, option) {
   if (!domRef) return null
+  // Dispose existing instance on same dom if any
+  const existing = echarts.getInstanceByDom(domRef)
+  if (existing) {
+    existing.setOption(option, true)
+    // Ensure it's tracked
+    if (!charts.includes(existing)) charts.push(existing)
+    return existing
+  }
   const chart = echarts.init(domRef)
   chart.setOption(option)
   charts.push(chart)
@@ -425,6 +433,28 @@ function handleResize() {
 onMounted(() => {
   refreshAll()
   window.addEventListener('resize', handleResize)
+})
+
+// Watch data changes to re-render charts
+watch(summaryData, async () => {
+  await nextTick()
+  renderPoliticalPie()
+  renderCampusGenderBar()
+})
+
+watch(academicsData, async () => {
+  await nextTick()
+  renderClassAvgBar()
+})
+
+watch(employmentData, async () => {
+  await nextTick()
+  renderEmploymentPie()
+})
+
+watch(activitiesData, async () => {
+  await nextTick()
+  renderActivitiesBar()
 })
 
 onBeforeUnmount(() => {

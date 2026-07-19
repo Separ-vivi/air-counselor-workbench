@@ -210,12 +210,10 @@ from routers.student360 import router as student360_router
 from routers.class360 import router as class360_router
 from routers.organization import router as organization_router
 from routers.system import router as system_router
-from routers.system_backup import router as system_backup_router
-from routers.search import router as search_router
-from routers.tags import student_tag_router
 from routers.productivity import router as productivity_router
-from routers.knowledge_ai import router as knowledge_ai_router
+from routers.system_backup import router as system_backup_router
 from routers.semester_report import router as semester_report_router
+from routers.knowledge_ai import router as knowledge_ai_router
 
 app.include_router(students_router)
 app.include_router(tags_router)
@@ -232,10 +230,8 @@ app.include_router(student360_router)
 app.include_router(class360_router)
 app.include_router(organization_router)
 app.include_router(system_router)
-app.include_router(system_backup_router)
-app.include_router(search_router)
-app.include_router(student_tag_router)
 app.include_router(productivity_router)
+app.include_router(system_backup_router)
 app.include_router(semester_report_router)
 
 

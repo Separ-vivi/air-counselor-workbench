@@ -280,6 +280,7 @@
             <span class="tag-dot" :style="{ background: tag.color }"></span>
             {{ tag.name }}
           </span>
+          <el-button link type="danger" size="small" @click.stop="removeStudentTagInline(tag)" style="margin-left:auto">✕</el-button>
         </div>
       </div>
     </el-dialog>
@@ -419,6 +420,16 @@ async function toggleStudentTag(tag) {
       studentTagCache.value[sid].push(tag)
     }
   } catch { ElMessage.error('操作失败') }
+}
+
+async function removeStudentTagInline(tag) {
+  const sid = editingStudent.value?.id
+  if (!sid) return
+  try {
+    await tagsApi.removeStudentTag(sid, tag.id)
+    studentTagCache.value[sid] = (studentTagCache.value[sid] || []).filter(t => t.id !== tag.id)
+    ElMessage.success(`已移除标签「${tag.name}」`)
+  } catch { ElMessage.error('移除标签失败') }
 }
 
 // ========== 列表操作 ==========

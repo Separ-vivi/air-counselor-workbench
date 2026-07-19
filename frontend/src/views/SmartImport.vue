@@ -53,16 +53,7 @@
                   <el-radio-button v-for="t in businessTypes" :key="t.key" :value="t.key">{{ t.icon }} {{ t.label }}</el-radio-button>
                 </el-radio-group>
               </div>
-              <!-- 知识中心 组 -->
-              <div class="type-group">
-                <div class="type-group-title">
-                  <el-icon style="vertical-align:-2px;margin-right:4px"><Reading /></el-icon>
-                  知识中心
-                </div>
-                <el-radio-group v-model="dataType" class="type-group-radios">
-                  <el-radio-button v-for="t in knowledgeTypes" :key="t.key" :value="t.key">{{ t.icon }} {{ t.label }}</el-radio-button>
-                </el-radio-group>
-              </div>
+
             </div>
           </el-form-item>
           <el-form-item label="冲突策略">
@@ -178,7 +169,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { UploadFilled, ArrowLeft, UserFilled, Menu, Reading } from '@element-plus/icons-vue'
+import { UploadFilled, ArrowLeft, UserFilled, Menu } from '@element-plus/icons-vue'
 import { detectFile, confirmImport } from '@/api/smartImport'
 
 const router = useRouter()
@@ -220,16 +211,10 @@ const businessTypes = [
   { key: 'employment',    label: '就业跟踪',       icon: '💼' },
   { key: 'party',         label: '党团发展',       icon: '🚩' },
 ]
-// 知识中心
-const knowledgeTypes = [
-  { key: 'faq',           label: 'FAQ',           icon: '❓' },
-  { key: 'template',      label: '文档模板',       icon: '📄' },
-]
 // 合并全部（兼容旧逻辑）
 const dataTypes = [
   ...studentClassTypes,
   ...businessTypes,
-  ...knowledgeTypes,
 ]
 
 // 各类型对应的目标字段
@@ -322,17 +307,7 @@ const fieldMap = {
     { key: 'offer_date', label: '签约日期' },
     { key: 'salary', label: '薪资' },
   ],
-  faq: [
-    { key: 'question', label: '问题', required: true },
-    { key: 'answer', label: '答案', required: true },
-    { key: 'category', label: '分类' },
-    { key: 'is_published', label: '是否发布' },
-  ],
-  template: [
-    { key: 'name', label: '模板名称', required: true },
-    { key: 'content', label: '模板内容', required: true },
-    { key: 'category', label: '分类' },
-  ],
+
 }
 const targetFields = computed(() => fieldMap[dataType.value] || [])
 const isRequired = (key) => targetFields.value.find((f) => f.key === key)?.required === true
