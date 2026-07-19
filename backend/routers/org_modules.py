@@ -165,29 +165,21 @@ def export_cadres_all(
 
 @router.get('/cadres/directory')
 def cadre_directory(db: Session = Depends(get_db)):
-    """班委通讯录"""
+    """班委通讯录 - 返回扁平列表，每行一条干部记录"""
     from models import ClassModel
-    classes = db.query(ClassModel).all()
     result = []
-    for cls in classes:
-        # 查找该班级的学生干部
-        students_in_class = db.query(Student).filter(Student.class_id == cls.id).all()
-        student_ids = [s.id for s in students_in_class]
-        cadres = db.query(StudentCadreRecord).filter(StudentCadreRecord.student_id.in_(student_ids)).all() if student_ids else []
-        teacher = db.query(ClassTeacher).filter(ClassTeacher.class_id == cls.id).first()
-        class_data = {'class_name': cls.class_name, 'cadres': [], 'teacher': None}
-        for c in cadres:
-            stu = db.query(Student).filter(Student.id == c.student_id).first()
-            class_data['cadres'].append({
-                'position': c.position, 'student_name': stu.name if stu else '',
-                'phone': stu.phone if stu else '',
-            })
-        if teacher:
-            class_data['teacher'] = {
-                'name': teacher.name, 'phone': teacher.phone, 'office': teacher.office,
-            }
-        if class_data['cadres'] or class_data['teacher']:
-            result.append(class_data)
+    # 直接查询所有干部记录，join 学生表和班级表
+    cadres = db.query(StudentCadreRecord).join(Student, StudentCadreRecord.student_id == Student.id).join(ClassModel, Student.class_id == ClassModel.id).all()
+    for c in cadres:
+        stu = db.query(Student).filter(Student.id == c.student_id).first()
+        cls = db.query(ClassModel).filter(ClassModel.id == stu.class_id).first() if stu else None
+        result.append({
+            'student_name': stu.name if stu else '',
+            'student_no': stu.student_no if stu else '',
+            'class_name': cls.class_name if cls else '',
+            'position': c.position,
+            'level': c.level or '',
+        })
     return result
 
 
