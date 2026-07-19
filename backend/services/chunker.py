@@ -1,14 +1,14 @@
-"""文本分块器 - 按段落/句号优先切，fallback 按字符切"""
+"""文本分块器 - 段落合并 + 自然语言边界切分"""
 import re
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-def chunk_text(text: str, size: int = 500, overlap: int = 50) -> list[str]:
+def chunk_text(text: str, size: int = 800, overlap: int = 100) -> list[str]:
     """
     将长文本切分为多个 chunk
-    优先级：段落切 > 句号切 > 字符切
+    策略：段落合并 → 超长段落按句子拆分 → 滑动窗口重叠
     :param text: 原始文本
     :param size: 目标 chunk 大小（字符数）
     :param overlap: 重叠字符数
@@ -17,71 +17,77 @@ def chunk_text(text: str, size: int = 500, overlap: int = 50) -> list[str]:
     if not text or not text.strip():
         return []
 
-    # 1. 先按段落切（双换行 或 单换行+缩进）
+    # 1. 按段落切分
     paragraphs = _split_paragraphs(text)
+    if not paragraphs:
+        return []
 
-    # 2. 合并过小的段落，拆分过大的段落
+    # 2. 合并小段落 + 按句子拆分大段落
     chunks = _merge_and_split(paragraphs, size, overlap)
-
-    if not chunks:
-        # fallback: 纯字符切
-        chunks = _char_split(text, size, overlap)
 
     return chunks
 
 
 def _split_paragraphs(text: str) -> list[str]:
-    """按段落切分，保留段落完整性"""
-    # 先按双换行（空行）分
+    """按段落切分，优先双换行（空行），其次单换行"""
     parts = re.split(r'\n\s*\n', text)
-    # 如果段落太少，按单换行分
     if len(parts) <= 1:
         parts = text.split('\n')
-    # 过滤空段落
     return [p.strip() for p in parts if p.strip()]
 
 
 def _merge_and_split(paragraphs: list[str], size: int, overlap: int) -> list[str]:
-    """合并小段落，拆分大段落"""
+    """合并小段落，拆分大段落，带滑动重叠"""
     chunks = []
-    current = []
+    buf = []
+    buf_len = 0
 
     for para in paragraphs:
-        # 单个段落超过 size → 按句号拆分
-        if len(para) > size:
-            # 先把当前积累的段落合入
-            if current:
-                chunks.append('\n'.join(current))
-                current = []
-            # 按句号拆分大段落
-            sub_chunks = _split_by_sentence(para, size, overlap)
-            chunks.extend(sub_chunks)
+        if buf_len + (len(para) + 1 if buf else len(para)) <= size:
+            # 段落可以放入缓冲区
+            buf.append(para)
+            buf_len += len(para) + (1 if buf_len > 0 else 0)
         else:
-            # 尝试合并到当前 chunk
-            trial = '\n'.join(current + [para])
-            if len(trial) <= size:
-                current.append(para)
+            # 缓冲区已满，先输出
+            if buf:
+                chunks.append('\n\n'.join(buf))
+            # 单个段落超过 size → 按句子拆分
+            if len(para) > size:
+                sub = _split_by_sentence(para, size)
+                chunks.extend(sub)
+                buf = []
+                buf_len = 0
             else:
-                # 当前 chunk 已满，保存并开始新 chunk
-                if current:
-                    chunks.append('\n'.join(current))
-                # overlap: 保留最后一个段落
-                current = [para] if not current else [current[-1], para] if len(current) > 0 and len('\n'.join([current[-1], para])) <= size else [para]
+                # 新段落放入缓冲区
+                buf = [para]
+                buf_len = len(para)
 
-    if current:
-        chunks.append('\n'.join(current))
+    if buf:
+        chunks.append('\n\n'.join(buf))
+
+    # 3. 添加重叠：每个 chunk 的开头包含上一个 chunk 末尾的一段文字
+    if overlap > 0 and len(chunks) > 1:
+        overlapped = [chunks[0]]
+        for i in range(1, len(chunks)):
+            prev_tail = chunks[i - 1][-overlap:]
+            # 找到句子边界避免半句截断
+            cut = _find_sentence_start(prev_tail)
+            if cut < len(prev_tail):
+                prev_tail = prev_tail[cut:]
+            overlapped.append(prev_tail + '\n' + chunks[i])
+        chunks = overlapped
 
     return chunks
 
 
-def _split_by_sentence(text: str, size: int, overlap: int) -> list[str]:
-    """按中英文句号/问号/感叹号切分，再合并"""
-    # 按句子边界切
-    sentences = re.split(r'(?<=[。！？\.!?])\s*', text)
+def _split_by_sentence(text: str, size: int) -> list[str]:
+    """按中英文句号/问号/感叹号/分号切分"""
+    # 在句子边界切分
+    sentences = re.split(r'(?<=[。！？；\.\!\?\;])\s*', text)
     sentences = [s for s in sentences if s.strip()]
 
     if not sentences:
-        return _char_split(text, size, overlap)
+        return _char_split(text, size)
 
     chunks = []
     current = ''
@@ -92,25 +98,28 @@ def _split_by_sentence(text: str, size: int, overlap: int) -> list[str]:
         else:
             if current:
                 chunks.append(current)
-            # overlap
-            if overlap > 0 and current:
-                overlap_text = current[-overlap:]
-                current = overlap_text + sent
-            else:
-                current = sent
+            current = sent
     if current:
         chunks.append(current)
 
-    # 过滤过短的
     return [c for c in chunks if len(c.strip()) > 10]
 
 
-def _char_split(text: str, size: int, overlap: int) -> list[str]:
+def _char_split(text: str, size: int) -> list[str]:
     """纯字符切分（fallback）"""
     chunks = []
     start = 0
     while start < len(text):
         end = start + size
         chunks.append(text[start:end])
-        start = end - overlap if end < len(text) else end
+        start = end
     return [c for c in chunks if c.strip()]
+
+
+def _find_sentence_start(text: str) -> int:
+    """找到文本中第一个句子起始位置（跳过开头的不完整半句）"""
+    # 查找第一个句子结束符后的位置作为下一个句子的起点
+    match = re.search(r'[。！？；\.\!\?\;]\s*', text)
+    if match:
+        return match.end()
+    return 0

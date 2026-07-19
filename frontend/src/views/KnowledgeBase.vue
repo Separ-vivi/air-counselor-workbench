@@ -97,6 +97,7 @@
       <div class="col-chunks">
         <div class="col-head">
           <span class="col-title">📎 来源预览</span>
+          <span v-if="chunks.length" class="chunk-count">{{ chunks.length }} 块</span>
         </div>
         <div v-if="!selectedDoc && !highlightChunk" class="col-empty">
           点击左栏文档查看分块<br>
@@ -114,12 +115,13 @@
             <el-divider />
             <div class="chunk-hint">该文档其他分块：</div>
           </template>
-          <div v-for="c in chunks" :key="c.id" class="chunk-item">
+          <div v-for="c in chunks" :key="c.id" class="chunk-item" @click="toggleChunkExpand(c.id)">
             <div class="chunk-head">
               <el-tag size="small" round>#{{ c.chunk_index + 1 }}</el-tag>
-              <span class="chunk-src">{{ c.source_file }}</span>
+              <span class="chunk-chars">{{ c.content.length }}字</span>
+              <el-icon class="expand-icon" :class="{ expanded: expandedChunks.has(c.id) }"><ArrowDown /></el-icon>
             </div>
-            <div class="chunk-body">{{ c.content }}</div>
+            <div class="chunk-body" :class="{ collapsed: !expandedChunks.has(c.id) }">{{ c.content }}</div>
           </div>
         </div>
       </div>
@@ -151,7 +153,7 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload, Document, CircleCheck, Warning } from '@element-plus/icons-vue'
+import { Upload, Document, CircleCheck, Warning, ArrowDown } from '@element-plus/icons-vue'
 import { knowledgeApi, chatApi, llmApi } from '@/api/knowledge.js'
 
 // ===== 文档库 =====
@@ -166,6 +168,14 @@ const question = ref('')
 const chatList = ref([])
 const chatLoading = ref(false)
 const highlightChunk = ref(null)
+const expandedChunks = ref(new Set())
+
+function toggleChunkExpand(id) {
+  const s = new Set(expandedChunks.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  expandedChunks.value = s
+}
 
 // ===== LLM =====
 const llmConfigured = ref(false)
@@ -224,6 +234,7 @@ async function onFileSelected(e) {
 async function onSelectDoc(d) {
   selectedDoc.value = d
   highlightChunk.value = null
+  expandedChunks.value = new Set()
   try {
     const res = await knowledgeApi.chunks(d.id)
     chunks.value = Array.isArray(res) ? res : []
@@ -432,22 +443,33 @@ onMounted(() => {
 
 /* 右：分块 */
 .chunk-list { flex: 1; overflow-y: auto; padding: 10px; background: #FAFBFC; }
+.chunk-count { font-size: 12px; color: #909399; }
 .chunk-hint { padding: 0 10px 8px; font-size: 12px; color: #909399; }
 .chunk-item {
   background: #fff; border: 1px solid #E4E7ED; border-radius: 8px;
-  padding: 10px; margin-bottom: 8px;
+  padding: 10px; margin-bottom: 8px; cursor: pointer; transition: border-color .18s;
 }
+.chunk-item:hover { border-color: #5B92E5; }
 .chunk-item.highlight {
-  border-color: #E6A23C; background: #FDF6EC;
+  border-color: #E6A23C; background: #FDF6EC; cursor: default;
 }
 .chunk-head {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
   font-size: 12px;
 }
-.chunk-src { color: #909399; }
+.chunk-chars { color: #C0C4CC; font-size: 11px; }
+.expand-icon {
+  margin-left: auto; transition: transform .2s; color: #C0C4CC; font-size: 14px;
+}
+.expand-icon.expanded { transform: rotate(180deg); }
 .chunk-body {
   font-size: 13px; line-height: 1.6; color: #303133;
-  white-space: pre-wrap; max-height: 200px; overflow-y: auto;
+  white-space: pre-wrap; word-break: break-word;
+}
+.chunk-body.collapsed {
+  max-height: 72px; overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
 }
 
 /* LLM 提示 */

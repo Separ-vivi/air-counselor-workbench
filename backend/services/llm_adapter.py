@@ -63,6 +63,7 @@ def get_llm_settings_masked() -> dict:
         'base_url': llm.get('base_url', ''),
         'model': llm.get('model', ''),
         'model_name': llm.get('model_name', ''),
+        'configured': bool(llm.get('api_key')),
     }
 
 
