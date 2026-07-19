@@ -6,6 +6,7 @@ import random
 import logging
 from database import SessionLocal, engine, Base
 from models import (
+    ComprehensiveAssessment, StudentInterview,
     Grade, Major, ClassModel, Student, Tag, GradeRecord, WarningRecord,
     PartyProgress, PsychologyRecord, FamilyContact, StudentCadreRecord,
     Activity, ActivitySignup, EmploymentRecord,
@@ -318,7 +319,7 @@ def seed_large_dataset():
         db.commit()
 
         # 成绩 + 预警
-        semesters = ['2023-1','2023-2','2024-1','2024-2','2025-1']
+        semesters = ['2022-2023-1','2022-2023-2','2023-2024-1','2023-2024-2','2024-2025-1']
         bulk_grades = []
         stats['warnings'] = 0
         for stu in all_students:
@@ -368,6 +369,58 @@ def seed_large_dataset():
                 stats['warnings'] += 1
         db.bulk_save_objects(bulk_grades)
         stats['scores'] = len(bulk_grades)
+        db.commit()
+
+        # ===== 综测成绩 =====
+        stats['comprehensive'] = 0
+        bulk_ca = []
+        for stu in all_students:
+            cls = db.query(ClassModel).get(stu.class_id)
+            mj = db.query(Major).get(cls.major_id)
+            gr = db.query(Grade).get(mj.grade_id)
+            year = year_prefix[gr.grade_name]
+            n_sem = min(len(semesters), 2026 - year)
+            student_sems = semesters[:max(1, n_sem)]
+            for sem in student_sems:
+                moral = round(max(0, min(100, random.gauss(82, 8))), 1)
+                academic = round(max(0, min(100, random.gauss(78, 12))), 1)
+                physical = round(max(0, min(100, random.gauss(80, 10))), 1)
+                aesthetic = round(max(0, min(100, random.gauss(79, 9))), 1)
+                labor_score = round(max(0, min(100, random.gauss(81, 8))), 1)
+                total = round(moral * 0.2 + academic * 0.4 + physical * 0.15 + aesthetic * 0.1 + labor_score * 0.15, 1)
+                bulk_ca.append(ComprehensiveAssessment(
+                    student_id=stu.id, semester=sem,
+                    moral_score=moral, academic_score=academic,
+                    physical_score=physical, aesthetic_score=aesthetic,
+                    labor_score=labor_score, total_score=total, notes=''
+                ))
+                stats['comprehensive'] += 1
+        db.bulk_save_objects(bulk_ca)
+        db.commit()
+
+        # ===== 学生访谈 =====
+        stats['interview'] = 0
+        interview_types = ['常规访谈', '学业指导', '心理关怀', '就业规划', '预警访谈', '家校沟通']
+        statuses = ['已完成', '待进行', '需跟进']
+        for stu in random.sample(all_students, k=min(int(len(all_students) * 0.6), len(all_students))):
+            n_interviews = random.randint(1, 3)
+            for _ in range(n_interviews):
+                month = random.randint(1, 12)
+                day = random.randint(1, 28)
+                db.add(StudentInterview(
+                    student_id=stu.id,
+                    interview_date=f'2024-{month:02d}-{day:02d}',
+                    interview_type=random.choice(interview_types),
+                    interviewer=random.choice(['张老师', '李老师', '王老师']),
+                    location=random.choice(['辅导员办公室', '教学楼A301', '线上视频', '学生宿舍']),
+                    topic=random.choice(['期中学习情况', '学业规划', '心理状态', '就业意向', '班级生活', '家庭情况']),
+                    content='与学生进行了深入交流，了解了近期的学习和生活情况。',
+                    feedback=random.choice(['学生状态良好', '需要持续关注', '已制定改进计划', '建议加强辅导']),
+                    follow_up='下个月继续跟踪' if random.random() < 0.4 else '',
+                    status=random.choice(statuses),
+                    remind_date=f'2025-{random.randint(1,6):02d}-{random.randint(1,28):02d}' if random.random() < 0.3 else '',
+                ))
+                stats['interview'] += 1
         db.commit()
 
         # 党团发展

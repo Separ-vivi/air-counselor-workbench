@@ -154,7 +154,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/index'
-import { listStudents } from '@/api/students'
+
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -239,7 +239,7 @@ const loadStats = async () => {
 
 const loadStudents = async () => {
   try {
-    const res = await listStudents({ size: 1000 })
+    const res = await request.get('/students/simple')
     students.value = res.data?.items || []
   } catch (error) {
     console.error('加载学生列表失败:', error)

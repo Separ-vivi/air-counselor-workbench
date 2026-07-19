@@ -14,6 +14,16 @@ from schemas import (
 router = APIRouter(prefix='/api/students', tags=['学生管理'])
 
 
+
+@router.get('/simple')
+def list_students_simple(db: Session = Depends(get_db)):
+    """返回所有学生（仅 id, name, student_no），用于下拉选择，无分页限制"""
+    students = db.query(Student).order_by(Student.student_no).all()
+    return [
+        {"id": s.id, "name": s.name, "student_no": s.student_no}
+        for s in students
+    ]
+
 @router.get('/search')
 def search_students(
     q: str = Query('', description='搜索关键词'),

@@ -38,6 +38,14 @@ def _format_semester_display(semester: str) -> str:
     parts = semester.split('-')
     if len(parts) == 3:
         return f"{parts[0]}-{parts[1]}学年第{parts[2]}学期"
+    elif len(parts) == 2:
+        # 兼容旧格式 '2023-1' -> 推断为 '2022-2023学年第1学期'
+        y = int(parts[0])
+        sem_num = parts[1]
+        if sem_num == '1':
+            return f"{y-1}-{y}学年第1学期"
+        else:
+            return f"{y}-{y+1}学年第2学期"
     return semester
 
 
