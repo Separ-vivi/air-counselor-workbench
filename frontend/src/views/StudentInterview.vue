@@ -217,7 +217,7 @@ const loadData = async () => {
     if (filterStatus.value) params.status = filterStatus.value
     if (filterType.value) params.interview_type = filterType.value
     
-    const res = await request.get('/api/interview/', { params })
+    const res = await request.get('/interview/', { params })
     tableData.value = res.data.items || []
     total.value = res.data.total || 0
   } catch (error) {
@@ -230,7 +230,7 @@ const loadData = async () => {
 
 const loadStats = async () => {
   try {
-    const res = await request.get('/api/interview/statistics')
+    const res = await request.get('/interview/statistics')
     stats.value = res.data || {}
   } catch (error) {
     console.error('加载统计失败:', error)
@@ -291,10 +291,10 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     if (isEdit.value) {
-      await request.put(`/api/interview/${editId.value}`, form.value)
+      await request.put(`/interview/${editId.value}`, form.value)
       ElMessage.success('更新成功')
     } else {
-      await request.post('/api/interview/', form.value)
+      await request.post('/interview/', form.value)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
@@ -313,7 +313,7 @@ const handleDelete = async (row) => {
     await ElMessageBox.confirm(`确定删除 ${row.student_name} 的访谈记录吗？`, '提示', {
       type: 'warning'
     })
-    await request.delete(`/api/interview/${row.id}`)
+    await request.delete(`/interview/${row.id}`)
     ElMessage.success('删除成功')
     loadData()
     loadStats()

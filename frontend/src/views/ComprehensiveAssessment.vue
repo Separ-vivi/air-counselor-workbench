@@ -145,7 +145,7 @@ const loadData = async () => {
     }
     if (filterSemester.value) params.semester = filterSemester.value
     
-    const res = await request.get('/api/comprehensive/', { params })
+    const res = await request.get('/comprehensive/', { params })
     tableData.value = res.data.items || []
     total.value = res.data.total || 0
   } catch (error) {
@@ -158,7 +158,7 @@ const loadData = async () => {
 
 const loadSemesters = async () => {
   try {
-    const res = await request.get('/api/comprehensive/semesters')
+    const res = await request.get('/comprehensive/semesters')
     semesters.value = res.data || []
   } catch (error) {
     console.error('加载学期列表失败:', error)
@@ -169,7 +169,7 @@ const loadStats = async () => {
   try {
     const params = {}
     if (filterSemester.value) params.semester = filterSemester.value
-    const res = await request.get('/api/comprehensive/statistics', { params })
+    const res = await request.get('/comprehensive/statistics', { params })
     stats.value = res.data || {}
   } catch (error) {
     console.error('加载统计失败:', error)
@@ -230,10 +230,10 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     if (isEdit.value) {
-      await request.put(`/api/comprehensive/${editId.value}`, form.value)
+      await request.put(`/comprehensive/${editId.value}`, form.value)
       ElMessage.success('更新成功')
     } else {
-      await request.post('/api/comprehensive/', form.value)
+      await request.post('/comprehensive/', form.value)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
@@ -252,7 +252,7 @@ const handleDelete = async (row) => {
     await ElMessageBox.confirm(`确定删除 ${row.student_name} 的综测记录吗？`, '提示', {
       type: 'warning'
     })
-    await request.delete(`/api/comprehensive/${row.id}`)
+    await request.delete(`/comprehensive/${row.id}`)
     ElMessage.success('删除成功')
     loadData()
     loadStats()
