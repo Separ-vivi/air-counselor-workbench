@@ -5,7 +5,70 @@
       <el-button :icon="Refresh" @click="loadHealth" :loading="loadingHealth">刷新健康状态</el-button>
     </div>
 
-    <!-- 数据库健康检查 -->
+
+    <!-- V5-B AI 配置 -->
+    <el-card shadow="hover" class="section-card llm-card">
+      <template #header>
+        <div class="card-header">
+          <span>🤖 AI 配置（知识库问答）</span>
+          <el-tag v-if="llmSaved" type="success" size="small" round>已保存</el-tag>
+        </div>
+      </template>
+      <el-form :model="llmForm" label-width="90px">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="API Key">
+              <el-input
+                v-model="llmForm.api_key"
+                placeholder="sk-xxxxxxxxxxxxxxxx"
+                type="password"
+                show-password
+                clearable
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="Base URL">
+              <el-input v-model="llmForm.base_url" placeholder="https://api.deepseek.com" clearable />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="模型名称">
+              <el-input v-model="llmForm.model" placeholder="deepseek-chat" clearable />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="显示名">
+              <el-input v-model="llmForm.model_name" placeholder="DeepSeek V3" clearable />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item>
+          <el-button type="primary" @click="onSaveLlm" :loading="llmSaving">💾 保存配置</el-button>
+          <el-button @click="onTestLlm" :loading="llmTesting" :disabled="!llmSaved">🔌 测试连通</el-button>
+          <el-button link type="info" @click="llmShowHelp = true">怎么用？</el-button>
+        </el-form-item>
+        <el-form-item v-if="llmTestResult">
+          <el-alert
+            :type="llmTestResult.ok ? 'success' : 'error'"
+            :closable="false"
+            show-icon
+          >
+            <template #title>{{ llmTestResult.message }}</template>
+          </el-alert>
+        </el-form-item>
+      </el-form>
+      <el-divider />
+      <div class="llm-hint">
+        💡 目前支持任何兼容 OpenAI 协议的接口：DeepSeek / OpenAI / 本地 Ollama / 中转站
+        <br>DeepSeek 注册地址：<a href="https://platform.deepseek.com" target="_blank" style="color:#5B92E5">https://platform.deepseek.com</a>
+        ；最低充值 ¥10，约可支持几千次问答
+      </div>
+    </el-card>
+
+        <!-- 数据库健康检查 -->
     <el-card shadow="hover" class="section-card">
       <template #header>
         <div class="card-header">
@@ -138,9 +201,67 @@ import { system } from '@/api/modules'
 
 const health = ref(null)
 const loadingHealth = ref(false)
+const llmForm = ref({ api_key: '', base_url: 'https://api.deepseek.com', model: 'deepseek-chat', model_name: 'DeepSeek V3' })
+const llmSaving = ref(false)
+const llmSaved = ref(false)
+const llmTesting = ref(false)
+const llmTestResult = ref(null)
+const llmShowHelp = ref(false)
 const loadingSeed = ref(false)
 const loadingClear = ref(false)
 const loadingReinit = ref(false)
+
+async function loadLlm() {
+  try {
+    const r = await system.llmGet()
+    if (r && typeof r === 'object') {
+      if (r.base_url) llmForm.value.base_url = r.base_url
+      if (r.model) llmForm.value.model = r.model
+      if (r.model_name) llmForm.value.model_name = r.model_name
+      if (r.api_key_masked) {
+        // 有保存过的 key，保留 placeholder 提示
+        llmForm.value.api_key = r.api_key_masked
+        llmSaved.value = true
+      }
+    }
+  } catch (e) {
+    console.warn('loadLlm err', e)
+  }
+}
+
+async function onSaveLlm() {
+  llmSaving.value = true
+  llmTestResult.value = null
+  try {
+    await system.llmUpdate(llmForm.value)
+    ElMessage.success('✅ AI 配置已保存')
+    llmSaved.value = true
+    await loadLlm()
+  } catch (e) {
+    ElMessage.error('保存失败：' + (e?.message || e))
+  } finally {
+    llmSaving.value = false
+  }
+}
+
+async function onTestLlm() {
+  llmTesting.value = true
+  llmTestResult.value = null
+  try {
+    const r = await system.llmTest()
+    llmTestResult.value = {
+      ok: r?.ok === true,
+      message: r?.ok ? `✅ 连通成功 · 模型：${r.model || llmForm.value.model}` : `❌ ${r?.error || '连通失败'}`,
+    }
+  } catch (e) {
+    llmTestResult.value = {
+      ok: false,
+      message: '❌ 测试失败：' + (e?.response?.data?.detail || e?.message || e),
+    }
+  } finally {
+    llmTesting.value = false
+  }
+}
 
 async function loadHealth() {
   loadingHealth.value = true
@@ -276,7 +397,7 @@ async function onRestore({ file }) {
   }
 }
 
-onMounted(loadHealth)
+onMounted(() => { loadHealth(); loadLlm() })
 </script>
 
 <style scoped>
@@ -295,4 +416,14 @@ onMounted(loadHealth)
 }
 .op-title { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
 .op-desc { color: #606266; font-size: 13px; line-height: 1.6; margin-bottom: 12px; min-height: 60px; }
+.llm-card {
+  border: 1px solid #D6E4F5;
+  background: linear-gradient(135deg, #F6F9FD, #fff);
+}
+.llm-hint {
+  font-size: 12px; color: #606266; line-height: 1.7;
+  background: #F5F7FA; padding: 10px 14px; border-radius: 6px;
+}
+.llm-hint a { text-decoration: none; }
+.llm-hint a:hover { text-decoration: underline; }
 </style>

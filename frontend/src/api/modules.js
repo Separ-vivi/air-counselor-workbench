@@ -169,5 +169,9 @@ export const system = {
   restore: (formData) => http.post('/system/restore', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  clearBusiness: () => http.delete('/system/clear-business')
+  clearBusiness: () => http.delete('/system/clear-business'),
+  // V5-B: AI 配置
+  llmGet:    ()        => http.get('/system/llm-settings'),
+  llmUpdate: (payload) => http.post('/system/llm-settings', payload),
+  llmTest:   ()        => http.post('/system/llm-test', null, { timeout: 30000 }),
 }

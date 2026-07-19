@@ -1,33 +1,47 @@
 /**
- * V3-C 辅助工具 API 封装：知识库 / FAQ / 文档模板 / 生成文书
- * 后端路由：backend/routers/knowledge_modules.py
+ * V5-B 知识库 API：文档库 + AI 问答 + LLM 配置
  */
 import http from './index.js'
 
-// ---------- 知识库 ----------
+// ---------- 文档库（旧 CRUD 兼容 + 新增） ----------
 export const knowledgeApi = {
-  list:   ()          => http.get('/knowledge'),
+  list:   ()          => http.get('/knowledge/enhanced'),
   get:    (id)        => http.get(`/knowledge/${id}`),
-  create: (data)      => http.post('/knowledge', data),
-  remove: (id)        => http.delete(`/knowledge/${id}`),
+  chunks: (id)        => http.get(`/knowledge/${id}/chunks`),
+  remove: (id)        => http.delete(`/knowledge/${id}/full`),
+  upload: (form, onProgress) => http.post('/knowledge/upload', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: onProgress,
+    timeout: 120000,
+  }),
 }
 
-// ---------- FAQ ----------
+// ---------- AI 问答 ----------
+export const chatApi = {
+  ask:     (question)  => http.post('/knowledge/chat', { question }, { timeout: 60000 }),
+  history: (limit = 20) => http.get('/knowledge/chat/history', { params: { limit } }),
+}
+
+// ---------- LLM 配置 ----------
+export const llmApi = {
+  get:    ()        => http.get('/system/llm-settings'),
+  update: (payload) => http.post('/system/llm-settings', payload),
+}
+
+// ---------- FAQ / 模板 / 文书（保留） ----------
 export const faqsApi = {
   list:   (params = {}) => http.get('/faqs', { params }),
-  get:    (id)          => http.get(`/faqs/${id}`),
-  create: (data)        => http.post('/faqs', data),
-  update: (id, data)    => http.put(`/faqs/${id}`, data),
-  remove: (id)          => http.delete(`/faqs/${id}`),
+  get:    (id)        => http.get(`/faqs/${id}`),
+  create: (data)      => http.post('/faqs', data),
+  update: (id, data)  => http.put(`/faqs/${id}`, data),
+  remove: (id)        => http.delete(`/faqs/${id}`),
 }
 
-// ---------- 文档模板 ----------
 export const templatesApi = {
   list:   ()     => http.get('/document-templates'),
   create: (data) => http.post('/document-templates', data),
 }
 
-// ---------- 生成文书 ----------
 export const documentsApi = {
   list:     (params = {}) => http.get('/documents', { params }),
   get:      (id)          => http.get(`/documents/${id}`),
