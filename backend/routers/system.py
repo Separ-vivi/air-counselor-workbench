@@ -35,22 +35,47 @@ def system_health(db: Session = Depends(get_db)):
     from schema_migrations import get_schema_health
     from sqlalchemy import text as sql_text
     report = get_schema_health(engine, Base)
-    # 补每表行数
+    # 补每表行数 + 提取 schema_issues
+    schema_issues = []
     for t in report['tables']:
         try:
             r = db.execute(sql_text(f'SELECT COUNT(*) FROM "{t["table"]}"')).scalar()
             t['row_count'] = int(r or 0)
         except Exception:
             t['row_count'] = -1
-    # 关键表快照
+        if t.get('status') != 'ok':
+            schema_issues.append(f"{t['table']}: {t.get('status', 'unknown')} - 缺失列: {t.get('missing_cols', [])}")
+    # 关键表计数（字段名对齐前端）
     from models import Student, ClassModel, Major, GradeRecord
-    report['summary'] = {
-        'student_count': db.query(Student).count(),
-        'class_count': db.query(ClassModel).count(),
-        'major_count': db.query(Major).count(),
-        'grade_count': db.query(GradeRecord).count(),
+    student_count = db.query(Student).count()
+    class_count = db.query(ClassModel).count()
+    grade_count = db.query(GradeRecord).count()
+    return {
+        'ok': report['healthy'],
+        'db_path': DB_PATH or '未知',
+        'counts': {
+            'students': student_count,
+            'classes': class_count,
+            'grades': grade_count,
+            'total_business': student_count + class_count + grade_count,
+        },
+        'schema_issues': schema_issues,
+        'tables': report['tables'],
     }
-    return report
+
+
+@router.post('/llm-test')
+def test_llm_connection():
+    """测试 LLM 连通性"""
+    from services.llm_adapter import LLMAdapter
+    llm = LLMAdapter()
+    if not llm.is_configured:
+        return {'ok': False, 'error': '未配置 API Key，请先保存配置'}
+    try:
+        answer = llm.chat([{'role': 'user', 'content': '你好，请回复OK'}])
+        return {'ok': True, 'model': llm._settings.get('model', ''), 'reply': answer[:100]}
+    except Exception as e:
+        return {'ok': False, 'error': str(e)}
 
 
 @router.post('/reinit')
