@@ -156,36 +156,6 @@ def seed_holidays_endpoint(overwrite: bool = False):
     return {'ok': True, 'stats': seed_holidays(overwrite=overwrite)}
 
 
-@router.get('/backup')
-def system_backup():
-    """下载完整 sqlite 数据库文件"""
-    if not DB_PATH or not os.path.exists(DB_PATH):
-        raise HTTPException(500, 'DB 文件不存在，无法备份')
-    filename = f"air_workbench_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
-    return FileResponse(DB_PATH, filename=filename, media_type='application/octet-stream')
-
-
-@router.post('/restore')
-async def system_restore(file: UploadFile = File(...)):
-    """上传 sqlite 文件覆盖现有数据库"""
-    if not DB_PATH:
-        raise HTTPException(500, 'DB 路径未识别')
-    if not file.filename.endswith('.db') and not file.filename.endswith('.sqlite'):
-        raise HTTPException(400, '仅支持 .db / .sqlite 文件')
-    content = await file.read()
-    if len(content) < 100:
-        raise HTTPException(400, '文件过小，疑似损坏')
-    # 备份当前
-    if os.path.exists(DB_PATH):
-        backup_path = DB_PATH + f'.bak_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
-        shutil.copy2(DB_PATH, backup_path)
-        logger.info(f"[system] 覆盖前已备份到: {backup_path}")
-    # 写入新文件
-    with open(DB_PATH, 'wb') as f:
-        f.write(content)
-    return {'ok': True, 'restored_bytes': len(content), 'note': '需重启后端生效（当前进程内 engine 缓存已失效）'}
-
-
 @router.delete('/clear-business')
 def clear_business_data():
     """清空业务数据（保留 组织架构/系统配置/知识库）"""
