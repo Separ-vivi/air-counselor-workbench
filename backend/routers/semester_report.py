@@ -31,6 +31,15 @@ def _get_current_semester():
     else:
         return f"{y-1}-{y}-1"
 
+def _format_semester_display(semester: str) -> str:
+    """将学期代码转为显示格式，如 '2025-2026-1' -> '2025-2026学年第1学期'"""
+    if not semester or semester == 'all':
+        return '全部学期'
+    parts = semester.split('-')
+    if len(parts) == 3:
+        return f"{parts[0]}-{parts[1]}学年第{parts[2]}学期"
+    return semester
+
 
 def _semester_date_range(semester: str):
     """将学期字符串转为日期范围 (start, end)，如 '2025-2026-1' -> ('2025-09-01','2026-01-31')"""
@@ -51,7 +60,7 @@ def _semester_date_range(semester: str):
 # ============================================================
 @router.get('/semesters')
 def list_semesters(db: Session = Depends(get_db)):
-    """返回数据库中已有的学期列表 + 当前学期"""
+    """返回数据库中已有的学期列表 + 当前学期，包含代码和显示名"""
     semesters = set()
     try:
         rows = db.query(GradeRecord.semester).distinct().all()
@@ -69,7 +78,11 @@ def list_semesters(db: Session = Depends(get_db)):
         pass
     current = _get_current_semester()
     semesters.add(current)
-    return sorted(semesters, reverse=True)
+    sorted_sems = sorted(semesters, reverse=True)
+    return [
+        {'code': s, 'label': _format_semester_display(s)}
+        for s in sorted_sems
+    ]
 
 
 
@@ -387,7 +400,7 @@ def activity_stats(db: Session = Depends(get_db)):
             .join(ActivitySignup, ActivitySignup.activity_id == Activity.id)
             .group_by(Activity.id, Activity.title, Activity.activity_type)
             .order_by(func.count(ActivitySignup.id).desc())
-            .limit(20)
+            .limit(10)
             .all()
         )
         activity_ranking = [
@@ -744,7 +757,7 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
             .join(ActivitySignup, ActivitySignup.activity_id == Activity.id)
             .group_by(Activity.id, Activity.title, Activity.activity_type)
             .order_by(func.count(ActivitySignup.id).desc())
-            .limit(20)
+            .limit(10)
             .all()
         )
         for title, atype, cnt in rows:
@@ -770,3 +783,85 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={'Content-Disposition': f'attachment; filename="{filename}"'}
     )
+
+
+# ============================================================
+# 7. 学期差值统计（与上一学期对比）
+# ============================================================
+@router.get('/compare')
+def semester_compare(semester: str = Query(None), db: Session = Depends(get_db)):
+    """与上一学期对比：平均分、挂科率、预警人数、活动参与人次等"""
+    if not semester or semester == 'all':
+        return {'message': '请选择具体学期进行对比'}
+    
+    # 计算上一学期
+    parts = semester.split('-')
+    if len(parts) != 3:
+        return {'error': '学期格式错误'}
+    y1, y2, term = int(parts[0]), int(parts[1]), int(parts[2])
+    if term == 2:
+        prev_semester = f"{y1}-{y2}-1"
+    else:
+        prev_semester = f"{y1-1}-{y1}-2"
+    
+    result = {
+        'current_semester': semester,
+        'prev_semester': prev_semester,
+        'comparison': {}
+    }
+    
+    # 对比数据
+    metrics = ['avg_score', 'fail_rate', 'warning_count', 'activity_participants']
+    
+    for metric in metrics:
+        curr_val = _get_semester_metric(db, semester, metric)
+        prev_val = _get_semester_metric(db, prev_semester, metric)
+        
+        if curr_val is not None and prev_val is not None:
+            diff = curr_val - prev_val
+            pct = (diff / prev_val * 100) if prev_val != 0 else 0
+            result['comparison'][metric] = {
+                'current': round(curr_val, 2),
+                'previous': round(prev_val, 2),
+                'diff': round(diff, 2),
+                'change_pct': round(pct, 1)
+            }
+        else:
+            result['comparison'][metric] = None
+    
+    return result
+
+
+def _get_semester_metric(db: Session, semester: str, metric: str):
+    """获取指定学期的某个指标值"""
+    try:
+        if metric == 'avg_score':
+            rows = db.query(func.avg(GradeRecord.score)).filter(
+                GradeRecord.semester == semester,
+                GradeRecord.score.isnot(None)
+            ).all()
+            return rows[0][0] if rows and rows[0][0] else None
+        elif metric == 'fail_rate':
+            total = db.query(GradeRecord.student_id).filter(
+                GradeRecord.semester == semester,
+                GradeRecord.score.isnot(None)
+            ).distinct().count()
+            if total == 0:
+                return None
+            fail = db.query(GradeRecord.student_id).filter(
+                GradeRecord.semester == semester,
+                GradeRecord.score < 60
+            ).distinct().count()
+            return fail / total * 100
+        elif metric == 'warning_count':
+            return db.query(WarningRecord).filter(
+                WarningRecord.semester == semester
+            ).count()
+        elif metric == 'activity_participants':
+            # 活动参与人次 - 按学期筛选活动
+            return db.query(func.count(ActivitySignup.id)).join(Activity).filter(
+                Activity.semester == semester
+            ).scalar() or 0
+    except Exception as e:
+        logger.warning(f"获取指标 {metric} 异常: {e}")
+    return None
