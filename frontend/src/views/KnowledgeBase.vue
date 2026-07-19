@@ -171,6 +171,9 @@
                   <el-dropdown-item command="excel">导出 Excel</el-dropdown-item>
                   <el-dropdown-item command="csv">导出 CSV</el-dropdown-item>
                   <el-dropdown-item command="json">导出 JSON</el-dropdown-item>
+                  <el-dropdown-item command="pdf">导出 PDF</el-dropdown-item>
+                  <el-dropdown-item command="docx">导出 Word</el-dropdown-item>
+                  <el-dropdown-item command="md">导出 Markdown</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>

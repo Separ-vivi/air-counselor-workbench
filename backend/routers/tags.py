@@ -119,3 +119,47 @@ def remove_tag_from_student(tag_id: int, student_id: int, db: Session = Depends(
         student.tags.remove(tag)
         db.commit()
     return {'message': '移除成功'}
+
+
+# 学生标签关联路由（prefix 为 /api/students）
+student_tag_router = APIRouter(prefix='/api/students', tags=['学生标签'])
+
+@student_tag_router.get('/{student_id}/tags')
+def get_student_tags(student_id: int, db: Session = Depends(get_db)):
+    stu = db.query(Student).filter(Student.id == student_id).first()
+    if not stu:
+        raise HTTPException(404, '学生不存在')
+    tags = stu.tags if hasattr(stu, 'tags') else []
+    return [{'id': t.id, 'name': t.name, 'color': t.color} for t in tags]
+
+@student_tag_router.post('/{student_id}/tags')
+def add_student_tag(student_id: int, data: dict, db: Session = Depends(get_db)):
+    stu = db.query(Student).filter(Student.id == student_id).first()
+    if not stu:
+        raise HTTPException(404, '学生不存在')
+    tag_id = data.get('tag_id')
+    if not tag_id:
+        raise HTTPException(400, '缺少 tag_id')
+    tag = db.query(Tag).filter(Tag.id == tag_id).first()
+    if not tag:
+        raise HTTPException(404, '标签不存在')
+    existing = db.execute(
+        student_tags.select().where(
+            (student_tags.c.student_id == student_id) & (student_tags.c.tag_id == tag_id)
+        )
+    ).first()
+    if existing:
+        return {'ok': True, 'message': '已存在'}
+    db.execute(student_tags.insert().values(student_id=student_id, tag_id=tag_id))
+    db.commit()
+    return {'ok': True}
+
+@student_tag_router.delete('/{student_id}/tags/{tag_id}')
+def remove_student_tag(student_id: int, tag_id: int, db: Session = Depends(get_db)):
+    db.execute(
+        student_tags.delete().where(
+            (student_tags.c.student_id == student_id) & (student_tags.c.tag_id == tag_id)
+        )
+    )
+    db.commit()
+    return {'ok': True}

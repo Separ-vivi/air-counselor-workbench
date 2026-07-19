@@ -251,8 +251,11 @@ function initChart(domRef, option) {
 
 /* ── render charts ── */
 function renderPoliticalPie() {
-  if (!politicalPieRef.value || !summaryData.value?.political_dist) return
-  const dist = summaryData.value.political_dist
+  if (!politicalPieRef.value || !summaryData.value?.political_distribution) return
+  const rawDist = summaryData.value.political_distribution
+  // Convert dict to array format for echarts
+  const dist = Object.entries(rawDist).map(([name, value]) => ({ name, value }))
+  if (dist.length === 0) return
   initChart(politicalPieRef.value, {
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 11, color: '#7B8B9C' } },
@@ -265,45 +268,47 @@ function renderPoliticalPie() {
       itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
       label: { show: false },
       emphasis: { label: { show: true, fontSize: 13, fontWeight: 600 } },
-      data: dist.map(d => ({ name: d.name, value: d.value }))
+      data: dist.map(d => ({ name: String(d.name), value: Number(d.value) }))
     }]
   })
 }
 
 function renderCampusGenderBar() {
-  if (!campusGenderBarRef.value || !summaryData.value?.campus_gender) return
-  const cg = summaryData.value.campus_gender
-  const campuses = [...new Set(cg.map(d => d.campus))]
-  const genders = [...new Set(cg.map(d => d.gender))]
+  if (!campusGenderBarRef.value) return
+  const campusDist = summaryData.value?.campus_distribution || {}
+  const genderDist = summaryData.value?.gender_distribution || {}
+  const campuses = Object.keys(campusDist)
+  const genders = Object.keys(genderDist)
+  if (campuses.length === 0 && genders.length === 0) return
+  // Show campus distribution as bar chart
   initChart(campusGenderBarRef.value, {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     legend: { bottom: 0, textStyle: { fontSize: 11, color: '#7B8B9C' } },
     color: [PRIMARY, ACCENT],
     grid: { left: 40, right: 16, top: 12, bottom: 36 },
-    xAxis: { type: 'category', data: campuses, axisLabel: { fontSize: 11, color: '#7B8B9C' }, axisLine: { lineStyle: { color: '#E0E6ED' } } },
+    xAxis: { type: 'category', data: campuses.length ? campuses : genders, axisLabel: { fontSize: 11, color: '#7B8B9C' }, axisLine: { lineStyle: { color: '#E0E6ED' } } },
     yAxis: { type: 'value', axisLabel: { fontSize: 11, color: '#7B8B9C' }, splitLine: { lineStyle: { color: 'rgba(200,215,235,0.35)' } } },
-    series: genders.map(g => ({
-      name: g,
+    series: [{
+      name: campuses.length ? '校区人数' : '性别分布',
       type: 'bar',
-      stack: 'total',
       barWidth: 28,
-      itemStyle: { borderRadius: g === genders[genders.length - 1] ? [4, 4, 0, 0] : [0, 0, 0, 0] },
-      data: campuses.map(c => {
-        const found = cg.find(d => d.campus === c && d.gender === g)
-        return found ? found.count : 0
-      })
-    }))
+      itemStyle: { borderRadius: [4, 4, 0, 0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#5B92E5' }, { offset: 1, color: '#4FC3B8' }] } },
+      data: campuses.length ? campuses.map(c => campusDist[c]) : genders.map(g => genderDist[g])
+    }]
   })
 }
 
 function renderClassAvgBar() {
-  if (!classAvgBarRef.value || !academicsData.value?.class_avg) return
-  const ca = academicsData.value.class_avg
+  if (!classAvgBarRef.value || !academicsData.value) return
+  // Backend may return class_avg as array of {class_name, avg} or as dict
+  const rawCa = academicsData.value.class_averages || []
+  const ca = Array.isArray(rawCa) ? rawCa : Object.entries(rawCa).map(([class_name, avg]) => ({ class_name, avg }))
+  if (ca.length === 0) return
   initChart(classAvgBarRef.value, {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     grid: { left: 60, right: 16, top: 12, bottom: 30 },
     color: [PRIMARY],
-    xAxis: { type: 'category', data: ca.map(d => d.class_name), axisLabel: { fontSize: 10, color: '#7B8B9C', rotate: 30 }, axisLine: { lineStyle: { color: '#E0E6ED' } } },
+    xAxis: { type: 'category', data: ca.map(d => d.class_name || d[0]), axisLabel: { fontSize: 10, color: '#7B8B9C', rotate: 30 }, axisLine: { lineStyle: { color: '#E0E6ED' } } },
     yAxis: { type: 'value', axisLabel: { fontSize: 11, color: '#7B8B9C' }, splitLine: { lineStyle: { color: 'rgba(200,215,235,0.35)' } } },
     series: [{
       type: 'bar',
@@ -316,7 +321,12 @@ function renderClassAvgBar() {
 
 function renderEmploymentPie() {
   if (!employmentPieRef.value || !employmentData.value?.distribution) return
-  const dist = employmentData.value.distribution
+  const rawDist = employmentData.value.distribution
+  // Backend returns dict, convert to array
+  const dist = typeof rawDist === 'object' && !Array.isArray(rawDist)
+    ? Object.entries(rawDist).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }))
+    : rawDist
+  if (dist.length === 0) return
   initChart(employmentPieRef.value, {
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 11, color: '#7B8B9C' } },
@@ -327,25 +337,26 @@ function renderEmploymentPie() {
       center: ['50%', '42%'],
       itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
       label: { show: true, fontSize: 11, color: '#5A6A7A', formatter: '{b}\n{d}%' },
-      data: dist.map(d => ({ name: d.name, value: d.value }))
+      data: dist.map(d => ({ name: String(d.name), value: Number(d.value) }))
     }]
   })
 }
 
 function renderActivitiesBar() {
-  if (!activitiesBarRef.value || !activitiesData.value?.top10) return
-  const top = activitiesData.value.top10
+  if (!activitiesBarRef.value || !activitiesData.value?.activity_ranking) return
+  const top = activitiesData.value.activity_ranking
+  if (!top.length) return
   initChart(activitiesBarRef.value, {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     grid: { left: 80, right: 24, top: 12, bottom: 30 },
     color: [ACCENT],
     xAxis: { type: 'value', axisLabel: { fontSize: 11, color: '#7B8B9C' }, splitLine: { lineStyle: { color: 'rgba(200,215,235,0.35)' } } },
-    yAxis: { type: 'category', data: top.map(d => d.name).reverse(), axisLabel: { fontSize: 11, color: '#5A6A7A' }, axisLine: { lineStyle: { color: '#E0E6ED' } } },
+    yAxis: { type: 'category', data: top.map(d => d.title || d.name).reverse(), axisLabel: { fontSize: 11, color: '#5A6A7A' }, axisLine: { lineStyle: { color: '#E0E6ED' } } },
     series: [{
       type: 'bar',
       barWidth: 16,
       itemStyle: { borderRadius: [0, 4, 4, 0], color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: PRIMARY }, { offset: 1, color: ACCENT }]) },
-      data: top.map(d => d.count).reverse()
+      data: top.map(d => d.participants || d.count || 0).reverse()
     }]
   })
 }
@@ -375,7 +386,12 @@ async function loadAcademics() {
 async function loadParty() {
   partyLoading.value = true
   try {
-    partyData.value = await semesterReportApi.partyDevelopment()
+    const raw = await semesterReportApi.partyDevelopment()
+    // Convert stages dict to array format
+    if (raw && raw.stages && typeof raw.stages === 'object' && !Array.isArray(raw.stages)) {
+      raw.stages = Object.entries(raw.stages).map(([name, count]) => ({ name, count }))
+    }
+    partyData.value = raw
   } catch (e) { console.error('party error', e) }
   finally { partyLoading.value = false }
 }

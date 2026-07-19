@@ -129,11 +129,11 @@ def semester_academics(db: Session = Depends(get_db)):
     # 挂科率（有不及格记录的学生占比）
     try:
         total_with_grades = (
-            db.query(func.count(distinct(GradeRecord.student_id)))
+            db.query(func.count(GradeRecord.student_id.distinct()))
             .scalar() or 0
         )
         fail_students = (
-            db.query(func.count(distinct(GradeRecord.student_id)))
+            db.query(func.count(GradeRecord.student_id.distinct()))
             .filter(GradeRecord.score.isnot(None), GradeRecord.score < 60)
             .scalar() or 0
         )
@@ -507,10 +507,10 @@ def export_semester_report(db: Session = Depends(get_db)):
     r += 1
     try:
         total_with_grades = (
-            db.query(func.count(distinct(GradeRecord.student_id))).scalar() or 0
+            db.query(func.count(GradeRecord.student_id.distinct())).scalar() or 0
         )
         fail_students = (
-            db.query(func.count(distinct(GradeRecord.student_id)))
+            db.query(func.count(GradeRecord.student_id.distinct()))
             .filter(GradeRecord.score.isnot(None), GradeRecord.score < 60)
             .scalar() or 0
         )

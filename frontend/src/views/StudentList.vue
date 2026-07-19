@@ -275,7 +275,7 @@
       <div v-else class="student-tag-check-list">
         <div v-for="tag in allTags" :key="tag.id" class="student-tag-check-item"
           @click="toggleStudentTag(tag)">
-          <el-checkbox :model-value="isStudentTagChecked(tag.id)" @click.stop />
+          <el-checkbox :model-value="isStudentTagChecked(tag.id)" @click.stop="toggleStudentTag(tag)" />
           <span class="tag-pill" :style="{ background: tag.color + '22', color: tag.color, borderColor: tag.color + '44' }">
             <span class="tag-dot" :style="{ background: tag.color }"></span>
             {{ tag.name }}

@@ -143,3 +143,17 @@ def list_backups():
     # 按创建时间倒序排列
     backups.sort(key=lambda x: x['created_at'], reverse=True)
     return backups
+
+@router.get('/backups/download')
+def download_backup(file: str):
+    """下载指定的备份文件"""
+    if not file or '..' in file or '/' in file:
+        raise HTTPException(400, '无效的文件名')
+    fpath = os.path.join(BACKUP_DIR, file)
+    if not os.path.isfile(fpath):
+        raise HTTPException(404, f'备份文件不存在: {file}')
+    return StreamingResponse(
+        open(fpath, 'rb'),
+        media_type='application/zip',
+        headers={'Content-Disposition': f'attachment; filename={file}'}
+    )

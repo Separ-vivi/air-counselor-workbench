@@ -197,7 +197,7 @@ app.add_middleware(
 
 # 注册 API 路由
 from routers.students import router as students_router
-from routers.tags import router as tags_router
+from routers.tags import router as tags_router, student_tag_router
 from routers.grades import router as grades_router
 from routers.dashboard import router as dashboard_router
 from routers.settings import router as settings_router
@@ -217,6 +217,7 @@ from routers.knowledge_ai import router as knowledge_ai_router
 
 app.include_router(students_router)
 app.include_router(tags_router)
+app.include_router(student_tag_router)
 app.include_router(grades_router)
 app.include_router(dashboard_router)
 app.include_router(settings_router)
@@ -233,6 +234,7 @@ app.include_router(system_router)
 app.include_router(productivity_router)
 app.include_router(system_backup_router)
 app.include_router(semester_report_router)
+app.include_router(student_tag_router)
 
 
 @app.on_event('startup')
