@@ -61,8 +61,13 @@ def list_cadres(
     order: str = Query('asc', description='asc/desc'),
     db: Session = Depends(get_db)
 ):
-    """学生干部列表 (v3j-B-b03 · 支持 search + sort_by + order)"""
+    """学生干部列表 (v3j-B-b03 · 支持 search + sort_by + order + class_name 过滤)"""
     q = db.query(StudentCadreRecord).outerjoin(Student, StudentCadreRecord.student_id == Student.id)
+    # class_name 过滤：在数据库层通过 join ClassModel 实现，支持模糊匹配
+    if class_name:
+        q = q.outerjoin(ClassModel, Student.class_id == ClassModel.id).filter(
+            ClassModel.class_name.contains(class_name.strip())
+        )
     if level:
         q = q.filter(StudentCadreRecord.level == level)
     if position:
@@ -95,13 +100,7 @@ def list_cadres(
     else:
         q = q.order_by(col.asc())
     items = q.all()
-    result = []
-    for c in items:
-        stu_class_name = _get_student_class_name(db, c.student_id)
-        if class_name and stu_class_name != class_name:
-            continue
-        result.append(_cadre_dict(c, db))
-    return result
+    return [_cadre_dict(c, db) for c in items]
 
 
 def _cadre_export_workbook(items, db):

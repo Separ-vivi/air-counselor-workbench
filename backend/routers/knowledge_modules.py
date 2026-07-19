@@ -111,6 +111,8 @@ def export_faqs(
     db: Session = Depends(get_db)
 ):
     """导出 FAQ 列表，支持 xlsx/csv/json/pdf/docx/md 格式"""
+    from fastapi.responses import StreamingResponse as SR
+
     q = db.query(FAQ)
     if published_only:
         q = q.filter(FAQ.is_published == True)
@@ -125,10 +127,10 @@ def export_faqs(
 
     fmt = (format or 'xlsx').lower()
     now_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+    NL = chr(10)  # newline character
 
     # --- JSON ---
     if fmt == 'json':
-        import json
         from fastapi.responses import JSONResponse
         return JSONResponse(content=faq_data)
 
@@ -140,8 +142,7 @@ def export_faqs(
         writer = csv.DictWriter(buf, fieldnames=['id', 'question', 'answer', 'category', 'is_published'])
         writer.writeheader()
         writer.writerows(faq_data)
-        from fastapi.responses import StreamingResponse
-        return StreamingResponse(
+        return SR(
             iter([buf.getvalue()]),
             media_type='text/csv',
             headers={'Content-Disposition': f'attachment; filename=faqs_{now_str}.csv'}
@@ -149,33 +150,29 @@ def export_faqs(
 
     # --- Markdown ---
     if fmt == 'md':
-        lines = ['# FAQ 常见问题解答', '']
+        md_lines = ['# FAQ 常见问题解答', '']
         current_cat = None
         for item in faq_data:
             cat = item['category'] or '未分类'
             if cat != current_cat:
-                lines.append(f'## {cat}')
-                lines.append('')
+                md_lines.append('## ' + cat)
+                md_lines.append('')
                 current_cat = cat
-            published_tag = ' ✅' if item['is_published'] else ''
-            lines.append(f'### Q{item["id"]}: {item["question"]}{published_tag}')
-            lines.append('')
-            lines.append(item['answer'] or '（暂无回答）')
-            lines.append('')
-        md_content = '
-'.join(lines)
-        from fastapi.responses import StreamingResponse
-        return StreamingResponse(
+            pub_tag = ' ✅' if item['is_published'] else ''
+            md_lines.append('### Q{}: {}{}'.format(item['id'], item['question'], pub_tag))
+            md_lines.append('')
+            md_lines.append(item['answer'] or '（暂无回答）')
+            md_lines.append('')
+        md_content = NL.join(md_lines)
+        return SR(
             iter([md_content.encode('utf-8')]),
             media_type='text/markdown; charset=utf-8',
-            headers={'Content-Disposition': f'attachment; filename=faqs_{now_str}.md'}
+            headers={'Content-Disposition': 'attachment; filename=faqs_{}.md'.format(now_str)}
         )
 
     # --- Word (docx) ---
     if fmt == 'docx':
         from docx import Document as DocxDocument
-        from docx.shared import Pt, Inches
-        from fastapi.responses import StreamingResponse
         doc = DocxDocument()
         doc.add_heading('FAQ 常见问题解答', level=0)
         current_cat = None
@@ -184,25 +181,21 @@ def export_faqs(
             if cat != current_cat:
                 doc.add_heading(cat, level=1)
                 current_cat = cat
-            p = doc.add_heading(f'Q{item["id"]}: {item["question"]}', level=2)
+            doc.add_heading('Q{}: {}'.format(item['id'], item['question']), level=2)
             doc.add_paragraph(item['answer'] or '（暂无回答）')
         buf = io.BytesIO()
         doc.save(buf)
         buf.seek(0)
-        return StreamingResponse(
+        return SR(
             buf,
             media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            headers={'Content-Disposition': f'attachment; filename=faqs_{now_str}.docx'}
+            headers={'Content-Disposition': 'attachment; filename=faqs_{}.docx'.format(now_str)}
         )
 
     # --- PDF ---
     if fmt == 'pdf':
-        try:
-            import pdfkit
-        except ImportError:
-            raise HTTPException(500, 'pdfkit 未安装，无法导出 PDF')
-        # Build HTML content
-        html_lines = [
+        # Build HTML content for PDF generation
+        html_parts = [
             '<html><head><meta charset="utf-8">',
             '<style>body{font-family:sans-serif;margin:40px}h1{color:#333}h2{color:#555;border-bottom:1px solid #ccc;padding-bottom:4px}h3{color:#666}.question{font-weight:bold;margin-top:16px}.answer{margin:8px 0 20px 20px;color:#444}</style>',
             '</head><body>',
@@ -212,39 +205,39 @@ def export_faqs(
         for item in faq_data:
             cat = item['category'] or '未分类'
             if cat != current_cat:
-                html_lines.append(f'<h2>{cat}</h2>')
+                html_parts.append('<h2>{}</h2>'.format(cat))
                 current_cat = cat
-            published_tag = ' <span style="color:green">✅已发布</span>' if item['is_published'] else ''
-            html_lines.append(f'<div class="question">Q{item["id"]}: {item["question"]}{published_tag}</div>')
-            html_lines.append(f'<div class="answer">{(item["answer"] or "（暂无回答）")}</div>')
-        html_lines.append('</body></html>')
-        html_content = '
-'.join(html_lines)
+            pub_tag = ' <span style="color:green">✅已发布</span>' if item['is_published'] else ''
+            html_parts.append('<div class="question">Q{}: {}{}</div>'.format(item['id'], item['question'], pub_tag))
+            html_parts.append('<div class="answer">{}</div>'.format(item['answer'] or '（暂无回答）'))
+        html_parts.append('</body></html>')
+        html_content = NL.join(html_parts)
 
-        pdf_buf = io.BytesIO()
+        # Try pdfkit first, fallback to weasyprint
         try:
-            pdfkit.from_string(html_content, False, options={'encoding': 'utf-8', 'quiet': ''})
-            # If pdfkit returns bytes
-            from fastapi.responses import StreamingResponse
+            import pdfkit
             pdf_bytes = pdfkit.from_string(html_content, False, options={'encoding': 'utf-8', 'quiet': ''})
-            return StreamingResponse(
+            return SR(
                 io.BytesIO(pdf_bytes),
                 media_type='application/pdf',
-                headers={'Content-Disposition': f'attachment; filename=faqs_{now_str}.pdf'}
+                headers={'Content-Disposition': 'attachment; filename=faqs_{}.pdf'.format(now_str)}
             )
+        except ImportError:
+            pass
+        except Exception:
+            pass
+        try:
+            from weasyprint import HTML as WeasyHTML
+            pdf_bytes = WeasyHTML(string=html_content).write_pdf()
+            return SR(
+                io.BytesIO(pdf_bytes),
+                media_type='application/pdf',
+                headers={'Content-Disposition': 'attachment; filename=faqs_{}.pdf'.format(now_str)}
+            )
+        except ImportError:
+            raise HTTPException(500, 'PDF 生成库(pdfkit/weasyprint)均未安装，无法导出 PDF')
         except Exception as e:
-            # Fallback: try weasyprint
-            try:
-                from weasyprint import HTML as WeasyHTML
-                pdf_bytes = WeasyHTML(string=html_content).write_pdf()
-                from fastapi.responses import StreamingResponse
-                return StreamingResponse(
-                    io.BytesIO(pdf_bytes),
-                    media_type='application/pdf',
-                    headers={'Content-Disposition': f'attachment; filename=faqs_{now_str}.pdf'}
-                )
-            except ImportError:
-                raise HTTPException(500, 'PDF 生成库(pdfkit/weasyprint)均未安装，无法导出 PDF')
+            raise HTTPException(500, 'PDF 生成失败: {}'.format(str(e)))
 
     # --- Excel (default) ---
     from openpyxl import Workbook
@@ -257,11 +250,10 @@ def export_faqs(
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
-    from fastapi.responses import StreamingResponse
-    return StreamingResponse(
+    return SR(
         buf,
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        headers={'Content-Disposition': f'attachment; filename=faqs_{now_str}.xlsx'}
+        headers={'Content-Disposition': 'attachment; filename=faqs_{}.xlsx'.format(now_str)}
     )
 
 
