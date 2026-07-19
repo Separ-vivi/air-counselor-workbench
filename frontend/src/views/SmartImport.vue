@@ -15,9 +15,16 @@
       <template #title>
         <span style="margin-right:12px">📎 需要模板？</span>
         <el-button size="small" type="primary" plain @click="downloadTemplate('students')">花名册模板</el-button>
+        <el-button size="small" type="primary" plain @click="downloadTemplate('family')">家庭档案模板</el-button>
         <el-button size="small" type="primary" plain @click="downloadTemplate('grades_wide')">成绩单模板(宽表·推荐)</el-button>
-        <el-button size="small" type="primary" plain @click="downloadTemplate('grades')">成绩单模板(长表)</el-button>
         <el-button size="small" type="primary" plain @click="downloadTemplate('party')">党团发展模板</el-button>
+        <el-button size="small" type="primary" plain @click="downloadTemplate('comprehensive')">综测成绩模板</el-button>
+        <el-button size="small" type="primary" plain @click="downloadTemplate('scholarship')">奖学金模板</el-button>
+        <el-button size="small" type="primary" plain @click="downloadTemplate('hardship')">困难认定模板</el-button>
+        <el-button size="small" type="primary" plain @click="downloadTemplate('cadre')">干部记录模板</el-button>
+        <el-button size="small" type="primary" plain @click="downloadTemplate('activity')">活动记录模板</el-button>
+        <el-button size="small" type="primary" plain @click="downloadTemplate('employment')">就业跟踪模板</el-button>
+        <el-button size="small" type="primary" plain @click="downloadTemplate('interview')">学生访谈模板</el-button>
       </template>
     </el-alert>
 
@@ -204,12 +211,14 @@ const studentClassTypes = [
 // 业务模块
 const businessTypes = [
   { key: 'grades',        label: '成绩管理',       icon: '📊' },
+  { key: 'comprehensive', label: '综测成绩',       icon: '🏆' },
   { key: 'scholarship',   label: '荣誉/奖学金',    icon: '🏅' },
   { key: 'hardship',      label: '困难认定',       icon: '💰' },
   { key: 'cadre',         label: '干部记录',       icon: '🎖️' },
   { key: 'activity',      label: '学生活动',       icon: '🎪' },
   { key: 'employment',    label: '就业跟踪',       icon: '💼' },
   { key: 'party',         label: '党团发展',       icon: '🚩' },
+  { key: 'interview',     label: '学生访谈',       icon: '💬' },
 ]
 // 合并全部（兼容旧逻辑）
 const dataTypes = [
@@ -306,6 +315,30 @@ const fieldMap = {
     { key: 'employment_type', label: '就业类型' },
     { key: 'offer_date', label: '签约日期' },
     { key: 'salary', label: '薪资' },
+  ],
+  comprehensive: [
+    { key: 'student_no', label: '学号', required: true },
+    { key: 'class_name', label: '班级' },
+    { key: 'semester', label: '学期', required: true },
+    { key: 'moral_score', label: '德育' },
+    { key: 'academic_score', label: '智育' },
+    { key: 'physical_score', label: '体育' },
+    { key: 'aesthetic_score', label: '美育' },
+    { key: 'labor_score', label: '劳育' },
+    { key: 'notes', label: '备注' },
+  ],
+  interview: [
+    { key: 'student_no', label: '学号', required: true },
+    { key: 'interview_date', label: '访谈日期', required: true },
+    { key: 'interview_type', label: '访谈类型' },
+    { key: 'interviewer', label: '访谈人' },
+    { key: 'location', label: '地点' },
+    { key: 'topic', label: '主题' },
+    { key: 'content', label: '内容' },
+    { key: 'feedback', label: '学生反馈' },
+    { key: 'follow_up', label: '后续跟进' },
+    { key: 'status', label: '状态' },
+    { key: 'remind_date', label: '提醒日期' },
   ],
 
 }

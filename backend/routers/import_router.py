@@ -58,6 +58,34 @@ PARTY_COLUMN_SYNONYMS = {
     'notes': ['备注', '说明', 'notes'],
 }
 
+COMPREHENSIVE_COLUMN_SYNONYMS = {
+    'student_no': ['学号', '学生编号', '编号', 'student_no'],
+    'name': ['姓名', '学生姓名', '名字', 'name'],
+    'class_name': ['班级', '所在班级', 'class_name'],
+    'semester': ['学期', '开课学期', '学年学期', 'semester'],
+    'moral_score': ['德育', '德育分', 'moral', 'moral_score'],
+    'academic_score': ['智育', '智育分', '学业', 'academic', 'academic_score'],
+    'physical_score': ['体育', '体育分', 'physical', 'physical_score'],
+    'aesthetic_score': ['美育', '美育分', 'aesthetic', 'aesthetic_score'],
+    'labor_score': ['劳育', '劳育分', 'labor', 'labor_score'],
+    'notes': ['备注', '说明', 'notes'],
+}
+
+INTERVIEW_COLUMN_SYNONYMS = {
+    'student_no': ['学号', '学生编号', '编号', 'student_no'],
+    'name': ['姓名', '学生姓名', '名字', 'name'],
+    'interview_date': ['访谈日期', '日期', 'interview_date', 'date'],
+    'interview_type': ['访谈类型', '类型', 'interview_type', 'type'],
+    'interviewer': ['访谈人', '访谈教师', 'interviewer', 'teacher'],
+    'location': ['地点', '访谈地点', 'location', 'place'],
+    'topic': ['主题', '访谈主题', 'topic', 'subject'],
+    'content': ['内容', '访谈内容', 'content', 'detail'],
+    'feedback': ['学生反馈', '反馈', 'feedback'],
+    'follow_up': ['后续跟进', '跟进', 'follow_up', 'follow'],
+    'status': ['状态', 'status'],
+    'remind_date': ['提醒日期', 'remind_date', 'remind'],
+}
+
 # 数据库字段中文名（用于展示）
 DB_FIELD_NAMES = {
     'student_no': '学号', 'name': '姓名', 'gender': '性别', 'major': '专业',
@@ -141,6 +169,22 @@ def detect_file_type(df: pd.DataFrame, mapping: List[Dict]) -> str:
     """自动识别文件类型"""
     mapped_fields = {m['db_column'] for m in mapping if m['db_column']}
 
+    # 综测特征：有德育/智育/体育等字段
+    comprehensive_keywords = ['德育', '智育', '体育', '美育', '劳育', 'moral', 'academic', 'physical']
+    for col in df.columns:
+        if any(kw in str(col) for kw in comprehensive_keywords):
+            return 'comprehensive'
+    if 'moral_score' in mapped_fields or 'academic_score' in mapped_fields:
+        return 'comprehensive'
+
+    # 访谈特征：有访谈日期/访谈类型等字段
+    interview_keywords = ['访谈日期', '访谈类型', '访谈人', '访谈主题', 'interview_date', 'interview_type']
+    for col in df.columns:
+        if any(kw in str(col) for kw in interview_keywords):
+            return 'interview'
+    if 'interview_date' in mapped_fields:
+        return 'interview'
+
     # 成绩单特征：有学号+姓名+多个未映射列（课程名）
     if 'student_no' in mapped_fields and 'name' in mapped_fields:
         unmapped_cols = [m['file_column'] for m in mapping if not m['db_column']]
@@ -223,6 +267,10 @@ async def detect_file(file: UploadFile = File(...)):
                 m['db_field_name'] = f'课程: {m["file_column"]}'
     elif data_type == 'party':
         mapping = map_columns(columns, PARTY_COLUMN_SYNONYMS)
+    elif data_type == 'comprehensive':
+        mapping = map_columns(columns, COMPREHENSIVE_COLUMN_SYNONYMS)
+    elif data_type == 'interview':
+        mapping = map_columns(columns, INTERVIEW_COLUMN_SYNONYMS)
 
     # 生成导入 ID
     import_id = f"import_{datetime.now().strftime('%Y%m%d%H%M%S')}_{id(df)}"
@@ -516,6 +564,87 @@ async def confirm_import(req: ConfirmRequest):
                     db.add(progress)
                     created += 1
 
+        elif data_type == 'comprehensive':
+            from models import ComprehensiveAssessment
+            for _, row in df.iterrows():
+                student_no = str(row.get(col_map.get('student_no', ''), '')).strip()
+                if not student_no:
+                    skipped += 1
+                    continue
+
+                student = db.query(Student).filter(Student.student_no == student_no).first()
+                if not student:
+                    skipped += 1
+                    continue
+
+                semester = str(row.get(col_map.get('semester', ''), '')).strip()
+                if not semester:
+                    skipped += 1
+                    continue
+
+                def get_float(field_name):
+                    val = str(row.get(col_map.get(field_name, ''), '')).strip()
+                    try:
+                        return float(val) if val else 0.0
+                    except:
+                        return 0.0
+
+                moral = get_float('moral_score')
+                academic = get_float('academic_score')
+                physical = get_float('physical_score')
+                aesthetic = get_float('aesthetic_score')
+                labor = get_float('labor_score')
+                total_score = (moral + academic + physical + aesthetic + labor) / 5
+                notes = str(row.get(col_map.get('notes', ''), '')).strip()
+
+                assessment = ComprehensiveAssessment(
+                    student_id=student.id,
+                    semester=semester,
+                    moral_score=moral,
+                    academic_score=academic,
+                    physical_score=physical,
+                    aesthetic_score=aesthetic,
+                    labor_score=labor,
+                    total_score=round(total_score, 2),
+                    notes=notes
+                )
+                db.add(assessment)
+                created += 1
+
+        elif data_type == 'interview':
+            from models import StudentInterview
+            for _, row in df.iterrows():
+                student_no = str(row.get(col_map.get('student_no', ''), '')).strip()
+                if not student_no:
+                    skipped += 1
+                    continue
+
+                student = db.query(Student).filter(Student.student_no == student_no).first()
+                if not student:
+                    skipped += 1
+                    continue
+
+                interview_date = str(row.get(col_map.get('interview_date', ''), '')).strip()
+                if not interview_date:
+                    skipped += 1
+                    continue
+
+                interview = StudentInterview(
+                    student_id=student.id,
+                    interview_date=interview_date,
+                    interview_type=str(row.get(col_map.get('interview_type', ''), '常规访谈')).strip(),
+                    interviewer=str(row.get(col_map.get('interviewer', ''), '')).strip(),
+                    location=str(row.get(col_map.get('location', ''), '')).strip(),
+                    topic=str(row.get(col_map.get('topic', ''), '')).strip(),
+                    content=str(row.get(col_map.get('content', ''), '')).strip(),
+                    feedback=str(row.get(col_map.get('feedback', ''), '')).strip(),
+                    follow_up=str(row.get(col_map.get('follow_up', ''), '')).strip(),
+                    status=str(row.get(col_map.get('status', ''), '已完成')).strip(),
+                    remind_date=str(row.get(col_map.get('remind_date', ''), '')).strip()
+                )
+                db.add(interview)
+                created += 1
+
         db.commit()
         logger.info(f"[导入确认] 类型={data_type}, 新增={created}, 跳过={skipped}, 更新={updated}")
     except Exception as e:
@@ -560,6 +689,11 @@ def download_template(type: str = 'students'):
                         '福建省·福州市·鼓楼区','350102200503010001','铜盘校区','1号楼',
                         '101','否','','示例行，请删除'],
         },
+        'family': {
+            'sheet': '家庭档案模板',
+            'columns': ['学号','姓名','家长姓名','关系','家长电话','联系日期','联系方式','沟通主题','备注'],
+            'example': ['20240101001','张三','张建国','父亲','13900000001','2024-09-01','电话','开学沟通','家长配合度高'],
+        },
         'grades': {
             'sheet': '成绩单模板（长表）',
             'columns': ['学号','姓名','学期','课程名','分数','学分'],
@@ -574,6 +708,41 @@ def download_template(type: str = 'students'):
             'sheet': '党团发展模板',
             'columns': ['学号','姓名','阶段','阶段日期','联系人','备注'],
             'example': ['20240101001','张三','积极分子','2024-09-01','李老师','已递交入党申请书'],
+        },
+        'comprehensive': {
+            'sheet': '综测成绩模板',
+            'columns': ['学号','姓名','班级','学期','德育','智育','体育','美育','劳育','备注'],
+            'example': ['20240101001','张三','计科2401','2024-2025-1','85','90','88','82','80','示例行，请删除'],
+        },
+        'scholarship': {
+            'sheet': '奖学金模板',
+            'columns': ['学号','姓名','奖学金名称','等级','金额','学年','学期','备注'],
+            'example': ['20240101001','张三','国家奖学金','国家级','8000','2024-2025','1','品学兼优'],
+        },
+        'hardship': {
+            'sheet': '困难认定模板',
+            'columns': ['学号','姓名','困难等级','学年','家庭情况','家庭年收入','人均收入','困难类型','备注'],
+            'example': ['20240101001','张三','特别困难','2024-2025','低保家庭','20000','5000','建档立卡','母亲患病'],
+        },
+        'cadre': {
+            'sheet': '干部记录模板',
+            'columns': ['学号','姓名','职务','组织名称','任职开始日期','任职结束日期','状态','备注'],
+            'example': ['20240101001','张三','班长','计科2401班委','2024-09-01','2025-06-30','在职',''],
+        },
+        'activity': {
+            'sheet': '活动记录模板',
+            'columns': ['学号','姓名','活动名称','活动日期','参与角色','时长(小时)','备注'],
+            'example': ['20240101001','张三','迎新志愿者','2024-09-01','组长','8','表现积极'],
+        },
+        'employment': {
+            'sheet': '就业跟踪模板',
+            'columns': ['学号','姓名','单位名称','岗位','就业类型','签约日期','薪资','备注'],
+            'example': ['20240101001','张三','腾讯科技','前端开发工程师','正式','2024-10-15','15000','已签三方'],
+        },
+        'interview': {
+            'sheet': '学生访谈模板',
+            'columns': ['学号','姓名','访谈日期','访谈类型','访谈人','地点','主题','内容','学生反馈','后续跟进','状态','提醒日期'],
+            'example': ['20240101001','张三','2024-10-15','常规访谈','王老师','办公室A101','期中学习情况','了解期中学习状态','学习压力较大，需要调整方法','持续关注','已完成','2024-11-15'],
         },
     }
     if type not in templates:
