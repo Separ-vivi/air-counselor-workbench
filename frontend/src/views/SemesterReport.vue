@@ -4,6 +4,10 @@
     <div class="page-header">
       <h2 class="page-title">学期报表</h2>
       <div class="page-actions">
+        <el-select v-model="currentSemester" placeholder="选择学期" style="width:160px" @change="refreshAll">
+          <el-option label="全部学期" value="all" />
+          <el-option v-for="s in semesterOptions" :key="s" :label="s" :value="s" />
+        </el-select>
         <el-button type="primary" :icon="Download" @click="handleExport" :loading="exporting">导出报表</el-button>
         <el-button :icon="Refresh" @click="refreshAll" :loading="globalLoading">刷新数据</el-button>
       </div>
@@ -76,7 +80,7 @@
           <template #header>
             <div class="card-header"><span class="ch-title">各班平均成绩</span></div>
           </template>
-          <div v-if="academicsData && academicsData.class_avg" ref="classAvgBarRef" class="chart-box-wide" style="height:300px"></div>
+          <div v-if="academicsData && academicsData.class_averages" ref="classAvgBarRef" class="chart-box-wide" style="height:300px"></div>
           <el-empty v-else description="暂无数据" :image-size="80" />
         </el-card>
       </el-col>
@@ -160,7 +164,7 @@
           <template #header>
             <div class="card-header"><span class="ch-title">活动参与人次 Top 10</span></div>
           </template>
-          <div v-if="activitiesData && activitiesData.top10" ref="activitiesBarRef" class="chart-box-wide" style="height:300px"></div>
+          <div v-if="activitiesData && activitiesData.activity_ranking" ref="activitiesBarRef" class="chart-box-wide" style="height:300px"></div>
           <el-empty v-else description="暂无数据" :image-size="80" />
         </el-card>
       </el-col>
@@ -174,6 +178,9 @@ import { Download, Refresh, User, UserFilled, WarningFilled, TrendCharts } from 
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import { semesterReportApi } from '@/api/semesterReport.js'
+
+const currentSemester = ref('all')
+const semesterOptions = ref([])
 
 /* ── 主色 ── */
 const PRIMARY = '#5B92E5'
@@ -207,11 +214,30 @@ let charts = []
 /* ── summary cards ── */
 const summaryCards = computed(() => {
   const d = summaryData.value || {}
+  const acad = academicsData.value || {}
+  const emp = employmentData.value || {}
+  // 计算整体平均成绩（从各班平均成绩计算）
+  let avgScore = '--'
+  if (acad.class_averages && acad.class_averages.length > 0) {
+    const scores = acad.class_averages.map(c => c.avg_score || 0)
+    avgScore = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)
+  }
+  // 预警总人数
+  let warningCount = '--'
+  if (acad.warning_stats) {
+    if (Array.isArray(acad.warning_stats)) {
+      const redYellow = acad.warning_stats.filter(w => w.level !== 'normal')
+      const total = redYellow.reduce((s, w) => s + (w.count || 0), 0)
+      warningCount = total || '--'
+    } else if (acad.warning_stats.total != null) {
+      warningCount = acad.warning_stats.total || '--'
+    }
+  }
   return [
-    { label: '学生总数', value: d.total_students ?? '--', sub: d.class_count ? `${d.class_count} 个班级 · ${d.major_count || 0} 个专业` : '', icon: UserFilled, bg: 'linear-gradient(135deg, rgba(91,146,229,0.15), rgba(91,146,229,0.05))', color: PRIMARY },
-    { label: '平均成绩', value: d.avg_score ?? '--', sub: '', icon: TrendCharts, bg: 'linear-gradient(135deg, rgba(79,195,184,0.15), rgba(79,195,184,0.05))', color: ACCENT },
-    { label: '预警人数', value: d.warning_count ?? '--', sub: '', icon: WarningFilled, bg: 'linear-gradient(135deg, rgba(245,183,183,0.20), rgba(245,183,183,0.05))', color: '#E8836C' },
-    { label: '就业率', value: d.employment_rate != null ? d.employment_rate + '%' : '--', sub: '', icon: User, bg: 'linear-gradient(135deg, rgba(143,169,229,0.18), rgba(143,169,229,0.05))', color: '#8FA9E5' },
+    { label: '学生总数', value: d.total_students ?? '--', sub: d.total_classes ? `${d.total_classes} 个班级 · ${d.total_majors || 0} 个专业` : '', icon: UserFilled, bg: 'linear-gradient(135deg, rgba(91,146,229,0.15), rgba(91,146,229,0.05))', color: PRIMARY },
+    { label: '平均成绩', value: avgScore, sub: acad.total_students_with_grades ? `${acad.total_students_with_grades} 人有成绩` : '', icon: TrendCharts, bg: 'linear-gradient(135deg, rgba(79,195,184,0.15), rgba(79,195,184,0.05))', color: ACCENT },
+    { label: '预警人数', value: warningCount, sub: acad.fail_rate != null ? `挂科率 ${acad.fail_rate}%` : '', icon: WarningFilled, bg: 'linear-gradient(135deg, rgba(245,183,183,0.20), rgba(245,183,183,0.05))', color: '#E8836C' },
+    { label: '就业率', value: emp.employment_rate != null ? emp.employment_rate + '%' : '--', sub: emp.employed_count != null ? `${emp.employed_count}/${emp.total_count || 0} 人` : '', icon: User, bg: 'linear-gradient(135deg, rgba(143,169,229,0.18), rgba(143,169,229,0.05))', color: '#8FA9E5' },
   ]
 })
 
@@ -365,7 +391,7 @@ function renderActivitiesBar() {
 async function loadSummary() {
   summaryLoading.value = true
   try {
-    summaryData.value = await semesterReportApi.summary()
+    summaryData.value = await semesterReportApi.summary(currentSemester.value)
     await nextTick()
     renderPoliticalPie()
     renderCampusGenderBar()
@@ -376,7 +402,7 @@ async function loadSummary() {
 async function loadAcademics() {
   academicsLoading.value = true
   try {
-    academicsData.value = await semesterReportApi.academics()
+    academicsData.value = await semesterReportApi.academics(currentSemester.value)
     await nextTick()
     renderClassAvgBar()
   } catch (e) { console.error('academics error', e) }
@@ -386,7 +412,7 @@ async function loadAcademics() {
 async function loadParty() {
   partyLoading.value = true
   try {
-    const raw = await semesterReportApi.partyDevelopment()
+    const raw = await semesterReportApi.partyDevelopment(currentSemester.value)
     // Convert stages dict to array format
     if (raw && raw.stages && typeof raw.stages === 'object' && !Array.isArray(raw.stages)) {
       raw.stages = Object.entries(raw.stages).map(([name, count]) => ({ name, count }))
@@ -399,7 +425,7 @@ async function loadParty() {
 async function loadEmployment() {
   employmentLoading.value = true
   try {
-    employmentData.value = await semesterReportApi.employment()
+    employmentData.value = await semesterReportApi.employment(currentSemester.value)
     await nextTick()
     renderEmploymentPie()
   } catch (e) { console.error('employment error', e) }
@@ -409,11 +435,18 @@ async function loadEmployment() {
 async function loadActivities() {
   activitiesLoading.value = true
   try {
-    activitiesData.value = await semesterReportApi.activities()
+    activitiesData.value = await semesterReportApi.activities(currentSemester.value)
     await nextTick()
     renderActivitiesBar()
   } catch (e) { console.error('activities error', e) }
   finally { activitiesLoading.value = false }
+}
+
+async function loadSemesters() {
+  try {
+    const res = await semesterReportApi.semesters()
+    semesterOptions.value = Array.isArray(res) ? res : []
+  } catch (e) { console.error('loadSemesters error', e) }
 }
 
 async function refreshAll() {
@@ -426,7 +459,7 @@ async function refreshAll() {
 async function handleExport() {
   exporting.value = true
   try {
-    const blob = await semesterReportApi.export()
+    const blob = await semesterReportApi.export(currentSemester.value)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -447,6 +480,7 @@ function handleResize() {
 }
 
 onMounted(() => {
+  loadSemesters()
   refreshAll()
   window.addEventListener('resize', handleResize)
 })
@@ -492,6 +526,8 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 .page-title {
   font-size: 22px;
@@ -503,6 +539,7 @@ onBeforeUnmount(() => {
 .page-actions {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 .page-actions .el-button--primary {
   background: linear-gradient(135deg, #5B92E5, #4FC3B8);

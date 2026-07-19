@@ -19,6 +19,60 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix='/api/semester-report', tags=['学期报表'])
 
 
+def _get_current_semester():
+    """根据当前日期自动计算当前学期，格式如 2025-2026-1"""
+    now = datetime.now()
+    y = now.year
+    m = now.month
+    if m >= 9:
+        return f"{y}-{y+1}-1"
+    elif m >= 2:
+        return f"{y-1}-{y}-2"
+    else:
+        return f"{y-1}-{y}-1"
+
+
+def _semester_date_range(semester: str):
+    """将学期字符串转为日期范围 (start, end)，如 '2025-2026-1' -> ('2025-09-01','2026-01-31')"""
+    if not semester or semester == 'all':
+        return None, None
+    parts = semester.split('-')
+    if len(parts) == 3:
+        y1, y2, term = parts[0], parts[1], parts[2]
+        if term == '1':
+            return f"{y1}-09-01", f"{y2}-01-31"
+        else:
+            return f"{y1}-09-01", f"{y2}-07-31"  # approximate
+    return None, None
+
+
+# ============================================================
+# 0. 获取可用学期列表
+# ============================================================
+@router.get('/semesters')
+def list_semesters(db: Session = Depends(get_db)):
+    """返回数据库中已有的学期列表 + 当前学期"""
+    semesters = set()
+    try:
+        rows = db.query(GradeRecord.semester).distinct().all()
+        for r in rows:
+            if r[0]:
+                semesters.add(r[0])
+    except Exception:
+        pass
+    try:
+        rows = db.query(WarningRecord.semester).distinct().all()
+        for r in rows:
+            if r[0]:
+                semesters.add(r[0])
+    except Exception:
+        pass
+    current = _get_current_semester()
+    semesters.add(current)
+    return sorted(semesters, reverse=True)
+
+
+
 # ============================================================
 # 1. 学期总览
 # ============================================================
@@ -95,16 +149,23 @@ def semester_summary(db: Session = Depends(get_db)):
 # 2. 学业数据
 # ============================================================
 @router.get('/academics')
-def semester_academics(db: Session = Depends(get_db)):
-    """学业汇总：各班平均成绩、挂科率、Top10、预警统计"""
+def semester_academics(semester: str = Query(None), db: Session = Depends(get_db)):
+    """学业汇总：各班平均成绩、挂科率、Top10、预警统计（支持学期筛选）"""
     result = {
         'class_averages': [],
         'fail_rate': 0.0,
         'fail_count': 0,
         'total_students_with_grades': 0,
         'top10': [],
-        'warning_stats': {'red': 0, 'yellow': 0, 'total': 0},
+        'warning_stats': [],
     }
+
+    # Build grade filter
+    grade_filters = [GradeRecord.score.isnot(None)]
+    warn_filters = []
+    if semester and semester != 'all':
+        grade_filters.append(GradeRecord.semester == semester)
+        warn_filters.append(WarningRecord.semester == semester)
 
     # 各班平均成绩
     try:
@@ -115,7 +176,7 @@ def semester_academics(db: Session = Depends(get_db)):
             )
             .join(Student, Student.class_id == ClassModel.id)
             .join(GradeRecord, GradeRecord.student_id == Student.id)
-            .filter(GradeRecord.score.isnot(None))
+            .filter(*grade_filters)
             .group_by(ClassModel.id, ClassModel.class_name)
             .all()
         )
@@ -126,17 +187,11 @@ def semester_academics(db: Session = Depends(get_db)):
     except Exception as e:
         logger.warning(f"academics 班级平均异常: {e}")
 
-    # 挂科率（有不及格记录的学生占比）
+    # 挂科率
     try:
-        total_with_grades = (
-            db.query(func.count(GradeRecord.student_id.distinct()))
-            .scalar() or 0
-        )
-        fail_students = (
-            db.query(func.count(GradeRecord.student_id.distinct()))
-            .filter(GradeRecord.score.isnot(None), GradeRecord.score < 60)
-            .scalar() or 0
-        )
+        base_q = db.query(GradeRecord.student_id).filter(*grade_filters)
+        total_with_grades = base_q.distinct().count() or 0
+        fail_students = base_q.filter(GradeRecord.score < 60).distinct().count() or 0
         result['total_students_with_grades'] = total_with_grades
         result['fail_count'] = fail_students
         result['fail_rate'] = (
@@ -152,11 +207,13 @@ def semester_academics(db: Session = Depends(get_db)):
             db.query(
                 Student.student_no,
                 Student.name,
+                ClassModel.class_name,
                 func.avg(GradeRecord.score).label('avg_score')
             )
-            .join(GradeRecord, GradeRecord.student_id == Student.id)
-            .filter(GradeRecord.score.isnot(None))
-            .group_by(Student.id, Student.student_no, Student.name)
+            .join(Student, GradeRecord.student_id == Student.id)
+            .join(ClassModel, Student.class_id == ClassModel.id)
+            .filter(*grade_filters)
+            .group_by(Student.id, Student.student_no, Student.name, ClassModel.class_name)
             .order_by(func.avg(GradeRecord.score).desc())
             .limit(10)
             .all()
@@ -165,22 +222,28 @@ def semester_academics(db: Session = Depends(get_db)):
             {
                 'student_no': r[0],
                 'name': r[1],
-                'avg_score': round(r[2], 2) if r[2] else 0
+                'class_name': r[2],
+                'avg_score': round(r[3], 2) if r[3] else 0
             }
             for r in rows
         ]
     except Exception as e:
         logger.warning(f"academics Top10 异常: {e}")
 
-    # 学业预警统计
+    # 学业预警统计 - 返回数组格式，前端可直接渲染
     try:
-        red = db.query(WarningRecord).filter(WarningRecord.warning_type == 'red').count()
-        yellow = db.query(WarningRecord).filter(WarningRecord.warning_type == 'yellow').count()
-        result['warning_stats'] = {
-            'red': red,
-            'yellow': yellow,
-            'total': red + yellow,
-        }
+        red_q = db.query(WarningRecord).filter(WarningRecord.warning_type == 'red')
+        yellow_q = db.query(WarningRecord).filter(WarningRecord.warning_type == 'yellow')
+        if warn_filters:
+            red_q = red_q.filter(*warn_filters)
+            yellow_q = yellow_q.filter(*warn_filters)
+        red = red_q.count()
+        yellow = yellow_q.count()
+        result['warning_stats'] = [
+            {'level': 'red', 'level_label': '红色预警', 'count': red},
+            {'level': 'yellow', 'level_label': '黄色预警', 'count': yellow},
+            {'level': 'normal', 'level_label': '正常', 'count': max(0, result['total_students_with_grades'] - red - yellow)},
+        ]
     except Exception as e:
         logger.warning(f"academics 预警异常: {e}")
 
@@ -288,6 +351,8 @@ def employment_stats(db: Session = Depends(get_db)):
     return {
         'distribution': status_map,
         'total_records': total,
+        'total_count': total,
+        'employed_count': employed,
         'employment_rate': employment_rate,
     }
 
@@ -347,7 +412,7 @@ def activity_stats(db: Session = Depends(get_db)):
 # 6. 导出 Excel
 # ============================================================
 @router.get('/export')
-def export_semester_report(db: Session = Depends(get_db)):
+def export_semester_report(semester: str = Query(None), db: Session = Depends(get_db)):
     """导出学期报表为 Excel（多 Sheet）- 空数据时返回空白模板不报 500"""
     try:
         from openpyxl import Workbook
