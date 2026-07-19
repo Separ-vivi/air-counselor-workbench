@@ -65,6 +65,22 @@
             </span>
             <span class="status-chip">🏨 宿舍 · 在校</span>
           </div>
+          <!-- V5-d: 学生标签 -->
+          <div class="student-tags-row" v-if="studentTags.length">
+            <span class="tags-label">🏷️</span>
+            <span v-for="t in studentTags" :key="t.id"
+              class="tag-pill-s360"
+              :style="{ background: t.color + '22', color: t.color, borderColor: t.color + '44' }">
+              <span class="tag-dot-s360" :style="{ background: t.color }"></span>
+              {{ t.name }}
+            </span>
+            <el-button link type="primary" size="small" @click="openTagEdit">编辑</el-button>
+          </div>
+          <div class="student-tags-row" v-else>
+            <span class="tags-label">🏷️</span>
+            <span style="color:#B0BAC8;font-size:12px;">暂无标签</span>
+            <el-button link type="primary" size="small" @click="openTagEdit">添加</el-button>
+          </div>
         </div>
       </div>
 
@@ -186,6 +202,22 @@
       </template>
     </el-dialog>
 
+    <!-- V5-d: 学生标签编辑弹窗 -->
+    <el-dialog v-model="tagEditDialog" title="编辑标签" width="420px" destroy-on-close>
+      <div v-if="allTags.length === 0" style="text-align:center;color:#909399;padding:20px;">
+        暂无标签，请先在「学生管理 → 管理标签」中创建
+      </div>
+      <div v-else class="s360-tag-check-list">
+        <div v-for="tag in allTags" :key="tag.id" class="s360-tag-check-item" @click="toggleTag(tag)">
+          <el-checkbox :model-value="isTagChecked(tag.id)" @click.stop />
+          <span class="tag-pill-s360" :style="{ background: tag.color + '22', color: tag.color, borderColor: tag.color + '44' }">
+            <span class="tag-dot-s360" :style="{ background: tag.color }"></span>
+            {{ tag.name }}
+          </span>
+        </div>
+      </div>
+    </el-dialog>
+
     <!-- 隐藏的 A4 打印区，只在打印时显示 -->
     <div id="s360-print-area" v-if="student">
       <h1>{{ student.name }} · 学生 360 一页汇总</h1>
@@ -262,6 +294,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getBasic, getSummary, updateBasic } from '@/api/student360.js'
+import { tagsApi } from '@/api/tags.js'
 import { useOrgStore } from '@/stores/org.js'
 
 import TabBasic       from '@/components/student360/TabBasic.vue'
@@ -388,6 +421,7 @@ async function loadHeader() {
     student.value = b
     summary.value = s
     loadCompleteness()
+    loadTags()
   } catch (e) {
     student.value = null
   } finally {
@@ -399,6 +433,44 @@ onMounted(async () => {
   await loadHeader()
   if (!orgStore.orgTree.length) orgStore.loadTree()
 })
+
+// ---- V5-d: 学生标签 ----
+const allTags = ref([])
+const studentTags = ref([])
+const tagEditDialog = ref(false)
+
+async function loadTags() {
+  try {
+    const data = await tagsApi.list()
+    allTags.value = Array.isArray(data) ? data : (data?.items || [])
+  } catch { allTags.value = [] }
+  try {
+    const data = await tagsApi.getStudentTags(sid.value)
+    studentTags.value = Array.isArray(data) ? data : (data?.tags || [])
+  } catch { studentTags.value = [] }
+}
+
+function openTagEdit() {
+  tagEditDialog.value = true
+  if (!allTags.value.length) loadTags()
+}
+
+function isTagChecked(tagId) {
+  return studentTags.value.some(t => t.id === tagId)
+}
+
+async function toggleTag(tag) {
+  const checked = isTagChecked(tag.id)
+  try {
+    if (checked) {
+      await tagsApi.removeStudentTag(sid.value, tag.id)
+      studentTags.value = studentTags.value.filter(t => t.id !== tag.id)
+    } else {
+      await tagsApi.addStudentTag(sid.value, tag.id)
+      studentTags.value.push(tag)
+    }
+  } catch { ElMessage.error('操作失败') }
+}
 
 // 编辑基础信息
 const basicDialog = ref(false)
@@ -474,6 +546,40 @@ async function saveBasic() {
 .inline-title { color: #666; font-size: 13px; }
 
 .pdf-preview-hint { color: #909399; font-size: 12px; margin-top: -8px; margin-bottom: 8px; }
+
+.student-tags-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.tags-label { font-size: 14px; }
+.tag-pill-s360 {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  border: 1px solid;
+  white-space: nowrap;
+  line-height: 1.6;
+  cursor: pointer;
+}
+.tag-dot-s360 {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.s360-tag-check-list { max-height: 320px; overflow-y: auto; }
+.s360-tag-check-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 8px; cursor: pointer;
+  transition: background 0.12s;
+}
+.s360-tag-check-item:hover { background: #F5F8FC; }
 </style>
 
 <!-- 打印相关必须放全局 style，scoped 会导致选择器加 data-v-xxx 后无法覆盖 SideBar/TopBar -->

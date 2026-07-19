@@ -154,41 +154,80 @@
       </el-row>
     </el-card>
 
-    <!-- 备份与恢复 -->
+    <!-- V5-d: 数据管理（备份/恢复/历史） -->
     <el-card shadow="hover" class="section-card">
       <template #header>
         <div class="card-header">
-          <span>💾 备份与恢复</span>
+          <span>💾 数据管理</span>
+          <el-tag type="info" size="small">V5-d</el-tag>
         </div>
       </template>
       <el-row :gutter="16">
-        <el-col :span="12">
+        <el-col :span="8">
           <el-card shadow="never" class="op-card">
-            <div class="op-title">📥 下载数据库备份</div>
+            <div class="op-title">📥 备份数据</div>
             <div class="op-desc">
-              下载完整的 SQLite 数据库文件（.db），可离线保存或迁移到其他环境。
+              下载完整数据备份（zip 格式），包含数据库及附件，可离线保存。
             </div>
-            <el-button type="success" @click="onBackup">下载备份 (.db)</el-button>
+            <el-button type="success" @click="onBackup" :loading="backupLoading">
+              <el-icon><Download /></el-icon>&nbsp;下载备份 (.zip)
+            </el-button>
           </el-card>
         </el-col>
-        <el-col :span="12">
+        <el-col :span="8">
           <el-card shadow="never" class="op-card">
-            <div class="op-title">📤 上传恢复</div>
+            <div class="op-title">📤 恢复数据</div>
             <div class="op-desc">
-              上传之前的 .db 备份文件恢复数据。
-              <br><b style="color:#f56c6c">当前数据会被覆盖！</b>
+              上传之前的 .zip 备份文件恢复数据。
+              <br><b style="color:#f56c6c">⚠️ 恢复将覆盖当前所有数据！</b>
             </div>
             <el-upload
               :show-file-list="false"
               :before-upload="onRestoreBefore"
               :http-request="onRestore"
-              accept=".db"
+              accept=".zip,.db"
             >
-              <el-button type="warning">选择 .db 文件恢复</el-button>
+              <el-button type="warning">选择备份文件恢复</el-button>
             </el-upload>
           </el-card>
         </el-col>
+        <el-col :span="8">
+          <el-card shadow="never" class="op-card">
+            <div class="op-title">📋 备份历史</div>
+            <div class="op-desc">
+              已有的备份文件列表，可直接下载。
+            </div>
+            <el-button @click="loadBackupHistory" :loading="historyLoading">
+              <el-icon><Refresh /></el-icon>&nbsp;刷新列表
+            </el-button>
+          </el-card>
+        </el-col>
       </el-row>
+
+      <!-- 备份历史列表 -->
+      <div v-if="backupHistory.length" class="backup-history-list">
+        <el-divider content-position="left">备份历史</el-divider>
+        <el-table :data="backupHistory" size="small" stripe>
+          <el-table-column label="文件名" prop="name" min-width="200" show-overflow-tooltip />
+          <el-table-column label="大小" prop="size" width="120">
+            <template #default="{ row }">{{ formatSize(row.size) }}</template>
+          </el-table-column>
+          <el-table-column label="修改时间" prop="modified" width="180">
+            <template #default="{ row }">{{ row.modified || '—' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="100">
+            <template #default="{ row }">
+              <el-button link type="primary" size="small" @click="downloadBackupFile(row)">
+                <el-icon><Download /></el-icon> 下载
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <div v-else-if="historyLoaded" class="backup-history-empty">
+        <el-divider content-position="left">备份历史</el-divider>
+        <div style="text-align:center;color:#909399;padding:12px;font-size:13px;">暂无备份文件</div>
+      </div>
     </el-card>
   </div>
 </template>
@@ -196,8 +235,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Download } from '@element-plus/icons-vue'
 import { system } from '@/api/modules'
+import http from '@/api/index.js'
 
 const health = ref(null)
 const loadingHealth = ref(false)
@@ -366,13 +406,42 @@ async function onReinit() {
   }
 }
 
+// ---- V5-d: 备份/恢复 ----
+const backupLoading = ref(false)
+const historyLoading = ref(false)
+const backupHistory = ref([])
+const historyLoaded = ref(false)
+
 function onBackup() {
-  window.open(system.backupUrl(), '_blank')
+  backupLoading.value = true
+  // 使用 fetch 下载 zip
+  fetch('/api/system/backup')
+    .then(resp => {
+      if (!resp.ok) throw new Error('备份失败')
+      return resp.blob()
+    })
+    .then(blob => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[-T:]/g, '')
+      a.download = `backup_${stamp}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+      ElMessage.success('✅ 备份下载完成')
+      loadBackupHistory()
+    })
+    .catch(() => {
+      // fallback: 直接打开
+      window.open('/api/system/backup', '_blank')
+    })
+    .finally(() => { backupLoading.value = false })
 }
 
 function onRestoreBefore(file) {
-  if (!file.name.endsWith('.db')) {
-    ElMessage.error('请上传 .db 文件')
+  const ok = file.name.endsWith('.zip') || file.name.endsWith('.db')
+  if (!ok) {
+    ElMessage.error('请上传 .zip 或 .db 文件')
     return false
   }
   return true
@@ -381,9 +450,9 @@ function onRestoreBefore(file) {
 async function onRestore({ file }) {
   try {
     await ElMessageBox.confirm(
-      `确认用 ${file.name} 恢复数据库？当前数据会被覆盖！`,
-      '恢复数据库',
-      { type: 'warning' }
+      `⚠️ 确认用 ${file.name} 恢复数据？\n\n当前所有数据将被覆盖，此操作不可撤销！`,
+      '恢复数据',
+      { type: 'warning', confirmButtonText: '确认恢复', cancelButtonText: '取消', confirmButtonClass: 'el-button--danger' }
     )
   } catch { return }
   const fd = new FormData()
@@ -397,7 +466,31 @@ async function onRestore({ file }) {
   }
 }
 
-onMounted(() => { loadHealth(); loadLlm() })
+async function loadBackupHistory() {
+  historyLoading.value = true
+  try {
+    const data = await http.get('/system/backup/history')
+    backupHistory.value = Array.isArray(data) ? data : (data?.files || [])
+    historyLoaded.value = true
+  } catch {
+    backupHistory.value = []
+    historyLoaded.value = true
+  } finally { historyLoading.value = false }
+}
+
+function downloadBackupFile(row) {
+  const url = `/api/system/backup/download?file=${encodeURIComponent(row.name)}`
+  window.open(url, '_blank')
+}
+
+function formatSize(bytes) {
+  if (!bytes) return '—'
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+onMounted(() => { loadHealth(); loadLlm(); loadBackupHistory() })
 </script>
 
 <style scoped>
@@ -426,4 +519,6 @@ onMounted(() => { loadHealth(); loadLlm() })
 }
 .llm-hint a { text-decoration: none; }
 .llm-hint a:hover { text-decoration: underline; }
+.backup-history-list { margin-top: 4px; }
+.backup-history-empty { margin-top: 4px; }
 </style>
