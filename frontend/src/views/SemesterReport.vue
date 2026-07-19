@@ -170,12 +170,12 @@ const loadAllData = async () => {
       semesterReportApi.activities(),
       semesterReportApi.compare(currentSemester.value)
     ])
-    summaryData.value = summaryRes.data || {}
-    academicsData.value = academicsRes.data || {}
-    partyData.value = partyRes.data || {}
-    employmentData.value = employmentRes.data || {}
-    activitiesData.value = activitiesRes.data || {}
-    comparisonData.value = compareRes.data?.comparison || {}
+    summaryData.value = summaryRes || {}
+    academicsData.value = academicsRes || {}
+    partyData.value = partyRes || {}
+    employmentData.value = employmentRes || {}
+    activitiesData.value = activitiesRes || {}
+    comparisonData.value = compareRes?.comparison || {}
     
     await nextTick()
     renderCharts()
@@ -188,7 +188,7 @@ const loadAllData = async () => {
 const loadSemesters = async () => {
   try {
     const res = await semesterReportApi.semesters()
-    semesters.value = res.data || []
+    semesters.value = res || []
     if (semesters.value.length > 0) {
       currentSemester.value = semesters.value[0].code
     }
@@ -297,7 +297,7 @@ const renderCharts = () => {
 const exportReport = async () => {
   try {
     const res = await semesterReportApi.export(currentSemester.value)
-    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url

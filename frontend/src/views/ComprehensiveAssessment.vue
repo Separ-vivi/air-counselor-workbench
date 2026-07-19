@@ -146,8 +146,8 @@ const loadData = async () => {
     if (filterSemester.value) params.semester = filterSemester.value
     
     const res = await request.get('/comprehensive/', { params })
-    tableData.value = res.data.items || []
-    total.value = res.data.total || 0
+    tableData.value = res.items || []
+    total.value = res.total || 0
   } catch (error) {
     console.error('加载数据失败:', error)
     ElMessage.error('加载数据失败')
@@ -159,7 +159,7 @@ const loadData = async () => {
 const loadSemesters = async () => {
   try {
     const res = await request.get('/comprehensive/semesters')
-    semesters.value = res.data || []
+    semesters.value = res || []
   } catch (error) {
     console.error('加载学期列表失败:', error)
   }
@@ -170,7 +170,7 @@ const loadStats = async () => {
     const params = {}
     if (filterSemester.value) params.semester = filterSemester.value
     const res = await request.get('/comprehensive/statistics', { params })
-    stats.value = res.data || {}
+    stats.value = res || {}
   } catch (error) {
     console.error('加载统计失败:', error)
   }
@@ -179,7 +179,7 @@ const loadStats = async () => {
 const loadStudents = async () => {
   try {
     const res = await request.get('/students/simple')
-    students.value = res.data?.items || []
+    students.value = Array.isArray(res) ? res : (res || [])
   } catch (error) {
     console.error('加载学生列表失败:', error)
   }
