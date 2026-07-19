@@ -37,6 +37,7 @@ const routes = [
   { path: '/faqs',             name: 'faqs',             component: () => import('@/views/Faqs.vue'),               meta: { title: 'FAQ' } },
   { path: '/templates',        name: 'templates',        component: () => import('@/views/DocumentTemplates.vue'),  meta: { title: '文档模板' } },
 
+  { path: '/semester-report', name: 'semesterReport', component: () => import('@/views/SemesterReport.vue'), meta: { title: '学期报表' } },
   { path: '/system',           name: 'system',           component: () => import('@/views/SystemSettings.vue'),     meta: { title: '系统设置' } },
 
   { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
