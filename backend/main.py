@@ -177,6 +177,13 @@ try:
 except Exception as e:
     logger.error(f"schema 自愈失败: {e}")
 
+# V5-B 知识库 AI 能力迁移
+try:
+    from knowledge_ai_migrations import run_knowledge_ai_migrations
+    run_knowledge_ai_migrations(engine)
+except Exception as e:
+    logger.error(f"知识库 AI 迁移失败: {e}")
+
 app = FastAPI(title='高校辅导员工作平台', version='1.0.0')
 
 # CORS 配置
@@ -204,6 +211,7 @@ from routers.class360 import router as class360_router
 from routers.organization import router as organization_router
 from routers.system import router as system_router
 from routers.productivity import router as productivity_router
+from routers.knowledge_ai import router as knowledge_ai_router
 
 app.include_router(students_router)
 app.include_router(tags_router)
@@ -213,6 +221,7 @@ app.include_router(settings_router)
 app.include_router(care_router)
 app.include_router(org_router)
 app.include_router(activity_router)
+app.include_router(knowledge_ai_router)
 app.include_router(knowledge_router)
 app.include_router(import_router)
 app.include_router(student360_router)

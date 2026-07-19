@@ -655,3 +655,35 @@ class Countdown(Base):
     pinned = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+# ===== V5-B 知识库 AI 能力 =====
+
+class KnowledgeChunk(Base):
+    """知识库文档分块"""
+    __tablename__ = 'knowledge_chunks'
+    id = Column(Integer, primary_key=True, index=True)
+    doc_id = Column(Integer, ForeignKey('knowledge_docs.id', ondelete='CASCADE'), nullable=False)
+    chunk_index = Column(Integer, default=0)  # 在文档中的顺序
+    content = Column(Text, default='')
+    source_file = Column(String(500), default='')
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class KnowledgeChat(Base):
+    """知识库问答记录"""
+    __tablename__ = 'knowledge_chats'
+    id = Column(Integer, primary_key=True, index=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, default='')
+    sources_json = Column(Text, default='')  # JSON 格式的来源信息
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class SystemSetting(Base):
+    """系统配置（LLM 等）"""
+    __tablename__ = 'system_settings'
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(100), unique=True, nullable=False)
+    value = Column(Text, default='')
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
