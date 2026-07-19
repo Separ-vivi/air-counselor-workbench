@@ -30,11 +30,40 @@
 
       <!-- Step 1 -->
       <div v-if="step === 0">
-        <el-form label-width="140px" style="max-width: 720px; margin: 0 auto">
+        <el-form label-width="140px" style="max-width: 860px; margin: 0 auto">
           <el-form-item label="数据类型" required>
-            <el-radio-group v-model="dataType">
-              <el-radio-button v-for="t in dataTypes" :key="t.key" :value="t.key">{{ t.icon }} {{ t.label }}</el-radio-button>
-            </el-radio-group>
+            <div class="import-type-groups">
+              <!-- 学生与班级 组 -->
+              <div class="type-group">
+                <div class="type-group-title">
+                  <el-icon style="vertical-align:-2px;margin-right:4px"><UserFilled /></el-icon>
+                  学生与班级
+                </div>
+                <el-radio-group v-model="dataType" class="type-group-radios">
+                  <el-radio-button v-for="t in studentClassTypes" :key="t.key" :value="t.key">{{ t.icon }} {{ t.label }}</el-radio-button>
+                </el-radio-group>
+              </div>
+              <!-- 业务模块 组 -->
+              <div class="type-group">
+                <div class="type-group-title">
+                  <el-icon style="vertical-align:-2px;margin-right:4px"><Menu /></el-icon>
+                  业务模块
+                </div>
+                <el-radio-group v-model="dataType" class="type-group-radios">
+                  <el-radio-button v-for="t in businessTypes" :key="t.key" :value="t.key">{{ t.icon }} {{ t.label }}</el-radio-button>
+                </el-radio-group>
+              </div>
+              <!-- 知识中心 组 -->
+              <div class="type-group">
+                <div class="type-group-title">
+                  <el-icon style="vertical-align:-2px;margin-right:4px"><Reading /></el-icon>
+                  知识中心
+                </div>
+                <el-radio-group v-model="dataType" class="type-group-radios">
+                  <el-radio-button v-for="t in knowledgeTypes" :key="t.key" :value="t.key">{{ t.icon }} {{ t.label }}</el-radio-button>
+                </el-radio-group>
+              </div>
+            </div>
           </el-form-item>
           <el-form-item label="冲突策略">
             <el-radio-group v-model="conflictStrategy">
@@ -149,7 +178,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { UploadFilled, ArrowLeft } from '@element-plus/icons-vue'
+import { UploadFilled, ArrowLeft, UserFilled, Menu, Reading } from '@element-plus/icons-vue'
 import { detectFile, confirmImport } from '@/api/smartImport'
 
 const router = useRouter()
@@ -175,20 +204,35 @@ const fileList = ref([])
 const detecting = ref(false)
 const confirming = ref(false)
 
-const dataTypes = [
-  { key: 'students',      label: '花名册',         icon: '📋' },
-  { key: 'grades',        label: '成绩单',         icon: '📊' },
-  { key: 'party',         label: '党团发展',       icon: '🚩' },
-  { key: 'hardship',      label: '资助/困难认定', icon: '💰' },
-  { key: 'scholarship',   label: '奖助学金',       icon: '🏅' },
-  { key: 'honor',         label: '评优荣誉',       icon: '🌟' },
-  { key: 'family',        label: '家庭联络',       icon: '👨‍👩‍👧' },
-  { key: 'cadre',         label: '学生干部',       icon: '🎖️' },
+// ===== 按侧栏分组组织的导入类型 =====
+// 学生与班级
+const studentClassTypes = [
+  { key: 'students',      label: '学生信息',       icon: '📋' },
+  { key: 'family',        label: '家庭档案',       icon: '👨‍👩‍👧' },
+]
+// 业务模块
+const businessTypes = [
+  { key: 'grades',        label: '成绩管理',       icon: '📊' },
+  { key: 'scholarship',   label: '荣誉/奖学金',    icon: '🏅' },
+  { key: 'hardship',      label: '困难认定',       icon: '💰' },
+  { key: 'cadre',         label: '干部记录',       icon: '🎖️' },
   { key: 'activity',      label: '学生活动',       icon: '🎪' },
   { key: 'employment',    label: '就业跟踪',       icon: '💼' },
+  { key: 'party',         label: '党团发展',       icon: '🚩' },
+]
+// 知识中心
+const knowledgeTypes = [
+  { key: 'faq',           label: 'FAQ',           icon: '❓' },
+  { key: 'template',      label: '文档模板',       icon: '📄' },
+]
+// 合并全部（兼容旧逻辑）
+const dataTypes = [
+  ...studentClassTypes,
+  ...businessTypes,
+  ...knowledgeTypes,
 ]
 
-// 各类型对应的目标字段（覆盖核心字段，供映射下拉）
+// 各类型对应的目标字段
 const fieldMap = {
   students: [
     { key: 'student_no', label: '学号', required: true },
@@ -278,6 +322,17 @@ const fieldMap = {
     { key: 'offer_date', label: '签约日期' },
     { key: 'salary', label: '薪资' },
   ],
+  faq: [
+    { key: 'question', label: '问题', required: true },
+    { key: 'answer', label: '答案', required: true },
+    { key: 'category', label: '分类' },
+    { key: 'is_published', label: '是否发布' },
+  ],
+  template: [
+    { key: 'name', label: '模板名称', required: true },
+    { key: 'content', label: '模板内容', required: true },
+    { key: 'category', label: '分类' },
+  ],
 }
 const targetFields = computed(() => fieldMap[dataType.value] || [])
 const isRequired = (key) => targetFields.value.find((f) => f.key === key)?.required === true
@@ -312,7 +367,6 @@ const doDetect = async () => {
     fd.append('data_type', dataType.value)
     const res = await detectFile(fd)
     detectResult.value = res || {}
-    // 兼容不同结构
     const headers = res?.headers || res?.columns || (res?.preview?.[0] ? Object.keys(res.preview[0]) : [])
     const samples = res?.samples || {}
     const suggested = res?.suggested_mapping || res?.mapping || {}
@@ -329,7 +383,6 @@ const doDetect = async () => {
   }
 }
 
-/** 简单启发：源列名包含关键字则直接匹配 */
 const guessMapping = (h) => {
   const s = (h || '').toLowerCase()
   for (const f of targetFields.value) {
@@ -339,7 +392,6 @@ const guessMapping = (h) => {
 }
 
 const doConfirm = async () => {
-  // 检查必填字段是否已映射
   const mapped = new Set(mapping.value.map((m) => m.target).filter(Boolean))
   const missing = targetFields.value.filter((f) => f.required && !mapped.has(f.key))
   if (missing.length) {
@@ -382,4 +434,35 @@ const reset = () => {
 .page-header { margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
 .page-header .sub { color: #909399; margin: 4px 0 0; font-size: 13px; }
+
+/* 导入类型分组样式 */
+.import-type-groups {
+  width: 100%;
+}
+.type-group {
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  background: #FAFBFC;
+  border: 1px solid #EBEEF5;
+  border-radius: 8px;
+}
+.type-group:last-child {
+  margin-bottom: 0;
+}
+.type-group-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #606266;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+}
+.type-group-radios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+.type-group-radios .el-radio-button {
+  margin: 3px 4px;
+}
 </style>

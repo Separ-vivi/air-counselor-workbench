@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">V5-d</div>
+        <div class="brand-ver">V5-e</div>
       </div>
     </div>
 
@@ -16,12 +16,22 @@
       text-color="rgba(255,255,255,0.86)"
       active-text-color="rgba(255,255,255,0.86)"
     >
-      <el-menu-item index="/dashboard"><el-icon><DataBoard /></el-icon><span>驾驶舱</span></el-menu-item>
-      <el-menu-item index="/students"><el-icon><User /></el-icon><span>学生管理</span></el-menu-item>
-      <el-menu-item index="/classes"><el-icon><OfficeBuilding /></el-icon><span>班级管理</span></el-menu-item>
-      <el-menu-item index="/org"><el-icon><Grid /></el-icon><span>三级架构</span></el-menu-item>
-      <el-menu-item index="/smart-import"><el-icon><Upload /></el-icon><span>智能导入</span></el-menu-item>
+      <!-- 第1组 工作台 -->
+      <el-sub-menu index="workspace">
+        <template #title><el-icon><HomeFilled /></el-icon><span>工作台</span></template>
+        <el-menu-item index="/dashboard"><el-icon><DataBoard /></el-icon><span>驾驶舱</span></el-menu-item>
+        <el-menu-item index="/smart-import"><el-icon><Upload /></el-icon><span>智能导入</span></el-menu-item>
+      </el-sub-menu>
 
+      <!-- 第2组 学生与班级 -->
+      <el-sub-menu index="students-classes">
+        <template #title><el-icon><UserFilled /></el-icon><span>学生与班级</span></template>
+        <el-menu-item index="/students"><el-icon><User /></el-icon><span>学生管理</span></el-menu-item>
+        <el-menu-item index="/classes"><el-icon><OfficeBuilding /></el-icon><span>班级管理</span></el-menu-item>
+        <el-menu-item index="/module/teachers"><el-icon><Medal /></el-icon><span>班主任</span></el-menu-item>
+      </el-sub-menu>
+
+      <!-- 第3组 业务模块 -->
       <el-sub-menu index="modules">
         <template #title><el-icon><Menu /></el-icon><span>业务模块</span></template>
         <el-menu-item index="/module/grades"><el-icon><Notebook /></el-icon><span>成绩管理</span></el-menu-item>
@@ -33,21 +43,22 @@
         <el-menu-item index="/module/activities"><el-icon><TrophyBase /></el-icon><span>学生活动</span></el-menu-item>
         <el-menu-item index="/module/employment"><el-icon><Suitcase /></el-icon><span>就业跟踪</span></el-menu-item>
         <el-menu-item index="/module/meetings"><el-icon><ChatDotSquare /></el-icon><span>班会记录</span></el-menu-item>
-        <el-menu-item index="/module/teachers"><el-icon><UserFilled /></el-icon><span>班主任组</span></el-menu-item>
       </el-sub-menu>
 
+      <!-- 第4组 效率与组织 -->
       <el-sub-menu index="productivity">
-        <template #title><el-icon><Compass /></el-icon><span>效率中心</span></template>
+        <template #title><el-icon><Compass /></el-icon><span>效率与组织</span></template>
         <el-menu-item index="/notes"><el-icon><EditPen /></el-icon><span>记事本</span></el-menu-item>
         <el-menu-item index="/calendar"><el-icon><Calendar /></el-icon><span>校历倒计时</span></el-menu-item>
         <el-menu-item index="/projects"><el-icon><Collection /></el-icon><span>项目追踪</span></el-menu-item>
         <el-menu-item index="/summary"><el-icon><PieChart /></el-icon><span>周汇总</span></el-menu-item>
+        <el-menu-item index="/org"><el-icon><Grid /></el-icon><span>三级架构</span></el-menu-item>
       </el-sub-menu>
 
-      <el-sub-menu index="helper">
-        <template #title><el-icon><Reading /></el-icon><span>辅助工具</span></template>
-        <el-menu-item index="/knowledge"><el-icon><Files /></el-icon><span>知识库</span></el-menu-item>
-        <el-menu-item index="/faqs"><el-icon><QuestionFilled /></el-icon><span>FAQ</span></el-menu-item>
+      <!-- 第5组 知识中心 -->
+      <el-sub-menu index="knowledge-center">
+        <template #title><el-icon><Reading /></el-icon><span>知识中心</span></template>
+        <el-menu-item index="/knowledge"><el-icon><Files /></el-icon><span>知识库·AI助手</span></el-menu-item>
         <el-menu-item index="/templates"><el-icon><Document /></el-icon><span>文档模板</span></el-menu-item>
       </el-sub-menu>
 
