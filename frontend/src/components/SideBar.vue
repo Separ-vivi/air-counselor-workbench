@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">V5-f</div>
+        <div class="brand-ver">V5-g</div>
       </div>
     </div>
 
