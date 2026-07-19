@@ -8,7 +8,7 @@
     </div>
     <div class="page-header">
       <h2>智能导入</h2>
-      <p class="sub">支持 6 种台账类型 · 3 步走完成 · 自动字段映射 + 冲突策略</p>
+      <p class="sub">支持 10 种台账类型 · 3 步走完成 · 自动字段映射 + 冲突策略</p>
     </div>
 
     <el-alert type="info" :closable="false" style="margin-bottom:16px">
@@ -181,7 +181,11 @@ const dataTypes = [
   { key: 'party',         label: '党团发展',       icon: '🚩' },
   { key: 'hardship',      label: '资助/困难认定', icon: '💰' },
   { key: 'scholarship',   label: '奖助学金',       icon: '🏅' },
-  { key: 'honor',         label: '评优荣誉',       icon: '🌟' }
+  { key: 'honor',         label: '评优荣誉',       icon: '🌟' },
+  { key: 'family',        label: '家庭联络',       icon: '👨‍👩‍👧' },
+  { key: 'cadre',         label: '学生干部',       icon: '🎖️' },
+  { key: 'activity',      label: '学生活动',       icon: '🎪' },
+  { key: 'employment',    label: '就业跟踪',       icon: '💼' },
 ]
 
 // 各类型对应的目标字段（覆盖核心字段，供映射下拉）
@@ -222,14 +226,18 @@ const fieldMap = {
     { key: 'student_no', label: '学号', required: true },
     { key: 'hardship_level', label: '困难等级', required: true },
     { key: 'school_year', label: '学年' },
-    { key: 'family_situation', label: '家庭情况' }
+    { key: 'family_situation', label: '家庭情况' },
+    { key: 'family_income', label: '家庭年收入' },
+    { key: 'per_capita_income', label: '人均收入' },
+    { key: 'hardship_type', label: '困难类型' }
   ],
   scholarship: [
     { key: 'student_no', label: '学号', required: true },
     { key: 'scholarship_name', label: '奖学金名称', required: true },
     { key: 'level', label: '等级' },
     { key: 'amount', label: '金额' },
-    { key: 'school_year', label: '学年' }
+    { key: 'school_year', label: '学年' },
+    { key: 'semester', label: '学期' }
   ],
   honor: [
     { key: 'student_no', label: '学号', required: true },
@@ -237,7 +245,39 @@ const fieldMap = {
     { key: 'honor_level', label: '级别' },
     { key: 'award_date', label: '获奖日期' },
     { key: 'granting_org', label: '颁发单位' }
-  ]
+  ],
+  family: [
+    { key: 'student_no', label: '学号', required: true },
+    { key: 'parent_name', label: '家长姓名', required: true },
+    { key: 'relationship', label: '关系' },
+    { key: 'parent_phone', label: '家长电话' },
+    { key: 'contact_date', label: '联系日期' },
+    { key: 'contact_method', label: '联系方式' },
+    { key: 'topic', label: '沟通主题' },
+  ],
+  cadre: [
+    { key: 'student_no', label: '学号', required: true },
+    { key: 'position', label: '职务', required: true },
+    { key: 'org_name', label: '组织名称' },
+    { key: 'start_date', label: '任职开始日期' },
+    { key: 'end_date', label: '任职结束日期' },
+    { key: 'status', label: '状态' },
+  ],
+  activity: [
+    { key: 'student_no', label: '学号', required: true },
+    { key: 'activity_name', label: '活动名称', required: true },
+    { key: 'activity_date', label: '活动日期' },
+    { key: 'role', label: '参与角色' },
+    { key: 'hours', label: '时长(小时)' },
+  ],
+  employment: [
+    { key: 'student_no', label: '学号', required: true },
+    { key: 'company_name', label: '单位名称' },
+    { key: 'job_title', label: '岗位' },
+    { key: 'employment_type', label: '就业类型' },
+    { key: 'offer_date', label: '签约日期' },
+    { key: 'salary', label: '薪资' },
+  ],
 }
 const targetFields = computed(() => fieldMap[dataType.value] || [])
 const isRequired = (key) => targetFields.value.find((f) => f.key === key)?.required === true

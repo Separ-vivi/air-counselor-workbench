@@ -38,8 +38,10 @@ export const faqsApi = {
 }
 
 export const templatesApi = {
-  list:   ()     => http.get('/document-templates'),
-  create: (data) => http.post('/document-templates', data),
+  list:   ()        => http.get('/document-templates'),
+  create: (data)    => http.post('/document-templates', data),
+  update: (id, data)=> http.put(`/document-templates/${id}`, data),
+  remove: (id)      => http.delete(`/document-templates/${id}`),
 }
 
 export const documentsApi = {

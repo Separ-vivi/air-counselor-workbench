@@ -31,12 +31,14 @@
         <div class="tpl-actions">
           <el-button size="small" plain type="primary" @click="onPreview(t)">👁️ 预览</el-button>
           <el-button size="small" type="success" @click="onGenerate(t)">✨ 生成文书</el-button>
+          <el-button size="small" type="warning" plain @click="onEditTpl(t)">✏️ 编辑</el-button>
+          <el-button size="small" type="danger" plain @click="onDeleteTpl(t)">🗑️ 删除</el-button>
         </div>
       </div>
     </div>
 
     <!-- 新建模板对话框 -->
-    <el-dialog v-model="dialogVisible" title="新建模板" width="800px">
+    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑模板' : '新建模板'" width="800px">
       <el-form :model="form" label-width="80px">
         <el-form-item label="名称" required>
           <el-input v-model="form.name" placeholder="如：家访通知模板" />
@@ -53,6 +55,14 @@
             :rows="12"
             placeholder="可使用变量：{{姓名}} {{学号}} {{性别}} {{专业}} {{班级}} {{政治面貌}}"
           />
+        </el-form-item>
+        <el-form-item label="变量插值">
+          <div class="var-hints">
+            <span>可用变量：</span>
+            <el-tag v-for="v in availableVars" :key="v" size="small" round type="info" style="margin:2px;cursor:pointer" @click="insertVar(v)">
+              {{ varLabel(v) }}
+            </el-tag>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -146,10 +156,10 @@ const list = ref([])
 const loading = ref(false)
 const saving = ref(false)
 
-const typeOptions = ['个人情况说明', '家访通知', '评优推荐信', '奖学金申请', '党员发展', '证明信', '其他']
+const typeOptions = ['个人情况说明', '家访通知', '评优推荐信', '奖学金申请确认书', '党员发展公示', '助学金推荐', '贫困证明', '实习推荐', '就业推荐表', '毕业生鉴定', '请假条', '证明信', '其他']
 
 const dialogVisible = ref(false)
-const form = ref({ name: '', template_type: '', content: '' })
+const form = ref({ id: null, name: '', template_type: '', content: '' })
 
 const previewVisible = ref(false)
 const previewTpl = ref(null)
@@ -180,7 +190,7 @@ async function load() {
 }
 
 function onCreate() {
-  form.value = { name: '', template_type: '', content: '' }
+  form.value = { id: null, name: '', template_type: '', content: '' }
   dialogVisible.value = true
 }
 
@@ -191,11 +201,16 @@ async function onSave() {
   }
   saving.value = true
   try {
-    await templatesApi.create({
+    const payload = {
       name: form.value.name,
       template_type: form.value.template_type || '其他',
       content: form.value.content,
-    })
+    }
+    if (form.value.id) {
+      await templatesApi.update(form.value.id, payload)
+    } else {
+      await templatesApi.create(payload)
+    }
     ElMessage.success('已保存')
     dialogVisible.value = false
     await load()
@@ -253,6 +268,30 @@ async function onDoGenerate() {
     ElMessage.error('生成失败')
   }
   generating.value = false
+}
+
+const availableVars = ['姓名','学号','性别','专业','班级','政治面貌','电话','邮箱','家长电话','生源地','身份证号','校区','宿舍楼','房间号','当前日期','当前学年']
+function insertVar(v) {
+  form.value.content += '{{ ' + v + ' }}'
+}
+function varLabel(v) {
+  return '{{ ' + v + ' }}'
+}
+
+function onEditTpl(t) {
+  form.value = { id: t.id, name: t.name, template_type: t.template_type || '', content: t.content || '' }
+  dialogVisible.value = true
+}
+
+async function onDeleteTpl(t) {
+  try {
+    await ElMessageBox.confirm(`确认删除模板「${t.name}」？`, '确认', { type: 'warning' })
+    await templatesApi.remove(t.id)
+    ElMessage.success('已删除')
+    await load()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败')
+  }
 }
 
 async function loadDocuments() {
@@ -353,4 +392,8 @@ onMounted(load)
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 .doc-actions { display: flex; gap: 8px; padding-top: 6px; }
+.var-hints {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
+}
+.var-hints span { color: #909399; font-size: 12px; margin-right: 4px; }
 </style>

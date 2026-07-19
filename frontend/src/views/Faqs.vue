@@ -12,6 +12,16 @@
           <el-radio-button label="draft">草稿</el-radio-button>
         </el-radio-group>
         <el-button type="primary" :icon="Plus" @click="onCreate">新建 FAQ</el-button>
+        <el-dropdown @command="onExport" style="margin-left:8px">
+          <el-button :icon="Download">导出</el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="excel">导出 Excel</el-dropdown-item>
+              <el-dropdown-item command="csv">导出 CSV</el-dropdown-item>
+              <el-dropdown-item command="json">导出 JSON</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
@@ -71,7 +81,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Download } from '@element-plus/icons-vue'
 import { faqsApi } from '@/api/knowledge.js'
 
 const list = ref([])
@@ -160,6 +170,24 @@ async function onDelete(f) {
   } catch (e) {
     if (e !== 'cancel') ElMessage.error('删除失败')
   }
+}
+
+function onExport(format) {
+  const url = `/api/faqs/export?format=${format}`
+  if (format === 'json') {
+    fetch(url).then(r => r.json()).then(data => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'})
+      downloadBlob(blob, `FAQ导出_${new Date().toISOString().slice(0,10)}.json`)
+    })
+  } else {
+    window.open(url, '_blank')
+  }
+}
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
 }
 
 onMounted(load)
