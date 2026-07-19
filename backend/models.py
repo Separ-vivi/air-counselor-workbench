@@ -687,3 +687,63 @@ class SystemSetting(Base):
     key = Column(String(100), unique=True, nullable=False)
     value = Column(Text, default='')
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+# ===== 综测成绩 =====
+
+class ComprehensiveAssessment(Base):
+    """综合测评成绩 - 每学期记录"""
+    __tablename__ = 'comprehensive_assessments'
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
+    semester = Column(String(50), nullable=False)  # 如 2025-2026-1
+    
+    # 各维度分数（百分制）
+    moral_score = Column(Float, default=0)      # 德育
+    academic_score = Column(Float, default=0)   # 智育
+    physical_score = Column(Float, default=0)   # 体育
+    aesthetic_score = Column(Float, default=0)  # 美育
+    labor_score = Column(Float, default=0)      # 劳育
+    
+    # 加权总分（可自定义权重计算）
+    total_score = Column(Float, default=0)
+    
+    # 班级排名
+    class_rank = Column(Integer, nullable=True)
+    
+    # 备注
+    notes = Column(Text, default='')
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    student = relationship('Student', backref='comprehensive_assessments')
+
+
+# ===== 学生访谈 =====
+
+class StudentInterview(Base):
+    """学生访谈记录"""
+    __tablename__ = 'student_interviews'
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
+    
+    # 访谈信息
+    interview_date = Column(String(20), nullable=False)  # 访谈日期
+    interview_type = Column(String(50), default='常规访谈')  # 常规/预警/心理/学业等
+    interviewer = Column(String(100), default='')  # 访谈人（辅导员姓名）
+    location = Column(String(200), default='')  # 访谈地点
+    
+    # 访谈内容
+    topic = Column(String(200), default='')  # 访谈主题
+    content = Column(Text, default='')  # 访谈内容
+    feedback = Column(Text, default='')  # 学生反馈
+    follow_up = Column(Text, default='')  # 后续跟进计划
+    
+    # 状态
+    status = Column(String(20), default='已完成')  # 待进行/已完成/需跟进
+    remind_date = Column(String(20), default='')  # 提醒日期（用于跟进）
+    
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    student = relationship('Student', backref='interviews')

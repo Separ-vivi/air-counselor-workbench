@@ -38,6 +38,8 @@ const routes = [
   { path: '/templates',        name: 'templates',        component: () => import('@/views/DocumentTemplates.vue'),  meta: { title: '文档模板' } },
 
   { path: '/semester-report', name: 'semesterReport', component: () => import('@/views/SemesterReport.vue'), meta: { title: '学期报表' } },
+  { path: '/module/comprehensive',    name: 'comprehensive',    component: () => import('@/views/ComprehensiveAssessment.vue'), meta: { title: '综测成绩' } },
+  { path: '/module/interview',        name: 'interview',        component: () => import('@/views/StudentInterview.vue'),        meta: { title: '学生访谈' } },
   { path: '/system',           name: 'system',           component: () => import('@/views/SystemSettings.vue'),     meta: { title: '系统设置' } },
 
   { path: '/:pathMatch(.*)*', redirect: '/dashboard' }

@@ -42,6 +42,8 @@
         <el-menu-item index="/module/activities"><el-icon><TrophyBase /></el-icon><span>学生活动</span></el-menu-item>
         <el-menu-item index="/module/employment"><el-icon><Suitcase /></el-icon><span>就业跟踪</span></el-menu-item>
         <el-menu-item index="/module/meetings"><el-icon><ChatDotSquare /></el-icon><span>班会记录</span></el-menu-item>
+        <el-menu-item index="/module/comprehensive"><el-icon><TrendCharts /></el-icon><span>综测成绩</span></el-menu-item>
+        <el-menu-item index="/module/interview"><el-icon><ChatDotSquare /></el-icon><span>学生访谈</span></el-menu-item>
       </el-sub-menu>
 
       <!-- 第4组 效率与组织 -->

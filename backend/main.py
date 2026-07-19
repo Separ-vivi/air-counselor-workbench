@@ -214,6 +214,8 @@ from routers.productivity import router as productivity_router
 from routers.system_backup import router as system_backup_router
 from routers.semester_report import router as semester_report_router
 from routers.knowledge_ai import router as knowledge_ai_router
+from routers.comprehensive_assessment import router as comprehensive_router
+from routers.interview import router as interview_router
 
 app.include_router(students_router)
 app.include_router(tags_router)
@@ -234,6 +236,8 @@ app.include_router(system_router)
 app.include_router(productivity_router)
 app.include_router(system_backup_router)
 app.include_router(semester_report_router)
+app.include_router(comprehensive_router)
+app.include_router(interview_router)
 app.include_router(student_tag_router)
 
 
