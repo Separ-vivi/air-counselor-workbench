@@ -3,23 +3,44 @@
     <div class="page-header">
       <h2>学生访谈管理</h2>
       <div class="page-actions">
-        <el-select v-model="filterStatus" placeholder="状态筛选" clearable @change="loadData" style="width: 120px; margin-right: 10px;">
-          <el-option label="待进行" value="待进行" />
-          <el-option label="已完成" value="已完成" />
-          <el-option label="需跟进" value="需跟进" />
-        </el-select>
-        <el-select v-model="filterType" placeholder="类型筛选" clearable @change="loadData" style="width: 120px; margin-right: 10px;">
-          <el-option v-for="t in interviewTypes" :key="t" :label="t" :value="t" />
-        </el-select>
         <el-button type="primary" @click="showAddDialog">新增记录</el-button>
       </div>
     </div>
+
+    <!-- V5-h: 筛选栏 - 班级/学生/状态/类型 -->
+    <el-card shadow="never" style="margin-bottom: 16px">
+      <el-form :inline="true">
+        <el-form-item label="班级">
+          <el-select v-model="filterClassId" placeholder="全部班级" filterable clearable style="width: 220px" @change="onFilterChange">
+            <el-option v-for="c in allClasses" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="学生">
+          <StudentSelect v-model="filterStudentId" style="width: 240px" @change="onFilterChange" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filterStatus" placeholder="全部" clearable @change="loadData" style="width: 120px">
+            <el-option label="待进行" value="待进行" />
+            <el-option label="已完成" value="已完成" />
+            <el-option label="需跟进" value="需跟进" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="filterType" placeholder="全部" clearable @change="loadData" style="width: 120px">
+            <el-option v-for="t in interviewTypes" :key="t" :label="t" :value="t" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button @click="resetFilters">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
     <!-- 统计卡片 -->
     <div class="stats-cards">
       <div class="stat-card">
         <div class="stat-label">总记录数</div>
-        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-value">{{ stats.total || 0 }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">待进行</div>
@@ -35,21 +56,22 @@
       </div>
     </div>
 
-    <!-- 数据表格 -->
+    <!-- 数据表格 - 带排序 -->
     <div class="table-container">
-      <el-table :data="tableData" style="width: 100%" v-loading="loading">
-        <el-table-column prop="student_no" label="学号" width="120" />
-        <el-table-column prop="student_name" label="姓名" width="100" />
-        <el-table-column prop="class_name" label="班级" width="150" />
-        <el-table-column prop="interview_date" label="访谈日期" width="120" />
-        <el-table-column prop="interview_type" label="类型" width="100">
+      <el-table :data="filteredData" style="width: 100%" v-loading="loading"
+        :default-sort="{ prop: 'interview_date', order: 'descending' }">
+        <el-table-column prop="student_no" label="学号" width="120" sortable />
+        <el-table-column prop="student_name" label="姓名" width="100" sortable />
+        <el-table-column prop="class_name" label="班级" width="150" show-overflow-tooltip sortable />
+        <el-table-column prop="interview_date" label="访谈日期" width="120" sortable />
+        <el-table-column prop="interview_type" label="类型" width="100" sortable>
           <template #default="{ row }">
             <el-tag :type="getTypeTagType(row.interview_type)" size="small">{{ row.interview_type }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="interviewer" label="访谈人" width="100" />
-        <el-table-column prop="topic" label="主题" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="90">
+        <el-table-column prop="interviewer" label="访谈人" width="100" sortable />
+        <el-table-column prop="topic" label="主题" min-width="180" show-overflow-tooltip sortable />
+        <el-table-column prop="status" label="状态" width="90" sortable>
           <template #default="{ row }">
             <el-tag :type="getStatusTagType(row.status)" size="small">{{ row.status }}</el-tag>
           </template>
@@ -61,15 +83,13 @@
           </template>
         </el-table-column>
       </el-table>
-      
+
       <el-pagination
         v-model:current-page="currentPage"
         v-model:page-size="pageSize"
-        :total="total"
+        :total="filteredData.length"
         :page-sizes="[10, 20, 50]"
         layout="total, sizes, prev, pager, next"
-        @size-change="loadData"
-        @current-change="loadData"
         style="margin-top: 16px; justify-content: flex-end;"
       />
     </div>
@@ -151,22 +171,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/index'
+import { useOrgStore } from '@/stores/org'
+import StudentSelect from '@/components/StudentSelect.vue'
 
-
+const orgStore = useOrgStore()
 const loading = ref(false)
 const submitting = ref(false)
-const tableData = ref([])
+const allData = ref([]) // 全量数据
 const students = ref([])
 const stats = ref({})
 const interviewTypes = ['常规访谈', '预警访谈', '心理访谈', '学业访谈', '就业访谈', '其他']
+
+// V5-h: 筛选条件
+const filterClassId = ref(null)
+const filterStudentId = ref(null)
 const filterStatus = ref('')
 const filterType = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
-const total = ref(0)
 const dialogVisible = ref(false)
 const detailVisible = ref(false)
 const isEdit = ref(false)
@@ -186,40 +211,43 @@ const form = ref({
   remind_date: ''
 })
 
-const getTypeTagType = (type) => {
-  const map = {
-    '常规访谈': '',
-    '预警访谈': 'danger',
-    '心理访谈': 'warning',
-    '学业访谈': 'success',
-    '就业访谈': 'info',
-    '其他': 'info'
+const allClasses = computed(() => orgStore.allClasses || [])
+
+// 前端过滤（班级 + 学生 + 状态 + 类型）
+const filteredData = computed(() => {
+  let data = allData.value
+  if (filterClassId.value) {
+    const cls = allClasses.value.find(c => c.id === filterClassId.value)
+    if (cls) data = data.filter(r => r.class_name === cls.name)
   }
+  if (filterStudentId.value) {
+    data = data.filter(r => r.student_id === filterStudentId.value)
+  }
+  if (filterStatus.value) {
+    data = data.filter(r => r.status === filterStatus.value)
+  }
+  if (filterType.value) {
+    data = data.filter(r => r.interview_type === filterType.value)
+  }
+  return data
+})
+
+const getTypeTagType = (type) => {
+  const map = { '常规访谈': '', '预警访谈': 'danger', '心理访谈': 'warning', '学业访谈': 'success', '就业访谈': 'info', '其他': 'info' }
   return map[type] || ''
 }
 
 const getStatusTagType = (status) => {
-  const map = {
-    '待进行': 'warning',
-    '已完成': 'success',
-    '需跟进': 'danger'
-  }
+  const map = { '待进行': 'warning', '已完成': 'success', '需跟进': 'danger' }
   return map[status] || ''
 }
 
 const loadData = async () => {
   loading.value = true
   try {
-    const params = {
-      page: currentPage.value,
-      size: pageSize.value
-    }
-    if (filterStatus.value) params.status = filterStatus.value
-    if (filterType.value) params.interview_type = filterType.value
-    
+    const params = { page: 1, size: 1000 } // 拉全量做前端过滤
     const res = await request.get('/interview/', { params })
-    tableData.value = res.items || []
-    total.value = res.total || 0
+    allData.value = res.items || []
   } catch (error) {
     console.error('加载数据失败:', error)
     ElMessage.error('加载数据失败')
@@ -244,6 +272,19 @@ const loadStudents = async () => {
   } catch (error) {
     console.error('加载学生列表失败:', error)
   }
+}
+
+const onFilterChange = () => {
+  currentPage.value = 1
+  // 前端过滤自动生效，无需重新请求
+}
+
+const resetFilters = () => {
+  filterClassId.value = null
+  filterStudentId.value = null
+  filterStatus.value = ''
+  filterType.value = ''
+  currentPage.value = 1
 }
 
 const showAddDialog = () => {
@@ -279,15 +320,8 @@ const showDetailDialog = (row) => {
 }
 
 const handleSubmit = async () => {
-  if (!form.value.student_id) {
-    ElMessage.warning('请选择学生')
-    return
-  }
-  if (!form.value.interview_date) {
-    ElMessage.warning('请选择访谈日期')
-    return
-  }
-  
+  if (!form.value.student_id) { ElMessage.warning('请选择学生'); return }
+  if (!form.value.interview_date) { ElMessage.warning('请选择访谈日期'); return }
   submitting.value = true
   try {
     if (isEdit.value) {
@@ -310,9 +344,7 @@ const handleSubmit = async () => {
 
 const handleDelete = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定删除 ${row.student_name} 的访谈记录吗？`, '提示', {
-      type: 'warning'
-    })
+    await ElMessageBox.confirm(`确定删除 ${row.student_name} 的访谈记录吗？`, '提示', { type: 'warning' })
     await request.delete(`/interview/${row.id}`)
     ElMessage.success('删除成功')
     loadData()
@@ -325,7 +357,10 @@ const handleDelete = async (row) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  if (!orgStore.orgTree?.length) {
+    try { await orgStore.loadTree() } catch (e) {}
+  }
   loadData()
   loadStats()
   loadStudents()
@@ -333,62 +368,16 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.interview-page {
-  padding: 20px;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.page-header h2 {
-  margin: 0;
-  color: #2C3E50;
-}
-
-.page-actions {
-  display: flex;
-  align-items: center;
-}
-
-.stats-cards {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08);
-}
-
-.stat-label {
-  font-size: 13px;
-  color: #7F8C8D;
-  margin-bottom: 8px;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #2C3E50;
-}
-
+.interview-page { padding: 20px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.page-header h2 { margin: 0; color: #2C3E50; }
+.page-actions { display: flex; align-items: center; }
+.stats-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.stat-card { background: #fff; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08); }
+.stat-label { font-size: 13px; color: #7F8C8D; margin-bottom: 8px; }
+.stat-value { font-size: 28px; font-weight: 700; color: #2C3E50; }
 .stat-value.pending { color: #E6A23C; }
 .stat-value.done { color: #67C23A; }
 .stat-value.follow { color: #F56C6C; }
-
-.table-container {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08);
-}
+.table-container { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08); }
 </style>

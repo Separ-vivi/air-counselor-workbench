@@ -84,7 +84,40 @@
       </div>
     </div>
 
-    <div class="charts-row">
+    <!-- V5-h 新增：学情分析 -->
+    <div class="charts-row" v-if="academicsData.class_averages?.length">
+      <div class="chart-card" style="grid-column: 1 / -1">
+        <h3 style="color: #5B92E5">学情分析</h3>
+        <div class="learning-analysis">
+          <div class="la-item">
+            <div class="la-label">班级数</div>
+            <div class="la-value" style="color:#5B92E5">{{ academicsData.class_averages?.length || 0 }}</div>
+          </div>
+          <div class="la-item">
+            <div class="la-label">整体挂科率</div>
+            <div class="la-value" :style="{color: academicsData.fail_rate > 20 ? '#F56C6C' : '#67C23A'}">{{ academicsData.fail_rate || 0 }}%</div>
+          </div>
+          <div class="la-item">
+            <div class="la-label">挂科人数</div>
+            <div class="la-value" style="color:#F56C6C">{{ academicsData.fail_count || 0 }}</div>
+          </div>
+          <div class="la-item">
+            <div class="la-label">有成绩学生数</div>
+            <div class="la-value" style="color:#409EFF">{{ academicsData.total_students_with_grades || 0 }}</div>
+          </div>
+          <div class="la-item">
+            <div class="la-label">预警人数</div>
+            <div class="la-value" style="color:#E74C3C">{{ warningCount }}</div>
+          </div>
+          <div class="la-item">
+            <div class="la-label">Top1 平均分</div>
+            <div class="la-value" style="color:#E6A23C">{{ academicsData.top10?.[0]?.avg_score?.toFixed(1) || '-' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+        <div class="charts-row">
       <div class="chart-card">
         <h3>党团发展进度</h3>
         <div ref="partyChart" class="chart-container"></div>
@@ -162,7 +195,7 @@ const formatDiff = (key, diff) => {
 
 const loadAllData = async () => {
   try {
-    const [summaryRes, academicsRes, partyRes, employmentRes, activitiesRes, compareRes] = await Promise.all([
+    const results = await Promise.allSettled([
       semesterReportApi.summary(),
       semesterReportApi.academics(currentSemester.value),
       semesterReportApi.partyDevelopment(),
@@ -170,11 +203,13 @@ const loadAllData = async () => {
       semesterReportApi.activities(),
       semesterReportApi.compare(currentSemester.value)
     ])
-    summaryData.value = summaryRes || {}
-    academicsData.value = academicsRes || {}
-    partyData.value = partyRes || {}
-    employmentData.value = employmentRes || {}
-    activitiesData.value = activitiesRes || {}
+    const get = (i) => results[i]?.status === 'fulfilled' ? results[i].value : null
+    summaryData.value = get(0) || {}
+    academicsData.value = get(1) || {}
+    partyData.value = get(2) || {}
+    employmentData.value = get(3) || {}
+    activitiesData.value = get(4) || {}
+    const compareRes = get(5)
     comparisonData.value = compareRes?.comparison || {}
     
     await nextTick()
@@ -438,5 +473,27 @@ onMounted(async () => {
 
 .chart-container {
   height: 300px;
+}
+
+.learning-analysis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.la-item {
+  min-width: 120px;
+  text-align: center;
+}
+
+.la-label {
+  font-size: 13px;
+  color: #7F8C8D;
+  margin-bottom: 4px;
+}
+
+.la-value {
+  font-size: 24px;
+  font-weight: 700;
 }
 </style>

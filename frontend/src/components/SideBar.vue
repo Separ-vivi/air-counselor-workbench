@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">V5-g</div>
+        <div class="brand-ver">V5-h</div>
       </div>
     </div>
 
@@ -37,13 +37,12 @@
         <el-menu-item index="/module/warnings"><el-icon><WarningFilled /></el-icon><span>学业预警</span></el-menu-item>
         <el-menu-item index="/module/party"><el-icon><Flag /></el-icon><span>党团发展</span></el-menu-item>
         <el-menu-item index="/module/psychology"><el-icon><Sunny /></el-icon><span>心理关怀</span></el-menu-item>
+        <el-menu-item index="/module/interview"><el-icon><ChatDotSquare /></el-icon><span>学生访谈</span></el-menu-item>
         <el-menu-item index="/module/family"><el-icon><HomeFilled /></el-icon><span>家庭档案</span></el-menu-item>
         <el-menu-item index="/module/cadres"><el-icon><Medal /></el-icon><span>学生干部</span></el-menu-item>
         <el-menu-item index="/module/activities"><el-icon><TrophyBase /></el-icon><span>学生活动</span></el-menu-item>
-        <el-menu-item index="/module/employment"><el-icon><Suitcase /></el-icon><span>就业跟踪</span></el-menu-item>
         <el-menu-item index="/module/meetings"><el-icon><ChatDotSquare /></el-icon><span>班会记录</span></el-menu-item>
-        <el-menu-item index="/module/comprehensive"><el-icon><TrendCharts /></el-icon><span>综测成绩</span></el-menu-item>
-        <el-menu-item index="/module/interview"><el-icon><ChatDotSquare /></el-icon><span>学生访谈</span></el-menu-item>
+        <el-menu-item index="/module/employment"><el-icon><Suitcase /></el-icon><span>就业跟踪</span></el-menu-item>
       </el-sub-menu>
 
       <!-- 第4组 效率与组织 -->
