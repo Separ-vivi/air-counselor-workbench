@@ -270,8 +270,8 @@
       <el-card shadow="never" style="margin-bottom: 16px">
         <template #header>
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span>综测成绩（福大2021版：综合=学业×80%+德育×20%）</span>
-            <el-tag type="info" size="small">学业测评=(平均学分绩点+5)×10 · 德育基本分60+加减分</el-tag>
+            <span>综测成绩（福大2026版：综合=学业×80+德育×6+智育×5+体育×3+美育×3+劳育×3-负面评价分）</span>
+            <el-tag type="info" size="small">五育各100分(基础70+发展30) · 学业=(绩点+5)×10 · 负面评价扣分</el-tag>
           </div>
         </template>
         <el-table
@@ -487,7 +487,7 @@ const assessSemesters = ref([])
 const loadAssessment = async () => {
   assessLoading.value = true
   try {
-    const params = { page: 1, size: 500 }
+    const params = { page: 1, size: 100 }
     if (assessFilter.semester) params.semester = assessFilter.semester
     const res = await request.get('/comprehensive/', { params })
     let items = res.items || []
