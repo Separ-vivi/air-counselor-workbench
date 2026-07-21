@@ -78,6 +78,10 @@
           <div class="card-title">违纪人数</div>
           <div class="card-value" style="color:#E74C3C">{{ summaryData?.discipline_count || 0 }}</div>
         </div>
+        <div class="summary-card">
+          <div class="card-title">党员人数</div>
+          <div class="card-value" style="color:#C0392B">{{ summaryData?.party_member_count || 0 }}</div>
+        </div>
       </div>
 
       <!-- 4. 学期对比 -->
@@ -224,6 +228,19 @@
           <div v-if="interviewsData?.by_type && Object.keys(interviewsData.by_type).length" ref="interviewChart" class="chart-container"></div>
           <div v-else class="chart-empty">暂无数据</div>
         </div>
+        <div class="chart-card">
+          <h3>访谈覆盖率</h3>
+          <div class="stat-cards">
+            <div class="stat-item">
+              <div class="stat-label">覆盖率</div>
+              <div class="stat-value" style="color:#5B92E5">{{ interviewsData?.coverage_rate || 0 }}%</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">被访谈/总学生</div>
+              <div class="stat-value" style="color:#2C3E50; font-size:20px;">{{ interviewsData?.covered_student_count || 0 }} / {{ interviewsData?.total_student_count || 0 }}</div>
+            </div>
+          </div>
+        </div>
       </div>
     </template>
   </div>
@@ -330,11 +347,11 @@ const loadAllData = async () => {
       semesterReportApi.activities(),
       semesterReportApi.compare(currentSemester.value),
       semesterReportApi.attendance(currentSemester.value),
-      semesterReportApi.psychology(),
-      semesterReportApi.discipline(),
+      semesterReportApi.psychology(currentSemester.value),
+      semesterReportApi.discipline(currentSemester.value),
       semesterReportApi.financialAid(currentSemester.value),
-      semesterReportApi.honors(),
-      semesterReportApi.interviews(),
+      semesterReportApi.honors(currentSemester.value),
+      semesterReportApi.interviews(currentSemester.value),
       semesterReportApi.dormitory(currentSemester.value)
     ])
     const get = (i) => results[i]?.status === 'fulfilled' ? results[i].value : null

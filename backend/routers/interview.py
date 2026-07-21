@@ -48,7 +48,7 @@ def list_interviews(
     interview_type: str = Query(None),
     keyword: str = Query(None),
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(20, ge=1, le=1000),
     db: Session = Depends(get_db)
 ):
     """获取访谈记录列表"""

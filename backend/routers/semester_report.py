@@ -1,6 +1,7 @@
-"""学期报表 API - V5-h-hotfix7
+"""学期报表 API - V5-h-hotfix8
 全面重构：增加考勤/心理/资助/荣誉/违纪/访谈/宿舍维度
 修复导出500、修复空数据崩溃
+增加semester参数到心理/违纪/荣誉/访谈API + 党员人数 + 访谈覆盖率
 """
 import io
 import logging
@@ -126,6 +127,7 @@ def semester_summary(semester: str = Query(None), db: Session = Depends(get_db))
         'financial_aid_count': 0,
         'discipline_count': 0,
         'honor_count': 0,
+        'party_member_count': 0,
     }
     try:
         result['total_students'] = db.query(Student).count()
@@ -236,6 +238,25 @@ def semester_summary(semester: str = Query(None), db: Session = Depends(get_db))
         result['honor_count'] = q.count()
     except Exception as e:
         logger.warning(f"summary 荣誉人次异常: {e}")
+
+    # 党员人数（取每个学生最新stage，统计'中共预备党员'或'中共党员'的去重学生数）
+    try:
+        subq = (
+            db.query(
+                PartyProgress.student_id,
+                func.max(PartyProgress.id).label('max_id')
+            )
+            .group_by(PartyProgress.student_id)
+            .subquery()
+        )
+        result['party_member_count'] = (
+            db.query(func.count(PartyProgress.student_id))
+            .join(subq, PartyProgress.id == subq.c.max_id)
+            .filter(PartyProgress.stage.in_(['中共预备党员', '中共党员']))
+            .scalar() or 0
+        )
+    except Exception as e:
+        logger.warning(f"summary 党员人数异常: {e}")
 
     return result
 
@@ -573,7 +594,7 @@ def attendance_summary(semester: str = Query(None), db: Session = Depends(get_db
 # 7. 心理档案汇总
 # ============================================================
 @router.get('/psychology')
-def psychology_summary(db: Session = Depends(get_db)):
+def psychology_summary(semester: str = Query(None), db: Session = Depends(get_db)):
     """心理档案汇总：关注等级、咨询次数、需跟进人数"""
     result = {
         'by_attention_level': {},
@@ -581,16 +602,26 @@ def psychology_summary(db: Session = Depends(get_db)):
         'need_follow_up': 0,
     }
 
+    # 构建日期范围过滤
+    psych_filters = []
+    if semester and semester != 'all':
+        start, end = _semester_date_range(semester)
+        if start and end:
+            psych_filters.append(PsychologyRecord.record_date >= start)
+            psych_filters.append(PsychologyRecord.record_date <= end)
+
     # 按关注等级统计人数
     try:
-        rows = (
+        q = (
             db.query(
                 PsychologyRecord.attention_level,
                 func.count(PsychologyRecord.student_id.distinct())
             )
             .group_by(PsychologyRecord.attention_level)
-            .all()
         )
+        if psych_filters:
+            q = q.filter(*psych_filters)
+        rows = q.all()
         result['by_attention_level'] = {
             (level or '普通'): cnt for level, cnt in rows
         }
@@ -599,7 +630,10 @@ def psychology_summary(db: Session = Depends(get_db)):
 
     # 总咨询次数
     try:
-        total = db.query(func.sum(PsychologyRecord.counseling_count)).scalar()
+        q = db.query(func.sum(PsychologyRecord.counseling_count))
+        if psych_filters:
+            q = q.filter(*psych_filters)
+        total = q.scalar()
         result['total_counseling_count'] = total or 0
     except Exception as e:
         logger.warning(f"psychology 咨询次数异常: {e}")
@@ -607,15 +641,17 @@ def psychology_summary(db: Session = Depends(get_db)):
     # 需跟进人数（有 follow_up_plan 且 next_follow_date >= 今天）
     try:
         today = datetime.now().strftime('%Y-%m-%d')
-        need_follow = (
+        q = (
             db.query(PsychologyRecord.student_id)
             .filter(
                 PsychologyRecord.follow_up_plan != '',
                 PsychologyRecord.follow_up_plan.isnot(None),
             )
             .distinct()
-            .count()
         )
+        if psych_filters:
+            q = q.filter(*psych_filters)
+        need_follow = q.count()
         result['need_follow_up'] = need_follow or 0
     except Exception as e:
         logger.warning(f"psychology 跟进人数异常: {e}")
@@ -627,30 +663,41 @@ def psychology_summary(db: Session = Depends(get_db)):
 # 8. 违纪统计
 # ============================================================
 @router.get('/discipline')
-def discipline_summary(db: Session = Depends(get_db)):
+def discipline_summary(semester: str = Query(None), db: Session = Depends(get_db)):
     """违纪统计：按处分类型统计、涉及学生数"""
     result = {
         'by_type': {},
         'student_count': 0,
     }
 
+    # 构建日期范围过滤
+    disc_filters = []
+    if semester and semester != 'all':
+        start, end = _semester_date_range(semester)
+        if start and end:
+            disc_filters.append(StudentDiscipline.discipline_date >= start)
+            disc_filters.append(StudentDiscipline.discipline_date <= end)
+
     try:
-        rows = (
+        q = (
             db.query(
                 StudentDiscipline.discipline_type,
                 func.count(StudentDiscipline.id)
             )
             .group_by(StudentDiscipline.discipline_type)
-            .all()
         )
+        if disc_filters:
+            q = q.filter(*disc_filters)
+        rows = q.all()
         result['by_type'] = {(t or '未知'): cnt for t, cnt in rows}
     except Exception as e:
         logger.warning(f"discipline 按类型异常: {e}")
 
     try:
-        result['student_count'] = (
-            db.query(StudentDiscipline.student_id).distinct().count()
-        )
+        q = db.query(StudentDiscipline.student_id).distinct()
+        if disc_filters:
+            q = q.filter(*disc_filters)
+        result['student_count'] = q.count()
     except Exception as e:
         logger.warning(f"discipline 学生数异常: {e}")
 
@@ -742,30 +789,39 @@ def financial_aid_summary(semester: str = Query(None), db: Session = Depends(get
 # 10. 荣誉统计
 # ============================================================
 @router.get('/honors')
-def honors_summary(db: Session = Depends(get_db)):
+def honors_summary(semester: str = Query(None), db: Session = Depends(get_db)):
     """荣誉统计：按级别统计获奖人次、获奖学生数"""
     result = {
         'by_level': {},
         'student_count': 0,
     }
 
+    # 构建学年过滤
+    honor_filters = []
+    honor_year = _semester_to_academic_year(semester)
+    if honor_year:
+        honor_filters.append(StudentHonor.academic_year == honor_year)
+
     try:
-        rows = (
+        q = (
             db.query(
                 StudentHonor.level,
                 func.count(StudentHonor.id)
             )
             .group_by(StudentHonor.level)
-            .all()
         )
+        if honor_filters:
+            q = q.filter(*honor_filters)
+        rows = q.all()
         result['by_level'] = {(level or '未知'): cnt for level, cnt in rows}
     except Exception as e:
         logger.warning(f"honors 按级别异常: {e}")
 
     try:
-        result['student_count'] = (
-            db.query(StudentHonor.student_id).distinct().count()
-        )
+        q = db.query(StudentHonor.student_id).distinct()
+        if honor_filters:
+            q = q.filter(*honor_filters)
+        result['student_count'] = q.count()
     except Exception as e:
         logger.warning(f"honors 学生数异常: {e}")
 
@@ -776,40 +832,69 @@ def honors_summary(db: Session = Depends(get_db)):
 # 11. 访谈统计
 # ============================================================
 @router.get('/interviews')
-def interview_summary(db: Session = Depends(get_db)):
-    """访谈统计：总次数、按类型、待跟进"""
+def interview_summary(semester: str = Query(None), db: Session = Depends(get_db)):
+    """访谈统计：总次数、按类型、待跟进、访谈覆盖率"""
     result = {
         'total_count': 0,
         'by_type': {},
         'pending_count': 0,
+        'covered_student_count': 0,
+        'total_student_count': 0,
+        'coverage_rate': 0.0,
     }
 
+    # 构建日期范围过滤
+    interview_filters = []
+    if semester and semester != 'all':
+        start, end = _semester_date_range(semester)
+        if start and end:
+            interview_filters.append(StudentInterview.interview_date >= start)
+            interview_filters.append(StudentInterview.interview_date <= end)
+
     try:
-        result['total_count'] = db.query(StudentInterview).count()
+        q = db.query(StudentInterview)
+        if interview_filters:
+            q = q.filter(*interview_filters)
+        result['total_count'] = q.count()
     except Exception as e:
         logger.warning(f"interviews 总数异常: {e}")
 
     try:
-        rows = (
+        q = (
             db.query(
                 StudentInterview.interview_type,
                 func.count(StudentInterview.id)
             )
             .group_by(StudentInterview.interview_type)
-            .all()
         )
+        if interview_filters:
+            q = q.filter(*interview_filters)
+        rows = q.all()
         result['by_type'] = {(t or '未知'): cnt for t, cnt in rows}
     except Exception as e:
         logger.warning(f"interviews 按类型异常: {e}")
 
     try:
-        result['pending_count'] = (
-            db.query(StudentInterview)
-            .filter(StudentInterview.status == '需跟进')
-            .count()
-        )
+        q = db.query(StudentInterview).filter(StudentInterview.status == '需跟进')
+        if interview_filters:
+            q = q.filter(*interview_filters)
+        result['pending_count'] = q.count()
     except Exception as e:
         logger.warning(f"interviews 待跟进异常: {e}")
+
+    # 访谈覆盖率
+    try:
+        q_covered = db.query(StudentInterview.student_id).distinct()
+        if interview_filters:
+            q_covered = q_covered.filter(*interview_filters)
+        covered = q_covered.count()
+        total_students = db.query(Student).count()
+        rate = round(covered / total_students * 100, 1) if total_students > 0 else 0.0
+        result['covered_student_count'] = covered
+        result['total_student_count'] = total_students
+        result['coverage_rate'] = rate
+    except Exception as e:
+        logger.warning(f"interviews 覆盖率异常: {e}")
 
     return result
 
@@ -940,6 +1025,27 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
         r += 1
         ws1.cell(row=r, column=1, value=label)
         ws1.cell(row=r, column=2, value=val)
+
+    # 党员人数
+    try:
+        party_subq = (
+            db.query(PartyProgress.student_id, func.max(PartyProgress.id).label('max_id'))
+            .group_by(PartyProgress.student_id)
+            .subquery()
+        )
+        party_member_count = (
+            db.query(func.count(PartyProgress.student_id))
+            .join(party_subq, PartyProgress.id == party_subq.c.max_id)
+            .filter(PartyProgress.stage.in_(['中共预备党员', '中共党员']))
+            .scalar() or 0
+        )
+        r += 1
+        ws1.cell(row=r, column=1, value='党员人数')
+        ws1.cell(row=r, column=2, value=party_member_count)
+    except Exception:
+        r += 1
+        ws1.cell(row=r, column=1, value='党员人数')
+        ws1.cell(row=r, column=2, value=0)
 
     # 政治面貌
     r += 2
@@ -1410,7 +1516,12 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     r = 3
     write_headers(ws11, r, ['访谈类型', '次数'])
     try:
-        rows = db.query(StudentInterview.interview_type, func.count(StudentInterview.id)).group_by(StudentInterview.interview_type).all()
+        q = db.query(StudentInterview.interview_type, func.count(StudentInterview.id)).group_by(StudentInterview.interview_type)
+        if semester and semester != 'all':
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q = q.filter(StudentInterview.interview_date >= start, StudentInterview.interview_date <= end)
+        rows = q.all()
         for t, cnt in rows:
             r += 1
             ws11.cell(row=r, column=1, value=t or '未知')
@@ -1419,13 +1530,41 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
         pass
     r += 2
     try:
-        total_interviews = db.query(StudentInterview).count()
-        pending = db.query(StudentInterview).filter(StudentInterview.status == '需跟进').count()
+        q_all = db.query(StudentInterview)
+        q_pending = db.query(StudentInterview).filter(StudentInterview.status == '需跟进')
+        if semester and semester != 'all':
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q_all = q_all.filter(StudentInterview.interview_date >= start, StudentInterview.interview_date <= end)
+                q_pending = q_pending.filter(StudentInterview.interview_date >= start, StudentInterview.interview_date <= end)
+        total_interviews = q_all.count()
+        pending = q_pending.count()
         ws11.cell(row=r, column=1, value='访谈总次数')
         ws11.cell(row=r, column=2, value=total_interviews)
         r += 1
         ws11.cell(row=r, column=1, value='待跟进数量')
         ws11.cell(row=r, column=2, value=pending)
+    except Exception:
+        pass
+    # 访谈覆盖率
+    try:
+        q_covered = db.query(StudentInterview.student_id).distinct()
+        if semester and semester != 'all':
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q_covered = q_covered.filter(StudentInterview.interview_date >= start, StudentInterview.interview_date <= end)
+        covered_count = q_covered.count()
+        total_stu = db.query(Student).count()
+        cov_rate = round(covered_count / total_stu * 100, 1) if total_stu > 0 else 0.0
+        r += 2
+        ws11.cell(row=r, column=1, value='访谈覆盖率(%)')
+        ws11.cell(row=r, column=2, value=cov_rate)
+        r += 1
+        ws11.cell(row=r, column=1, value='被访谈学生数')
+        ws11.cell(row=r, column=2, value=covered_count)
+        r += 1
+        ws11.cell(row=r, column=1, value='总学生数')
+        ws11.cell(row=r, column=2, value=total_stu)
     except Exception:
         pass
 

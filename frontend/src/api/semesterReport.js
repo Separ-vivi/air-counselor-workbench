@@ -29,20 +29,20 @@ export default {
   attendance(semester) {
     return semester ? request.get('/semester-report/attendance', { params: { semester } }) : request.get('/semester-report/attendance')
   },
-  psychology() {
-    return request.get('/semester-report/psychology')
+  psychology(semester) {
+    return semester ? request.get('/semester-report/psychology', { params: { semester } }) : request.get('/semester-report/psychology')
   },
-  discipline() {
-    return request.get('/semester-report/discipline')
+  discipline(semester) {
+    return semester ? request.get('/semester-report/discipline', { params: { semester } }) : request.get('/semester-report/discipline')
   },
   financialAid(semester) {
     return semester ? request.get('/semester-report/financial-aid', { params: { semester } }) : request.get('/semester-report/financial-aid')
   },
-  honors() {
-    return request.get('/semester-report/honors')
+  honors(semester) {
+    return semester ? request.get('/semester-report/honors', { params: { semester } }) : request.get('/semester-report/honors')
   },
-  interviews() {
-    return request.get('/semester-report/interviews')
+  interviews(semester) {
+    return semester ? request.get('/semester-report/interviews', { params: { semester } }) : request.get('/semester-report/interviews')
   },
   dormitory(semester) {
     return semester ? request.get('/semester-report/dormitory', { params: { semester } }) : request.get('/semester-report/dormitory')
