@@ -68,7 +68,7 @@ def _semester_date_range(semester: str):
 # ============================================================
 @router.get('/semesters')
 def list_semesters(db: Session = Depends(get_db)):
-    """返回数据库中已有的学期列表 + 当前学期，包含代码和显示名"""
+    """返回数据库中已有的学期列表，包含代码和显示名（只返回有数据的学期）"""
     semesters = set()
     try:
         rows = db.query(GradeRecord.semester).distinct().all()
@@ -84,8 +84,7 @@ def list_semesters(db: Session = Depends(get_db)):
                 semesters.add(r[0])
     except Exception:
         pass
-    current = _get_current_semester()
-    semesters.add(current)
+    # 不再强制添加当前学期，只返回数据库中有数据的学期
     sorted_sems = sorted(semesters, reverse=True)
     return [
         {'code': s, 'label': _format_semester_display(s)}

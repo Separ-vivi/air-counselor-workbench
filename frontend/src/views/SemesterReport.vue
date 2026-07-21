@@ -178,7 +178,7 @@ const employmentRate = computed(() => {
 
 // 判断是否有数据（学生总数 > 0）
 const hasData = computed(() => {
-  return summaryData.value?.total_students > 0 || Object.keys(summaryData.value).length > 0
+  return (summaryData.value?.total_students || 0) > 0
 })
 
 const getMetricLabel = (key) => {
