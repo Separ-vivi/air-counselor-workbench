@@ -15,25 +15,32 @@
       </div>
     </div>
 
+    <!-- 空数据提示 -->
+    <div v-if="!hasData" class="empty-state">
+      <div class="empty-icon">📊</div>
+      <div class="empty-text">暂无数据</div>
+      <div class="empty-hint">请先在「学生管理」或「成绩管理」中导入数据</div>
+    </div>
+
     <!-- 差值统计卡片 -->
-    <div v-if="comparisonData && Object.keys(comparisonData).length" class="comparison-section">
+    <div v-if="hasData && comparisonData && Object.keys(comparisonData).length" class="comparison-section">
       <h3>与上一学期对比</h3>
       <div class="comparison-cards">
         <div v-for="(item, key) in comparisonData" :key="key" class="comparison-card">
           <div class="metric-label">{{ getMetricLabel(key) }}</div>
-          <div class="metric-current">{{ formatMetric(key, item.current) }}</div>
-          <div :class="['metric-change', item.diff > 0 ? 'up' : item.diff < 0 ? 'down' : '']">
-            <span v-if="item.diff > 0">↑</span>
-            <span v-else-if="item.diff < 0">↓</span>
+          <div class="metric-current">{{ formatMetric(key, item?.current) }}</div>
+          <div :class="['metric-change', (item?.diff || 0) > 0 ? 'up' : (item?.diff || 0) < 0 ? 'down' : '']">
+            <span v-if="(item?.diff || 0) > 0">↑</span>
+            <span v-else-if="(item?.diff || 0) < 0">↓</span>
             <span v-else>→</span>
-            {{ formatDiff(key, item.diff) }} ({{ item.change_pct }}%)
+            {{ formatDiff(key, item?.diff) }} ({{ item?.change_pct || 0 }}%)
           </div>
         </div>
       </div>
     </div>
 
     <!-- 总览卡片 -->
-    <div class="summary-cards">
+    <div v-if="hasData" class="summary-cards">
       <div class="summary-card">
         <div class="card-title">学生总数</div>
         <div class="card-value">{{ summaryData.total_students || 0 }}</div>
@@ -167,6 +174,11 @@ const warningCount = computed(() => {
 
 const employmentRate = computed(() => {
   return employmentData.value.employment_rate || '0.00'
+})
+
+// 判断是否有数据（学生总数 > 0）
+const hasData = computed(() => {
+  return summaryData.value?.total_students > 0 || Object.keys(summaryData.value).length > 0
 })
 
 const getMetricLabel = (key) => {
@@ -495,5 +507,34 @@ onMounted(async () => {
 .la-value {
   font-size: 24px;
   font-weight: 700;
+}
+
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08);
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.empty-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2C3E50;
+  margin-bottom: 8px;
+}
+
+.empty-hint {
+  font-size: 14px;
+  color: #7F8C8D;
 }
 </style>
