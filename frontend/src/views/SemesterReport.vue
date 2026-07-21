@@ -1,5 +1,6 @@
 <template>
   <div class="semester-report-page">
+    <!-- 1. 页面头部 -->
     <div class="page-header">
       <h2>学期报表</h2>
       <div class="page-actions">
@@ -11,176 +12,284 @@
             :value="sem.code"
           />
         </el-select>
-        <el-button type="primary" @click="exportReport">导出 Excel</el-button>
+        <el-button type="primary" @click="exportReport" :loading="exporting">导出 Excel</el-button>
       </div>
     </div>
 
-    <!-- 空数据提示 -->
+    <!-- 2. 空数据提示 -->
     <div v-if="!hasData" class="empty-state">
       <div class="empty-icon">📊</div>
       <div class="empty-text">暂无数据</div>
       <div class="empty-hint">请先在「学生管理」或「成绩管理」中导入数据</div>
     </div>
 
-    <!-- 差值统计卡片 -->
-    <div v-if="hasData && comparisonData && Object.keys(comparisonData).length" class="comparison-section">
-      <h3>与上一学期对比</h3>
-      <div class="comparison-cards">
-        <div v-for="(item, key) in comparisonData" :key="key" class="comparison-card">
-          <div class="metric-label">{{ getMetricLabel(key) }}</div>
-          <div class="metric-current">{{ formatMetric(key, item?.current) }}</div>
-          <div :class="['metric-change', (item?.diff || 0) > 0 ? 'up' : (item?.diff || 0) < 0 ? 'down' : '']">
-            <span v-if="(item?.diff || 0) > 0">↑</span>
-            <span v-else-if="(item?.diff || 0) < 0">↓</span>
-            <span v-else>→</span>
-            {{ formatDiff(key, item?.diff) }} ({{ item?.change_pct || 0 }}%)
+    <template v-else>
+      <!-- 3. 总览卡片行 - 第1行 -->
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="card-title">学生总数</div>
+          <div class="card-value">{{ summaryData?.total_students || 0 }}</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-title">班级总数</div>
+          <div class="card-value">{{ summaryData?.total_classes || 0 }}</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-title">专业数</div>
+          <div class="card-value">{{ summaryData?.total_majors || 0 }}</div>
+        </div>
+      </div>
+
+      <!-- 总览卡片行 - 第2行 -->
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="card-title">平均成绩</div>
+          <div class="card-value">{{ avgScore }} 分</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-title">挂科率</div>
+          <div class="card-value" :style="{color: (academicsData?.fail_rate || 0) > 20 ? '#F56C6C' : '#2ECC71'}">{{ academicsData?.fail_rate || 0 }}%</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-title">预警人数</div>
+          <div class="card-value warning">{{ warningCount }} 人</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-title">考勤异常次数</div>
+          <div class="card-value" style="color:#E6A23C">{{ summaryData?.attendance_exception_count || 0 }}</div>
+        </div>
+      </div>
+
+      <!-- 总览卡片行 - 第3行 -->
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="card-title">心理关注人数</div>
+          <div class="card-value" style="color:#9B59B6">{{ summaryData?.psychology_attention_count || 0 }}</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-title">资助总人次</div>
+          <div class="card-value" style="color:#5B92E5">{{ summaryData?.financial_aid_count || 0 }}</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-title">荣誉人次</div>
+          <div class="card-value" style="color:#F39C12">{{ summaryData?.honor_count || 0 }}</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-title">违纪人数</div>
+          <div class="card-value" style="color:#E74C3C">{{ summaryData?.discipline_count || 0 }}</div>
+        </div>
+      </div>
+
+      <!-- 4. 学期对比 -->
+      <div v-if="isSemesterSelected && comparisonData && Object.keys(comparisonData).length" class="comparison-section">
+        <h3>与上一学期对比</h3>
+        <div class="comparison-cards">
+          <div v-for="(item, key) in comparisonData" :key="key" class="comparison-card">
+            <div class="metric-label">{{ getMetricLabel(key) }}</div>
+            <div class="metric-current">{{ formatMetric(key, item?.current) }}</div>
+            <div :class="['metric-change', (item?.diff || 0) > 0 ? 'up' : (item?.diff || 0) < 0 ? 'down' : '']">
+              <span v-if="(item?.diff || 0) > 0">↑</span>
+              <span v-else-if="(item?.diff || 0) < 0">↓</span>
+              <span v-else>→</span>
+              {{ formatDiff(key, item?.diff) }} ({{ item?.change_pct || 0 }}%)
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 总览卡片 -->
-    <div v-if="hasData" class="summary-cards">
-      <div class="summary-card">
-        <div class="card-title">学生总数</div>
-        <div class="card-value">{{ summaryData.total_students || 0 }}</div>
+      <!-- 5. 学业分析 -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>班级平均成绩</h3>
+          <div v-if="academicsData?.class_averages?.length" ref="classAvgChart" class="chart-container"></div>
+          <div v-else class="chart-empty">暂无数据</div>
+        </div>
+        <div class="chart-card">
+          <h3>学业预警统计</h3>
+          <div v-if="academicsData?.warning_stats?.length" ref="warningChart" class="chart-container"></div>
+          <div v-else class="chart-empty">暂无数据</div>
+        </div>
       </div>
-      <div class="summary-card">
-        <div class="card-title">班级总数</div>
-        <div class="card-value">{{ summaryData.total_classes || 0 }}</div>
-      </div>
-      <div class="summary-card">
-        <div class="card-title">平均成绩</div>
-        <div class="card-value">{{ avgScore }} 分</div>
-      </div>
-      <div class="summary-card">
-        <div class="card-title">预警人数</div>
-        <div class="card-value warning">{{ warningCount }} 人</div>
-      </div>
-      <div class="summary-card">
-        <div class="card-title">就业率</div>
-        <div class="card-value success">{{ employmentRate }}%</div>
-      </div>
-    </div>
 
-    <!-- 图表区域 -->
-    <div class="charts-row">
-      <div class="chart-card">
-        <h3>班级平均成绩</h3>
-        <div ref="classAvgChart" class="chart-container"></div>
+      <!-- 6. 成绩 Top 10 -->
+      <div class="charts-row" v-if="academicsData?.top10?.length">
+        <div class="chart-card" style="grid-column: 1 / -1">
+          <h3>成绩 Top 10</h3>
+          <el-table :data="academicsData?.top10 || []" style="width: 100%">
+            <el-table-column prop="student_no" label="学号" width="120" />
+            <el-table-column prop="name" label="姓名" width="100" />
+            <el-table-column prop="class_name" label="班级" />
+            <el-table-column prop="avg_score" label="平均分" width="100">
+              <template #default="{ row }">
+                {{ (row.avg_score || 0).toFixed(2) }}
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </div>
-      <div class="chart-card">
-        <h3>学业预警统计</h3>
-        <div ref="warningChart" class="chart-container"></div>
-      </div>
-    </div>
 
-    <div class="charts-row">
-      <div class="chart-card">
-        <h3>成绩 Top 10</h3>
-        <el-table :data="academicsData.top10" style="width: 100%">
-          <el-table-column prop="student_no" label="学号" width="120" />
-          <el-table-column prop="name" label="姓名" width="100" />
-          <el-table-column prop="class_name" label="班级" />
-          <el-table-column prop="avg_score" label="平均分" width="100">
-            <template #default="{ row }">
-              {{ row.avg_score.toFixed(2) }}
-            </template>
-          </el-table-column>
-        </el-table>
+      <!-- 7. 考勤分析 -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>考勤异常类型分布</h3>
+          <div v-if="attendanceData?.by_type && Object.keys(attendanceData.by_type).length" ref="attendanceTypeChart" class="chart-container"></div>
+          <div v-else class="chart-empty">暂无数据</div>
+        </div>
+        <div class="chart-card">
+          <h3>各班考勤异常</h3>
+          <div v-if="attendanceData?.by_class?.length" ref="attendanceClassChart" class="chart-container"></div>
+          <div v-else class="chart-empty">暂无数据</div>
+        </div>
       </div>
-    </div>
 
-    <!-- V5-h 新增：学情分析 -->
-    <div class="charts-row" v-if="academicsData.class_averages?.length">
-      <div class="chart-card" style="grid-column: 1 / -1">
-        <h3 style="color: #5B92E5">学情分析</h3>
-        <div class="learning-analysis">
-          <div class="la-item">
-            <div class="la-label">班级数</div>
-            <div class="la-value" style="color:#5B92E5">{{ academicsData.class_averages?.length || 0 }}</div>
-          </div>
-          <div class="la-item">
-            <div class="la-label">整体挂科率</div>
-            <div class="la-value" :style="{color: academicsData.fail_rate > 20 ? '#F56C6C' : '#67C23A'}">{{ academicsData.fail_rate || 0 }}%</div>
-          </div>
-          <div class="la-item">
-            <div class="la-label">挂科人数</div>
-            <div class="la-value" style="color:#F56C6C">{{ academicsData.fail_count || 0 }}</div>
-          </div>
-          <div class="la-item">
-            <div class="la-label">有成绩学生数</div>
-            <div class="la-value" style="color:#409EFF">{{ academicsData.total_students_with_grades || 0 }}</div>
-          </div>
-          <div class="la-item">
-            <div class="la-label">预警人数</div>
-            <div class="la-value" style="color:#E74C3C">{{ warningCount }}</div>
-          </div>
-          <div class="la-item">
-            <div class="la-label">Top1 平均分</div>
-            <div class="la-value" style="color:#E6A23C">{{ academicsData.top10?.[0]?.avg_score?.toFixed(1) || '-' }}</div>
+      <!-- 8. 心理档案 -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>心理关注等级分布</h3>
+          <div v-if="psychologyData?.by_attention_level && Object.keys(psychologyData.by_attention_level).length" ref="psychologyChart" class="chart-container"></div>
+          <div v-else class="chart-empty">暂无数据</div>
+        </div>
+        <div class="chart-card">
+          <h3>咨询统计</h3>
+          <div class="stat-cards">
+            <div class="stat-item">
+              <div class="stat-label">总咨询次数</div>
+              <div class="stat-value" style="color:#5B92E5">{{ psychologyData?.total_counseling_count || 0 }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">需跟进人数</div>
+              <div class="stat-value" style="color:#E74C3C">{{ psychologyData?.need_follow_up || 0 }}</div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-        <div class="charts-row">
-      <div class="chart-card">
-        <h3>党团发展进度</h3>
-        <div ref="partyChart" class="chart-container"></div>
+      <!-- 9. 资助与荣誉 -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>资助概览</h3>
+          <div class="financial-cards">
+            <div class="financial-item">
+              <div class="fi-label">困难认定</div>
+              <div class="fi-value">{{ financialAidData?.hardship_count || 0 }} 人</div>
+            </div>
+            <div class="financial-item">
+              <div class="fi-label">助学金发放</div>
+              <div class="fi-value">{{ formatAmount(financialAidData?.grant_total_amount) }} 元 / {{ financialAidData?.grant_count || 0 }} 人</div>
+            </div>
+            <div class="financial-item">
+              <div class="fi-label">奖学金发放</div>
+              <div class="fi-value">{{ formatAmount(financialAidData?.scholarship_total_amount) }} 元 / {{ financialAidData?.scholarship_count || 0 }} 人</div>
+            </div>
+            <div class="financial-item">
+              <div class="fi-label">助学贷款</div>
+              <div class="fi-value">{{ formatAmount(financialAidData?.loan_total_amount) }} 元</div>
+            </div>
+            <div class="financial-item">
+              <div class="fi-label">勤工助学</div>
+              <div class="fi-value">{{ financialAidData?.work_study_count || 0 }} 人次 / {{ formatAmount(financialAidData?.work_study_total_compensation) }} 元</div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>荣誉级别分布</h3>
+          <div v-if="honorsData?.by_level && Object.keys(honorsData.by_level).length" ref="honorChart" class="chart-container"></div>
+          <div v-else class="chart-empty">暂无数据</div>
+        </div>
       </div>
-      <div class="chart-card">
-        <h3>活动参与 Top 10</h3>
-        <div ref="activityChart" class="chart-container"></div>
+
+      <!-- 10. 党团发展 + 活动参与 Top 10 -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>党团发展进度</h3>
+          <div v-if="partyData?.stages && Object.keys(partyData.stages).length" ref="partyChart" class="chart-container"></div>
+          <div v-else class="chart-empty">暂无数据</div>
+        </div>
+        <div class="chart-card">
+          <h3>活动参与 Top 10</h3>
+          <div v-if="activitiesData?.activity_ranking?.length" ref="activityChart" class="chart-container"></div>
+          <div v-else class="chart-empty">暂无数据</div>
+        </div>
       </div>
-    </div>
+
+      <!-- 11. 日常管理 -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>请假统计</h3>
+          <div v-if="dormitoryData?.leave_by_type && Object.keys(dormitoryData.leave_by_type).length" ref="leaveChart" class="chart-container"></div>
+          <div v-else class="chart-empty">暂无数据</div>
+        </div>
+        <div class="chart-card">
+          <h3>访谈统计</h3>
+          <div v-if="interviewsData?.by_type && Object.keys(interviewsData.by_type).length" ref="interviewChart" class="chart-container"></div>
+          <div v-else class="chart-empty">暂无数据</div>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick } from 'vue'
+import { ref, onMounted, computed, nextTick, onBeforeUnmount } from 'vue'
 import * as echarts from 'echarts'
 import semesterReportApi from '@/api/semesterReport'
 import { ElMessage } from 'element-plus'
 
+// 数据 refs
 const summaryData = ref({})
 const academicsData = ref({})
 const partyData = ref({})
 const employmentData = ref({})
 const activitiesData = ref({})
+const attendanceData = ref({})
+const psychologyData = ref({})
+const disciplineData = ref({})
+const financialAidData = ref({})
+const honorsData = ref({})
+const interviewsData = ref({})
+const dormitoryData = ref({})
 const semesters = ref([])
 const currentSemester = ref('')
 const comparisonData = ref({})
+const exporting = ref(false)
 
+// 图表 refs
 const classAvgChart = ref(null)
 const warningChart = ref(null)
 const partyChart = ref(null)
 const activityChart = ref(null)
+const attendanceTypeChart = ref(null)
+const attendanceClassChart = ref(null)
+const psychologyChart = ref(null)
+const honorChart = ref(null)
+const leaveChart = ref(null)
+const interviewChart = ref(null)
 
 let chartInstances = []
 
+// 计算属性
 const avgScore = computed(() => {
-  const avgs = academicsData.value.class_averages || []
+  const avgs = academicsData.value?.class_averages || []
   if (!avgs.length) return '0.00'
-  const total = avgs.reduce((sum, item) => sum + item.avg_score, 0)
+  const total = avgs.reduce((sum, item) => sum + (item.avg_score || 0), 0)
   return (total / avgs.length).toFixed(2)
 })
 
 const warningCount = computed(() => {
-  const stats = academicsData.value.warning_stats || []
+  const stats = academicsData.value?.warning_stats || []
   const abnormal = stats.filter(s => s.level !== 'normal')
-  return abnormal.reduce((sum, s) => sum + s.count, 0)
+  return abnormal.reduce((sum, s) => sum + (s.count || 0), 0)
 })
 
-const employmentRate = computed(() => {
-  return employmentData.value.employment_rate || '0.00'
+const isSemesterSelected = computed(() => {
+  return currentSemester.value && currentSemester.value !== 'all'
 })
 
-// 判断是否有数据（学生总数 > 0）
 const hasData = computed(() => {
   return (summaryData.value?.total_students || 0) > 0
 })
 
+// 格式化辅助
 const getMetricLabel = (key) => {
   const labels = {
     avg_score: '平均成绩',
@@ -205,15 +314,28 @@ const formatDiff = (key, diff) => {
   return (diff > 0 ? '+' : '') + diff
 }
 
+const formatAmount = (val) => {
+  if (!val) return '0'
+  return Number(val).toLocaleString()
+}
+
+// 数据加载
 const loadAllData = async () => {
   try {
     const results = await Promise.allSettled([
-      semesterReportApi.summary(),
+      semesterReportApi.summary(currentSemester.value),
       semesterReportApi.academics(currentSemester.value),
       semesterReportApi.partyDevelopment(),
       semesterReportApi.employment(),
       semesterReportApi.activities(),
-      semesterReportApi.compare(currentSemester.value)
+      semesterReportApi.compare(currentSemester.value),
+      semesterReportApi.attendance(currentSemester.value),
+      semesterReportApi.psychology(),
+      semesterReportApi.discipline(),
+      semesterReportApi.financialAid(currentSemester.value),
+      semesterReportApi.honors(),
+      semesterReportApi.interviews(),
+      semesterReportApi.dormitory(currentSemester.value)
     ])
     const get = (i) => results[i]?.status === 'fulfilled' ? results[i].value : null
     summaryData.value = get(0) || {}
@@ -223,7 +345,14 @@ const loadAllData = async () => {
     activitiesData.value = get(4) || {}
     const compareRes = get(5)
     comparisonData.value = compareRes?.comparison || {}
-    
+    attendanceData.value = get(6) || {}
+    psychologyData.value = get(7) || {}
+    disciplineData.value = get(8) || {}
+    financialAidData.value = get(9) || {}
+    honorsData.value = get(10) || {}
+    interviewsData.value = get(11) || {}
+    dormitoryData.value = get(12) || {}
+
     await nextTick()
     renderCharts()
   } catch (error) {
@@ -244,106 +373,270 @@ const loadSemesters = async () => {
   }
 }
 
+// 图表渲染
 const renderCharts = () => {
-  chartInstances.forEach(c => c.dispose())
+  chartInstances.forEach(c => { try { c.dispose() } catch (e) {} })
   chartInstances = []
 
-  // 班级平均成绩柱状图
-  if (classAvgChart.value && academicsData.value.class_averages?.length) {
-    const chart = echarts.init(classAvgChart.value)
-    const data = academicsData.value.class_averages
-    chart.setOption({
-      tooltip: { trigger: 'axis' },
-      xAxis: {
-        type: 'category',
-        data: data.map(d => d.class_name),
-        axisLabel: { rotate: 30, fontSize: 11 }
-      },
-      yAxis: { type: 'value', name: '平均分' },
-      series: [{
-        type: 'bar',
-        data: data.map(d => d.avg_score),
-        itemStyle: { color: '#5B92E5' },
-        barMaxWidth: 40
-      }]
-    })
-    chartInstances.push(chart)
-  }
-
-  // 预警统计饼图
-  if (warningChart.value && academicsData.value.warning_stats?.length) {
-    const chart = echarts.init(warningChart.value)
-    const data = academicsData.value.warning_stats
-    const colorMap = { red: '#E74C3C', yellow: '#F39C12', normal: '#2ECC71' }
-    chart.setOption({
-      tooltip: { trigger: 'item' },
-      legend: { bottom: 0 },
-      series: [{
-        type: 'pie',
-        radius: ['40%', '70%'],
-        avoidLabelOverlap: false,
-        label: { show: true, formatter: '{b}: {c}人' },
-        data: data.map(d => ({
-          name: d.level_label,
-          value: d.count,
-          itemStyle: { color: colorMap[d.level] || '#95A5A6' }
-        }))
-      }]
-    })
-    chartInstances.push(chart)
-  }
-
-  // 党团发展柱状图
-  if (partyChart.value && partyData.value.stages) {
-    const chart = echarts.init(partyChart.value)
-    const stages = partyData.value.stages
-    const names = Object.keys(stages)
-    const values = Object.values(stages)
-    chart.setOption({
-      tooltip: { trigger: 'axis' },
-      xAxis: {
-        type: 'category',
-        data: names,
-        axisLabel: { rotate: 20, fontSize: 11 }
-      },
-      yAxis: { type: 'value', name: '人数' },
-      series: [{
-        type: 'bar',
-        data: values,
-        itemStyle: { color: '#7BCFCB' },
-        barMaxWidth: 50
-      }]
-    })
-    chartInstances.push(chart)
-  }
-
-  // 活动参与 Top 10 横向柱状图
-  if (activityChart.value && activitiesData.value.activity_ranking?.length) {
-    const chart = echarts.init(activityChart.value)
-    const data = activitiesData.value.activity_ranking.slice(0, 10).reverse()
-    chart.setOption({
-      tooltip: { trigger: 'axis' },
-      grid: { left: '30%' },
-      xAxis: { type: 'value', name: '参与人次' },
-      yAxis: {
-        type: 'category',
-        data: data.map(d => d.title),
-        axisLabel: { width: 120, overflow: 'truncate' }
-      },
-      series: [{
-        type: 'bar',
-        data: data.map(d => d.participants),
-        itemStyle: { color: '#8FA9E5' },
-        barMaxWidth: 25
-      }]
-    })
-    chartInstances.push(chart)
-  }
+  renderClassAvgChart()
+  renderWarningChart()
+  renderPartyChart()
+  renderActivityChart()
+  renderAttendanceTypeChart()
+  renderAttendanceClassChart()
+  renderPsychologyChart()
+  renderHonorChart()
+  renderLeaveChart()
+  renderInterviewChart()
 }
 
+const createChart = (el) => {
+  if (!el) return null
+  const chart = echarts.init(el)
+  chartInstances.push(chart)
+  return chart
+}
+
+const renderClassAvgChart = () => {
+  const data = academicsData.value?.class_averages || []
+  if (!classAvgChart.value || !data.length) return
+  const chart = createChart(classAvgChart.value)
+  if (!chart) return
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    xAxis: {
+      type: 'category',
+      data: data.map(d => d.class_name),
+      axisLabel: { rotate: 30, fontSize: 11 }
+    },
+    yAxis: { type: 'value', name: '平均分' },
+    series: [{
+      type: 'bar',
+      data: data.map(d => d.avg_score),
+      itemStyle: { color: '#5B92E5' },
+      barMaxWidth: 40
+    }]
+  })
+}
+
+const renderWarningChart = () => {
+  const data = academicsData.value?.warning_stats || []
+  if (!warningChart.value || !data.length) return
+  const chart = createChart(warningChart.value)
+  if (!chart) return
+  const colorMap = { red: '#E74C3C', yellow: '#F39C12', normal: '#2ECC71' }
+  chart.setOption({
+    tooltip: { trigger: 'item' },
+    legend: { bottom: 0 },
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      avoidLabelOverlap: false,
+      label: { show: true, formatter: '{b}: {c}人' },
+      data: data.map(d => ({
+        name: d.level_label,
+        value: d.count,
+        itemStyle: { color: colorMap[d.level] || '#95A5A6' }
+      }))
+    }]
+  })
+}
+
+const renderPartyChart = () => {
+  const stages = partyData.value?.stages
+  if (!partyChart.value || !stages || !Object.keys(stages).length) return
+  const chart = createChart(partyChart.value)
+  if (!chart) return
+  const names = Object.keys(stages)
+  const values = Object.values(stages)
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    xAxis: {
+      type: 'category',
+      data: names,
+      axisLabel: { rotate: 20, fontSize: 11 }
+    },
+    yAxis: { type: 'value', name: '人数' },
+    series: [{
+      type: 'bar',
+      data: values,
+      itemStyle: { color: '#7BCFCB' },
+      barMaxWidth: 50
+    }]
+  })
+}
+
+const renderActivityChart = () => {
+  const data = activitiesData.value?.activity_ranking || []
+  if (!activityChart.value || !data.length) return
+  const chart = createChart(activityChart.value)
+  if (!chart) return
+  const top10 = data.slice(0, 10).reverse()
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    grid: { left: '30%' },
+    xAxis: { type: 'value', name: '参与人次' },
+    yAxis: {
+      type: 'category',
+      data: top10.map(d => d.title),
+      axisLabel: { width: 120, overflow: 'truncate' }
+    },
+    series: [{
+      type: 'bar',
+      data: top10.map(d => d.participants),
+      itemStyle: { color: '#8FA9E5' },
+      barMaxWidth: 25
+    }]
+  })
+}
+
+const renderAttendanceTypeChart = () => {
+  const data = attendanceData.value?.by_type || {}
+  if (!attendanceTypeChart.value || !Object.keys(data).length) return
+  const chart = createChart(attendanceTypeChart.value)
+  if (!chart) return
+  const colorMap = { '迟到': '#F39C12', '早退': '#E6A23C', '旷课': '#E74C3C' }
+  chart.setOption({
+    tooltip: { trigger: 'item' },
+    legend: { bottom: 0 },
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      avoidLabelOverlap: false,
+      label: { show: true, formatter: '{b}: {c}次' },
+      data: Object.entries(data).map(([name, value]) => ({
+        name,
+        value,
+        itemStyle: { color: colorMap[name] || '#5B92E5' }
+      }))
+    }]
+  })
+}
+
+const renderAttendanceClassChart = () => {
+  const data = attendanceData.value?.by_class || []
+  if (!attendanceClassChart.value || !data.length) return
+  const chart = createChart(attendanceClassChart.value)
+  if (!chart) return
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    xAxis: {
+      type: 'category',
+      data: data.map(d => d.class_name),
+      axisLabel: { rotate: 30, fontSize: 11 }
+    },
+    yAxis: { type: 'value', name: '异常次数' },
+    series: [{
+      type: 'bar',
+      data: data.map(d => d.count),
+      itemStyle: { color: '#E6A23C' },
+      barMaxWidth: 40
+    }]
+  })
+}
+
+const renderPsychologyChart = () => {
+  const data = psychologyData.value?.by_attention_level || {}
+  if (!psychologyChart.value || !Object.keys(data).length) return
+  const chart = createChart(psychologyChart.value)
+  if (!chart) return
+  const colorMap = { '一级关注': '#E74C3C', '二级关注': '#F39C12', '三级关注': '#3498DB', '普通': '#2ECC71' }
+  chart.setOption({
+    tooltip: { trigger: 'item' },
+    legend: { bottom: 0 },
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      avoidLabelOverlap: false,
+      label: { show: true, formatter: '{b}: {c}人' },
+      data: Object.entries(data).map(([name, value]) => ({
+        name,
+        value,
+        itemStyle: { color: colorMap[name] || '#95A5A6' }
+      }))
+    }]
+  })
+}
+
+const renderHonorChart = () => {
+  const data = honorsData.value?.by_level || {}
+  if (!honorChart.value || !Object.keys(data).length) return
+  const chart = createChart(honorChart.value)
+  if (!chart) return
+  const colorMap = { '国家级': '#E74C3C', '省级': '#F39C12', '校级': '#5B92E5', '院级': '#7BCFCB' }
+  const names = Object.keys(data)
+  const values = Object.values(data)
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    xAxis: {
+      type: 'category',
+      data: names,
+      axisLabel: { fontSize: 12 }
+    },
+    yAxis: { type: 'value', name: '获奖人次' },
+    series: [{
+      type: 'bar',
+      data: names.map((name, i) => ({
+        value: values[i],
+        itemStyle: { color: colorMap[name] || '#5B92E5' }
+      })),
+      barMaxWidth: 50
+    }]
+  })
+}
+
+const renderLeaveChart = () => {
+  const data = dormitoryData.value?.leave_by_type || {}
+  if (!leaveChart.value || !Object.keys(data).length) return
+  const chart = createChart(leaveChart.value)
+  if (!chart) return
+  const colorMap = { '事假': '#5B92E5', '病假': '#F56C6C', '其他': '#95A5A6' }
+  chart.setOption({
+    tooltip: { trigger: 'item' },
+    legend: { bottom: 0 },
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      avoidLabelOverlap: false,
+      label: { show: true, formatter: '{b}: {c}次' },
+      data: Object.entries(data).map(([name, value]) => ({
+        name,
+        value,
+        itemStyle: { color: colorMap[name] || '#7BCFCB' }
+      }))
+    }]
+  })
+}
+
+const renderInterviewChart = () => {
+  const data = interviewsData.value?.by_type || {}
+  if (!interviewChart.value || !Object.keys(data).length) return
+  const chart = createChart(interviewChart.value)
+  if (!chart) return
+  const colors = ['#5B92E5', '#7BCFCB', '#F39C12', '#E74C3C', '#9B59B6', '#2ECC71']
+  chart.setOption({
+    tooltip: { trigger: 'item' },
+    legend: { bottom: 0 },
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      avoidLabelOverlap: false,
+      label: { show: true, formatter: '{b}: {c}次' },
+      data: Object.entries(data).map(([name, value], i) => ({
+        name,
+        value,
+        itemStyle: { color: colors[i % colors.length] }
+      }))
+    }]
+  })
+}
+
+// 导出
 const exportReport = async () => {
+  exporting.value = true
   try {
     const res = await semesterReportApi.export(currentSemester.value)
+    // 处理 blob 响应
     const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -354,13 +647,21 @@ const exportReport = async () => {
     ElMessage.success('导出成功')
   } catch (error) {
     console.error('导出失败:', error)
-    ElMessage.error('导出失败')
+    ElMessage.error('导出失败，请稍后重试')
+  } finally {
+    exporting.value = false
   }
 }
 
+// 生命周期
 onMounted(async () => {
   await loadSemesters()
   await loadAllData()
+})
+
+onBeforeUnmount(() => {
+  chartInstances.forEach(c => { try { c.dispose() } catch (e) {} })
+  chartInstances = []
 })
 </script>
 
@@ -386,6 +687,7 @@ onMounted(async () => {
   align-items: center;
 }
 
+/* 对比区域 */
 .comparison-section {
   background: #fff;
   border-radius: 12px;
@@ -433,11 +735,12 @@ onMounted(async () => {
 .metric-change.up { color: #2ECC71; }
 .metric-change.down { color: #E74C3C; }
 
+/* 总览卡片 */
 .summary-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .summary-card {
@@ -463,6 +766,7 @@ onMounted(async () => {
 .card-value.warning { color: #E74C3C; }
 .card-value.success { color: #2ECC71; }
 
+/* 图表区域 */
 .charts-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -484,32 +788,71 @@ onMounted(async () => {
 }
 
 .chart-container {
-  height: 300px;
+  height: 280px;
 }
 
-.learning-analysis {
+.chart-empty {
+  height: 280px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
+  align-items: center;
+  justify-content: center;
+  color: #C0C4CC;
+  font-size: 14px;
 }
 
-.la-item {
-  min-width: 120px;
+/* 统计卡片（心理咨询） */
+.stat-cards {
+  height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+}
+
+.stat-item {
   text-align: center;
 }
 
-.la-label {
+.stat-label {
   font-size: 13px;
   color: #7F8C8D;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
-.la-value {
-  font-size: 24px;
+.stat-value {
+  font-size: 32px;
   font-weight: 700;
 }
 
-/* 空状态样式 */
+/* 资助卡片 */
+.financial-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px 0;
+}
+
+.financial-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #F5F8FC 0%, #ECF1F7 100%);
+  border-radius: 8px;
+}
+
+.fi-label {
+  font-size: 13px;
+  color: #7F8C8D;
+}
+
+.fi-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2C3E50;
+}
+
+/* 空状态 */
 .empty-state {
   display: flex;
   flex-direction: column;

@@ -1,5 +1,6 @@
-"""学期报表 API - V5-f
-聚合学期总览、学业、党团、就业、活动数据，支持 Excel 导出
+"""学期报表 API - V5-h-hotfix7
+全面重构：增加考勤/心理/资助/荣誉/违纪/访谈/宿舍维度
+修复导出500、修复空数据崩溃
 """
 import io
 import logging
@@ -11,7 +12,11 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import (
     Student, ClassModel, Major, GradeRecord, WarningRecord,
-    PartyProgress, EmploymentRecord, Activity, ActivitySignup
+    PartyProgress, EmploymentRecord, Activity, ActivitySignup,
+    PsychologyRecord, StudentDiscipline, StudentHardship,
+    StudentGrant, StudentScholarship, StudentLoan, StudentWorkStudy,
+    StudentHonor, StudentDormVisit, StudentLeave, StudentDormChat,
+    StudentAttendanceException, StudentInterview
 )
 
 logger = logging.getLogger(__name__)
@@ -31,15 +36,15 @@ def _get_current_semester():
     else:
         return f"{y-1}-{y}-1"
 
+
 def _format_semester_display(semester: str) -> str:
-    """将学期代码转为显示格式，如 '2025-2026-1' -> '2025-2026学年第1学期'"""
+    """将学期代码转为显示格式"""
     if not semester or semester == 'all':
         return '全部学期'
     parts = semester.split('-')
     if len(parts) == 3:
         return f"{parts[0]}-{parts[1]}学年第{parts[2]}学期"
     elif len(parts) == 2:
-        # 兼容旧格式 '2023-1' -> 推断为 '2022-2023学年第1学期'
         y = int(parts[0])
         sem_num = parts[1]
         if sem_num == '1':
@@ -50,7 +55,7 @@ def _format_semester_display(semester: str) -> str:
 
 
 def _semester_date_range(semester: str):
-    """将学期字符串转为日期范围 (start, end)，如 '2025-2026-1' -> ('2025-09-01','2026-01-31')"""
+    """将学期字符串转为日期范围"""
     if not semester or semester == 'all':
         return None, None
     parts = semester.split('-')
@@ -59,8 +64,18 @@ def _semester_date_range(semester: str):
         if term == '1':
             return f"{y1}-09-01", f"{y2}-01-31"
         else:
-            return f"{y1}-09-01", f"{y2}-07-31"  # approximate
+            return f"{y1}-09-01", f"{y2}-07-31"
     return None, None
+
+
+def _semester_to_academic_year(semester: str):
+    """将学期代码转为学年，如 '2025-2026-1' -> '2025-2026'"""
+    if not semester or semester == 'all':
+        return None
+    parts = semester.split('-')
+    if len(parts) >= 2:
+        return f"{parts[0]}-{parts[1]}"
+    return None
 
 
 # ============================================================
@@ -68,7 +83,7 @@ def _semester_date_range(semester: str):
 # ============================================================
 @router.get('/semesters')
 def list_semesters(db: Session = Depends(get_db)):
-    """返回数据库中已有的学期列表，包含代码和显示名（只返回有数据的学期）"""
+    """返回数据库中已有的学期列表"""
     semesters = set()
     try:
         rows = db.query(GradeRecord.semester).distinct().all()
@@ -84,7 +99,6 @@ def list_semesters(db: Session = Depends(get_db)):
                 semesters.add(r[0])
     except Exception:
         pass
-    # 不再强制添加当前学期，只返回数据库中有数据的学期
     sorted_sems = sorted(semesters, reverse=True)
     return [
         {'code': s, 'label': _format_semester_display(s)}
@@ -92,13 +106,12 @@ def list_semesters(db: Session = Depends(get_db)):
     ]
 
 
-
 # ============================================================
-# 1. 学期总览
+# 1. 学期总览（增强）
 # ============================================================
 @router.get('/summary')
-def semester_summary(db: Session = Depends(get_db)):
-    """学期总览：学生数、班级数、专业数、政治面貌、性别、住宿、校区"""
+def semester_summary(semester: str = Query(None), db: Session = Depends(get_db)):
+    """学期总览：增加考勤异常、心理关注、资助人次、违纪人数、荣誉人次"""
     result = {
         'total_students': 0,
         'total_classes': 0,
@@ -107,6 +120,12 @@ def semester_summary(db: Session = Depends(get_db)):
         'gender_distribution': {},
         'housing_distribution': {'外宿': 0, '住校': 0},
         'campus_distribution': {},
+        # 新增字段
+        'attendance_exception_count': 0,
+        'psychology_attention_count': 0,
+        'financial_aid_count': 0,
+        'discipline_count': 0,
+        'honor_count': 0,
     }
     try:
         result['total_students'] = db.query(Student).count()
@@ -141,7 +160,7 @@ def semester_summary(db: Session = Depends(get_db)):
     except Exception as e:
         logger.warning(f"summary 性别异常: {e}")
 
-    # 外宿 / 住校
+    # 外宿/住校
     try:
         off = db.query(Student).filter(Student.is_off_campus == True).count()
         total = result['total_students']
@@ -162,6 +181,62 @@ def semester_summary(db: Session = Depends(get_db)):
     except Exception as e:
         logger.warning(f"summary 校区异常: {e}")
 
+    # 考勤异常总次数
+    try:
+        q = db.query(StudentAttendanceException)
+        if semester and semester != 'all':
+            # StudentAttendanceException 没有 semester 字段，按日期范围筛选
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q = q.filter(
+                    StudentAttendanceException.exception_date >= start,
+                    StudentAttendanceException.exception_date <= end
+                )
+        result['attendance_exception_count'] = q.count()
+    except Exception as e:
+        logger.warning(f"summary 考勤异常异常: {e}")
+
+    # 心理关注人数（非普通等级）
+    try:
+        q = db.query(PsychologyRecord.student_id).filter(
+            PsychologyRecord.attention_level.in_(['一级关注', '二级关注', '三级关注'])
+        )
+        result['psychology_attention_count'] = q.distinct().count()
+    except Exception as e:
+        logger.warning(f"summary 心理关注异常: {e}")
+
+    # 资助总人次
+    try:
+        aid_year = _semester_to_academic_year(semester)
+        hardship_q = db.query(StudentHardship)
+        grant_q = db.query(StudentGrant)
+        scholarship_q = db.query(StudentScholarship)
+        loan_q = db.query(StudentLoan)
+        work_q = db.query(StudentWorkStudy)
+        if aid_year:
+            hardship_q = hardship_q.filter(StudentHardship.academic_year == aid_year)
+            grant_q = grant_q.filter(StudentGrant.academic_year == aid_year)
+            scholarship_q = scholarship_q.filter(StudentScholarship.academic_year == aid_year)
+            work_q = work_q.filter(StudentWorkStudy.academic_year == aid_year)
+        cnt = hardship_q.count() + grant_q.count() + scholarship_q.count() + loan_q.count() + work_q.count()
+        result['financial_aid_count'] = cnt
+    except Exception as e:
+        logger.warning(f"summary 资助人次异常: {e}")
+
+    # 违纪人数
+    try:
+        q = db.query(StudentDiscipline.student_id).distinct()
+        result['discipline_count'] = q.count()
+    except Exception as e:
+        logger.warning(f"summary 违纪人数异常: {e}")
+
+    # 荣誉总人次
+    try:
+        q = db.query(StudentHonor)
+        result['honor_count'] = q.count()
+    except Exception as e:
+        logger.warning(f"summary 荣誉人次异常: {e}")
+
     return result
 
 
@@ -170,7 +245,7 @@ def semester_summary(db: Session = Depends(get_db)):
 # ============================================================
 @router.get('/academics')
 def semester_academics(semester: str = Query(None), db: Session = Depends(get_db)):
-    """学业汇总：各班平均成绩、挂科率、Top10、预警统计（支持学期筛选）"""
+    """学业汇总"""
     result = {
         'class_averages': [],
         'fail_rate': 0.0,
@@ -180,7 +255,6 @@ def semester_academics(semester: str = Query(None), db: Session = Depends(get_db
         'warning_stats': [],
     }
 
-    # Build grade filter
     grade_filters = [GradeRecord.score.isnot(None)]
     warn_filters = []
     if semester and semester != 'all':
@@ -221,7 +295,7 @@ def semester_academics(semester: str = Query(None), db: Session = Depends(get_db
     except Exception as e:
         logger.warning(f"academics 挂科率异常: {e}")
 
-    # 成绩排名 Top 10
+    # 成绩 Top 10
     try:
         rows = (
             db.query(
@@ -250,7 +324,7 @@ def semester_academics(semester: str = Query(None), db: Session = Depends(get_db
     except Exception as e:
         logger.warning(f"academics Top10 异常: {e}")
 
-    # 学业预警统计 - 返回数组格式，前端可直接渲染
+    # 学业预警统计
     try:
         red_q = db.query(WarningRecord).filter(WarningRecord.warning_type == 'red')
         yellow_q = db.query(WarningRecord).filter(WarningRecord.warning_type == 'yellow')
@@ -275,7 +349,7 @@ def semester_academics(semester: str = Query(None), db: Session = Depends(get_db
 # ============================================================
 @router.get('/party-development')
 def party_development(db: Session = Depends(get_db)):
-    """党团发展进度：各阶段人数 + 本学期新发展人数"""
+    """党团发展进度"""
     stage_map = {
         '递交入党申请书': 0,
         '入党积极分子': 0,
@@ -285,9 +359,7 @@ def party_development(db: Session = Depends(get_db)):
     }
     total_new_this_semester = 0
 
-    # 各阶段最新人数（取每个学生最新 stage）
     try:
-        # 每个学生的最新 party_progress（按 id 降序取第一条）
         subq = (
             db.query(
                 PartyProgress.student_id,
@@ -310,7 +382,6 @@ def party_development(db: Session = Depends(get_db)):
     except Exception as e:
         logger.warning(f"party 各阶段异常: {e}")
 
-    # 本学期新发展人数（stage_date 在当前学期范围）
     try:
         now = datetime.now()
         if now.month >= 9:
@@ -364,7 +435,6 @@ def employment_stats(db: Session = Depends(get_db)):
     except Exception as e:
         logger.warning(f"employment 异常: {e}")
 
-    # 就业率 = 已签约 / total
     employed = status_map.get('已签约', 0)
     employment_rate = round(employed / total * 100, 2) if total > 0 else 0.0
 
@@ -382,7 +452,7 @@ def employment_stats(db: Session = Depends(get_db)):
 # ============================================================
 @router.get('/activities')
 def activity_stats(db: Session = Depends(get_db)):
-    """活动总数、参与人次、各活动参与人数排名"""
+    """活动统计"""
     total_activities = 0
     total_participants = 0
     activity_ranking = []
@@ -429,7 +499,383 @@ def activity_stats(db: Session = Depends(get_db)):
 
 
 # ============================================================
-# 6. 导出 Excel
+# 6. 考勤汇总
+# ============================================================
+@router.get('/attendance')
+def attendance_summary(semester: str = Query(None), db: Session = Depends(get_db)):
+    """考勤汇总：总异常次数、按类型分类、按班级分组"""
+    result = {
+        'total_exceptions': 0,
+        'by_type': {},
+        'by_class': [],
+    }
+    try:
+        q = db.query(StudentAttendanceException)
+        if semester and semester != 'all':
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q = q.filter(
+                    StudentAttendanceException.exception_date >= start,
+                    StudentAttendanceException.exception_date <= end
+                )
+        result['total_exceptions'] = q.count()
+    except Exception as e:
+        logger.warning(f"attendance 总数异常: {e}")
+
+    # 按类型分类
+    try:
+        q = db.query(
+            StudentAttendanceException.exception_type,
+            func.count(StudentAttendanceException.id)
+        ).group_by(StudentAttendanceException.exception_type)
+        if semester and semester != 'all':
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q = q.filter(
+                    StudentAttendanceException.exception_date >= start,
+                    StudentAttendanceException.exception_date <= end
+                )
+        rows = q.all()
+        result['by_type'] = {(t or '未知'): cnt for t, cnt in rows}
+    except Exception as e:
+        logger.warning(f"attendance 按类型异常: {e}")
+
+    # 按班级分组
+    try:
+        q = (
+            db.query(
+                ClassModel.class_name,
+                func.count(StudentAttendanceException.id)
+            )
+            .join(Student, StudentAttendanceException.student_id == Student.id)
+            .join(ClassModel, Student.class_id == ClassModel.id)
+            .group_by(ClassModel.id, ClassModel.class_name)
+        )
+        if semester and semester != 'all':
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q = q.filter(
+                    StudentAttendanceException.exception_date >= start,
+                    StudentAttendanceException.exception_date <= end
+                )
+        rows = q.all()
+        result['by_class'] = [
+            {'class_name': name, 'count': cnt}
+            for name, cnt in rows
+        ]
+    except Exception as e:
+        logger.warning(f"attendance 按班级异常: {e}")
+
+    return result
+
+
+# ============================================================
+# 7. 心理档案汇总
+# ============================================================
+@router.get('/psychology')
+def psychology_summary(db: Session = Depends(get_db)):
+    """心理档案汇总：关注等级、咨询次数、需跟进人数"""
+    result = {
+        'by_attention_level': {},
+        'total_counseling_count': 0,
+        'need_follow_up': 0,
+    }
+
+    # 按关注等级统计人数
+    try:
+        rows = (
+            db.query(
+                PsychologyRecord.attention_level,
+                func.count(PsychologyRecord.student_id.distinct())
+            )
+            .group_by(PsychologyRecord.attention_level)
+            .all()
+        )
+        result['by_attention_level'] = {
+            (level or '普通'): cnt for level, cnt in rows
+        }
+    except Exception as e:
+        logger.warning(f"psychology 关注等级异常: {e}")
+
+    # 总咨询次数
+    try:
+        total = db.query(func.sum(PsychologyRecord.counseling_count)).scalar()
+        result['total_counseling_count'] = total or 0
+    except Exception as e:
+        logger.warning(f"psychology 咨询次数异常: {e}")
+
+    # 需跟进人数（有 follow_up_plan 且 next_follow_date >= 今天）
+    try:
+        today = datetime.now().strftime('%Y-%m-%d')
+        need_follow = (
+            db.query(PsychologyRecord.student_id)
+            .filter(
+                PsychologyRecord.follow_up_plan != '',
+                PsychologyRecord.follow_up_plan.isnot(None),
+            )
+            .distinct()
+            .count()
+        )
+        result['need_follow_up'] = need_follow or 0
+    except Exception as e:
+        logger.warning(f"psychology 跟进人数异常: {e}")
+
+    return result
+
+
+# ============================================================
+# 8. 违纪统计
+# ============================================================
+@router.get('/discipline')
+def discipline_summary(db: Session = Depends(get_db)):
+    """违纪统计：按处分类型统计、涉及学生数"""
+    result = {
+        'by_type': {},
+        'student_count': 0,
+    }
+
+    try:
+        rows = (
+            db.query(
+                StudentDiscipline.discipline_type,
+                func.count(StudentDiscipline.id)
+            )
+            .group_by(StudentDiscipline.discipline_type)
+            .all()
+        )
+        result['by_type'] = {(t or '未知'): cnt for t, cnt in rows}
+    except Exception as e:
+        logger.warning(f"discipline 按类型异常: {e}")
+
+    try:
+        result['student_count'] = (
+            db.query(StudentDiscipline.student_id).distinct().count()
+        )
+    except Exception as e:
+        logger.warning(f"discipline 学生数异常: {e}")
+
+    return result
+
+
+# ============================================================
+# 9. 资助汇总
+# ============================================================
+@router.get('/financial-aid')
+def financial_aid_summary(semester: str = Query(None), db: Session = Depends(get_db)):
+    """资助汇总：困难认定、助学金、奖学金、贷款、勤工助学"""
+    aid_year = _semester_to_academic_year(semester)
+    result = {
+        'hardship_by_level': {},
+        'hardship_count': 0,
+        'grant_total_amount': 0,
+        'grant_count': 0,
+        'scholarship_total_amount': 0,
+        'scholarship_count': 0,
+        'loan_total_amount': 0,
+        'loan_count': 0,
+        'work_study_count': 0,
+        'work_study_total_compensation': 0,
+    }
+
+    # 困难认定
+    try:
+        q = db.query(
+            StudentHardship.hardship_level,
+            func.count(StudentHardship.id)
+        ).group_by(StudentHardship.hardship_level)
+        q_total = db.query(StudentHardship)
+        if aid_year:
+            q = q.filter(StudentHardship.academic_year == aid_year)
+            q_total = q_total.filter(StudentHardship.academic_year == aid_year)
+        rows = q.all()
+        result['hardship_by_level'] = {(level or '未知'): cnt for level, cnt in rows}
+        result['hardship_count'] = q_total.count()
+    except Exception as e:
+        logger.warning(f"financial-aid 困难认定异常: {e}")
+
+    # 助学金
+    try:
+        q = db.query(func.sum(StudentGrant.amount), func.count(StudentGrant.id))
+        if aid_year:
+            q = q.filter(StudentGrant.academic_year == aid_year)
+        total_amount, count = q.first()
+        result['grant_total_amount'] = total_amount or 0
+        result['grant_count'] = count or 0
+    except Exception as e:
+        logger.warning(f"financial-aid 助学金异常: {e}")
+
+    # 奖学金
+    try:
+        q = db.query(func.sum(StudentScholarship.amount), func.count(StudentScholarship.id))
+        if aid_year:
+            q = q.filter(StudentScholarship.academic_year == aid_year)
+        total_amount, count = q.first()
+        result['scholarship_total_amount'] = total_amount or 0
+        result['scholarship_count'] = count or 0
+    except Exception as e:
+        logger.warning(f"financial-aid 奖学金异常: {e}")
+
+    # 助学贷款
+    try:
+        q = db.query(func.sum(StudentLoan.amount), func.count(StudentLoan.id))
+        total_amount, count = q.first()
+        result['loan_total_amount'] = total_amount or 0
+        result['loan_count'] = count or 0
+    except Exception as e:
+        logger.warning(f"financial-aid 助学贷款异常: {e}")
+
+    # 勤工助学
+    try:
+        q = db.query(func.sum(StudentWorkStudy.compensation), func.count(StudentWorkStudy.id))
+        if aid_year:
+            q = q.filter(StudentWorkStudy.academic_year == aid_year)
+        total_comp, count = q.first()
+        result['work_study_total_compensation'] = total_comp or 0
+        result['work_study_count'] = count or 0
+    except Exception as e:
+        logger.warning(f"financial-aid 勤工助学异常: {e}")
+
+    return result
+
+
+# ============================================================
+# 10. 荣誉统计
+# ============================================================
+@router.get('/honors')
+def honors_summary(db: Session = Depends(get_db)):
+    """荣誉统计：按级别统计获奖人次、获奖学生数"""
+    result = {
+        'by_level': {},
+        'student_count': 0,
+    }
+
+    try:
+        rows = (
+            db.query(
+                StudentHonor.level,
+                func.count(StudentHonor.id)
+            )
+            .group_by(StudentHonor.level)
+            .all()
+        )
+        result['by_level'] = {(level or '未知'): cnt for level, cnt in rows}
+    except Exception as e:
+        logger.warning(f"honors 按级别异常: {e}")
+
+    try:
+        result['student_count'] = (
+            db.query(StudentHonor.student_id).distinct().count()
+        )
+    except Exception as e:
+        logger.warning(f"honors 学生数异常: {e}")
+
+    return result
+
+
+# ============================================================
+# 11. 访谈统计
+# ============================================================
+@router.get('/interviews')
+def interview_summary(db: Session = Depends(get_db)):
+    """访谈统计：总次数、按类型、待跟进"""
+    result = {
+        'total_count': 0,
+        'by_type': {},
+        'pending_count': 0,
+    }
+
+    try:
+        result['total_count'] = db.query(StudentInterview).count()
+    except Exception as e:
+        logger.warning(f"interviews 总数异常: {e}")
+
+    try:
+        rows = (
+            db.query(
+                StudentInterview.interview_type,
+                func.count(StudentInterview.id)
+            )
+            .group_by(StudentInterview.interview_type)
+            .all()
+        )
+        result['by_type'] = {(t or '未知'): cnt for t, cnt in rows}
+    except Exception as e:
+        logger.warning(f"interviews 按类型异常: {e}")
+
+    try:
+        result['pending_count'] = (
+            db.query(StudentInterview)
+            .filter(StudentInterview.status == '需跟进')
+            .count()
+        )
+    except Exception as e:
+        logger.warning(f"interviews 待跟进异常: {e}")
+
+    return result
+
+
+# ============================================================
+# 12. 宿舍管理汇总
+# ============================================================
+@router.get('/dormitory')
+def dormitory_summary(semester: str = Query(None), db: Session = Depends(get_db)):
+    """宿舍管理汇总：走访、寝谈、请假统计"""
+    result = {
+        'visit_count': 0,
+        'chat_count': 0,
+        'leave_by_type': {},
+        'leave_by_status': {},
+        'leave_total': 0,
+    }
+
+    # 宿舍走访次数
+    try:
+        result['visit_count'] = db.query(StudentDormVisit).count()
+    except Exception as e:
+        logger.warning(f"dormitory 走访异常: {e}")
+
+    # 寝谈记录数
+    try:
+        result['chat_count'] = db.query(StudentDormChat).count()
+    except Exception as e:
+        logger.warning(f"dormitory 寝谈异常: {e}")
+
+    # 请假统计
+    try:
+        # 按类型
+        rows = (
+            db.query(StudentLeave.leave_type, func.count(StudentLeave.id))
+            .group_by(StudentLeave.leave_type)
+            .all()
+        )
+        result['leave_by_type'] = {(t or '未知'): cnt for t, cnt in rows}
+    except Exception as e:
+        logger.warning(f"dormitory 请假按类型异常: {e}")
+
+    try:
+        # 按审批状态
+        rows = (
+            db.query(StudentLeave.approval_status, func.count(StudentLeave.id))
+            .group_by(StudentLeave.approval_status)
+            .all()
+        )
+        status_labels = {'pending': '待审批', 'approved': '已批准', 'rejected': '已驳回'}
+        result['leave_by_status'] = {
+            status_labels.get(s, s or '未知'): cnt for s, cnt in rows
+        }
+    except Exception as e:
+        logger.warning(f"dormitory 请假按状态异常: {e}")
+
+    try:
+        result['leave_total'] = db.query(StudentLeave).count()
+    except Exception as e:
+        logger.warning(f"dormitory 请假总数异常: {e}")
+
+    return result
+
+
+# ============================================================
+# 13. 导出 Excel（修复 500 + 增加 sheet）
 # ============================================================
 @router.get('/export')
 def export_semester_report(semester: str = Query(None), db: Session = Depends(get_db)):
@@ -438,11 +884,11 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
         from openpyxl import Workbook
         from openpyxl.styles import Font, Alignment, PatternFill
     except ImportError:
-        raise HTTPException(500, 'openpyxl 未安装，无法导出 Excel，请在 requirements.txt 中添加 openpyxl')
+        raise HTTPException(500, 'openpyxl 未安装')
 
     wb = Workbook()
 
-    # ---------- 样式 ----------
+    # 样式
     header_font = Font(bold=True, size=12, color='FFFFFF')
     header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
     header_align = Alignment(horizontal='center', vertical='center')
@@ -461,12 +907,23 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
             cell.fill = header_fill
             cell.alignment = header_align
 
+    def safe_count(query_func):
+        try:
+            return query_func()
+        except Exception:
+            return 0
+
+    def safe_query(query_func, default=None):
+        try:
+            return query_func()
+        except Exception:
+            return default if default is not None else []
+
     # ==================== Sheet 1: 总览 ====================
     ws1 = wb.active
     ws1.title = '总览'
     write_title(ws1, '学期总览')
 
-    # 基础数据
     try:
         total_students = db.query(Student).count()
         total_classes = db.query(ClassModel).count()
@@ -491,11 +948,7 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     r += 1
     write_headers(ws1, r, ['政治面貌', '人数'])
     try:
-        rows = (
-            db.query(Student.political_status, func.count(Student.id))
-            .group_by(Student.political_status)
-            .all()
-        )
+        rows = db.query(Student.political_status, func.count(Student.id)).group_by(Student.political_status).all()
         for status, cnt in rows:
             r += 1
             ws1.cell(row=r, column=1, value=status or '群众')
@@ -510,11 +963,7 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     r += 1
     write_headers(ws1, r, ['性别', '人数'])
     try:
-        rows = (
-            db.query(Student.gender, func.count(Student.id))
-            .group_by(Student.gender)
-            .all()
-        )
+        rows = db.query(Student.gender, func.count(Student.id)).group_by(Student.gender).all()
         for g, cnt in rows:
             r += 1
             ws1.cell(row=r, column=1, value=g or '未知')
@@ -545,11 +994,7 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     r += 1
     write_headers(ws1, r, ['校区', '人数'])
     try:
-        rows = (
-            db.query(Student.campus, func.count(Student.id))
-            .group_by(Student.campus)
-            .all()
-        )
+        rows = db.query(Student.campus, func.count(Student.id)).group_by(Student.campus).all()
         for c, cnt in rows:
             r += 1
             ws1.cell(row=r, column=1, value=c or '未知')
@@ -562,19 +1007,16 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     write_title(ws2, '学业数据汇总')
 
     r = 3
-    ws2.cell(row=r, column=1, value='班级')
-    ws2.cell(row=r, column=2, value='平均成绩')
-    ws2.cell(row=r, column=1).font = header_font
-    ws2.cell(row=r, column=2).font = header_font
+    write_headers(ws2, r, ['班级', '平均成绩'])
     try:
+        grade_filters = [GradeRecord.score.isnot(None)]
+        if semester and semester != 'all':
+            grade_filters.append(GradeRecord.semester == semester)
         rows = (
-            db.query(
-                ClassModel.class_name,
-                func.avg(GradeRecord.score)
-            )
+            db.query(ClassModel.class_name, func.avg(GradeRecord.score))
             .join(Student, Student.class_id == ClassModel.id)
             .join(GradeRecord, GradeRecord.student_id == Student.id)
-            .filter(GradeRecord.score.isnot(None))
+            .filter(*grade_filters)
             .group_by(ClassModel.id, ClassModel.class_name)
             .all()
         )
@@ -591,14 +1033,8 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     ws2.cell(row=r, column=1).font = Font(bold=True, size=12)
     r += 1
     try:
-        total_with_grades = (
-            db.query(func.count(GradeRecord.student_id.distinct())).scalar() or 0
-        )
-        fail_students = (
-            db.query(func.count(GradeRecord.student_id.distinct()))
-            .filter(GradeRecord.score.isnot(None), GradeRecord.score < 60)
-            .scalar() or 0
-        )
+        total_with_grades = db.query(func.count(GradeRecord.student_id.distinct())).scalar() or 0
+        fail_students = db.query(func.count(GradeRecord.student_id.distinct())).filter(GradeRecord.score.isnot(None), GradeRecord.score < 60).scalar() or 0
         fail_rate = round(fail_students / total_with_grades * 100, 2) if total_with_grades > 0 else 0.0
         ws2.cell(row=r, column=1, value='有成绩学生数')
         ws2.cell(row=r, column=2, value=total_with_grades)
@@ -619,11 +1055,7 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     write_headers(ws2, r, ['排名', '学号', '姓名', '平均成绩'])
     try:
         rows = (
-            db.query(
-                Student.student_no,
-                Student.name,
-                func.avg(GradeRecord.score)
-            )
+            db.query(Student.student_no, Student.name, func.avg(GradeRecord.score))
             .join(GradeRecord, GradeRecord.student_id == Student.id)
             .filter(GradeRecord.score.isnot(None))
             .group_by(Student.id, Student.student_no, Student.name)
@@ -664,15 +1096,11 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     # ==================== Sheet 3: 党团 ====================
     ws3 = wb.create_sheet('党团')
     write_title(ws3, '党团发展进度')
-
     r = 3
     write_headers(ws3, r, ['阶段', '人数'])
     try:
         subq = (
-            db.query(
-                PartyProgress.student_id,
-                func.max(PartyProgress.id).label('max_id')
-            )
+            db.query(PartyProgress.student_id, func.max(PartyProgress.id).label('max_id'))
             .group_by(PartyProgress.student_id)
             .subquery()
         )
@@ -689,16 +1117,11 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     except Exception:
         pass
 
-    # 本学期新发展
     r += 2
     try:
         now = datetime.now()
         sem_start = f"{now.year}-09-01" if now.month >= 9 else f"{now.year}-03-01"
-        new_cnt = (
-            db.query(func.count(PartyProgress.id))
-            .filter(PartyProgress.stage_date >= sem_start)
-            .scalar() or 0
-        )
+        new_cnt = db.query(func.count(PartyProgress.id)).filter(PartyProgress.stage_date >= sem_start).scalar() or 0
         ws3.cell(row=r, column=1, value='本学期新发展人数')
         ws3.cell(row=r, column=2, value=new_cnt)
     except Exception:
@@ -707,15 +1130,10 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     # ==================== Sheet 4: 就业 ====================
     ws4 = wb.create_sheet('就业')
     write_title(ws4, '就业跟踪统计')
-
     r = 3
     write_headers(ws4, r, ['就业状态', '人数'])
     try:
-        rows = (
-            db.query(EmploymentRecord.status, func.count(EmploymentRecord.id))
-            .group_by(EmploymentRecord.status)
-            .all()
-        )
+        rows = db.query(EmploymentRecord.status, func.count(EmploymentRecord.id)).group_by(EmploymentRecord.status).all()
         total_emp = sum(cnt for _, cnt in rows)
         for status, cnt in rows:
             r += 1
@@ -735,20 +1153,17 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     # ==================== Sheet 5: 活动 ====================
     ws5 = wb.create_sheet('活动')
     write_title(ws5, '学生活动统计')
-
     r = 3
     try:
         total_act = db.query(Activity).count()
         total_ppl = db.query(ActivitySignup).count()
     except Exception:
         total_act = total_ppl = 0
-
     ws5.cell(row=r, column=1, value='活动总数')
     ws5.cell(row=r, column=2, value=total_act)
     r += 1
     ws5.cell(row=r, column=1, value='参与人次')
     ws5.cell(row=r, column=2, value=total_ppl)
-
     r += 2
     ws5.cell(row=r, column=1, value='活动参与人数排名')
     ws5.cell(row=r, column=1).font = Font(bold=True, size=12)
@@ -756,11 +1171,7 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     write_headers(ws5, r, ['活动名称', '类型', '参与人数'])
     try:
         rows = (
-            db.query(
-                Activity.title,
-                Activity.activity_type,
-                func.count(ActivitySignup.id)
-            )
+            db.query(Activity.title, Activity.activity_type, func.count(ActivitySignup.id))
             .join(ActivitySignup, ActivitySignup.activity_id == Activity.id)
             .group_by(Activity.id, Activity.title, Activity.activity_type)
             .order_by(func.count(ActivitySignup.id).desc())
@@ -775,7 +1186,286 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
     except Exception:
         pass
 
-    # ---------- 写入 buffer 并返回 ----------
+    # ==================== Sheet 6: 考勤 ====================
+    ws6 = wb.create_sheet('考勤')
+    write_title(ws6, '考勤异常汇总')
+    r = 3
+    write_headers(ws6, r, ['异常类型', '次数'])
+    try:
+        q = db.query(
+            StudentAttendanceException.exception_type,
+            func.count(StudentAttendanceException.id)
+        ).group_by(StudentAttendanceException.exception_type)
+        if semester and semester != 'all':
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q = q.filter(
+                    StudentAttendanceException.exception_date >= start,
+                    StudentAttendanceException.exception_date <= end
+                )
+        rows = q.all()
+        total_att = 0
+        for t, cnt in rows:
+            r += 1
+            ws6.cell(row=r, column=1, value=t or '未知')
+            ws6.cell(row=r, column=2, value=cnt)
+            total_att += cnt
+        r += 1
+        ws6.cell(row=r, column=1, value='合计')
+        ws6.cell(row=r, column=2, value=total_att)
+    except Exception:
+        pass
+
+    # 按班级
+    r += 2
+    ws6.cell(row=r, column=1, value='按班级统计')
+    ws6.cell(row=r, column=1).font = Font(bold=True, size=12)
+    r += 1
+    write_headers(ws6, r, ['班级', '异常次数'])
+    try:
+        q = (
+            db.query(ClassModel.class_name, func.count(StudentAttendanceException.id))
+            .join(Student, StudentAttendanceException.student_id == Student.id)
+            .join(ClassModel, Student.class_id == ClassModel.id)
+            .group_by(ClassModel.id, ClassModel.class_name)
+        )
+        if semester and semester != 'all':
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q = q.filter(
+                    StudentAttendanceException.exception_date >= start,
+                    StudentAttendanceException.exception_date <= end
+                )
+        rows = q.all()
+        for name, cnt in rows:
+            r += 1
+            ws6.cell(row=r, column=1, value=name)
+            ws6.cell(row=r, column=2, value=cnt)
+    except Exception:
+        pass
+
+    # ==================== Sheet 7: 心理 ====================
+    ws7 = wb.create_sheet('心理')
+    write_title(ws7, '心理档案汇总')
+    r = 3
+    write_headers(ws7, r, ['关注等级', '人数'])
+    try:
+        rows = (
+            db.query(PsychologyRecord.attention_level, func.count(PsychologyRecord.student_id.distinct()))
+            .group_by(PsychologyRecord.attention_level)
+            .all()
+        )
+        for level, cnt in rows:
+            r += 1
+            ws7.cell(row=r, column=1, value=level or '普通')
+            ws7.cell(row=r, column=2, value=cnt)
+    except Exception:
+        pass
+
+    r += 2
+    try:
+        total_counseling = db.query(func.sum(PsychologyRecord.counseling_count)).scalar() or 0
+        ws7.cell(row=r, column=1, value='总咨询次数')
+        ws7.cell(row=r, column=2, value=total_counseling)
+    except Exception:
+        pass
+
+    # ==================== Sheet 8: 资助 ====================
+    ws8 = wb.create_sheet('资助')
+    write_title(ws8, '资助汇总')
+    aid_year = _semester_to_academic_year(semester)
+
+    r = 3
+    ws8.cell(row=r, column=1, value='困难认定')
+    ws8.cell(row=r, column=1).font = Font(bold=True, size=12)
+    r += 1
+    write_headers(ws8, r, ['等级', '人数'])
+    try:
+        q = db.query(StudentHardship.hardship_level, func.count(StudentHardship.id)).group_by(StudentHardship.hardship_level)
+        if aid_year:
+            q = q.filter(StudentHardship.academic_year == aid_year)
+        rows = q.all()
+        for level, cnt in rows:
+            r += 1
+            ws8.cell(row=r, column=1, value=level or '未知')
+            ws8.cell(row=r, column=2, value=cnt)
+    except Exception:
+        pass
+
+    r += 2
+    ws8.cell(row=r, column=1, value='助学金')
+    ws8.cell(row=r, column=1).font = Font(bold=True, size=12)
+    r += 1
+    write_headers(ws8, r, ['项目', '数值'])
+    try:
+        q = db.query(func.sum(StudentGrant.amount), func.count(StudentGrant.id))
+        if aid_year:
+            q = q.filter(StudentGrant.academic_year == aid_year)
+        total_amount, count = q.first()
+        r += 1
+        ws8.cell(row=r, column=1, value='发放总额')
+        ws8.cell(row=r, column=2, value=total_amount or 0)
+        r += 1
+        ws8.cell(row=r, column=1, value='发放人数')
+        ws8.cell(row=r, column=2, value=count or 0)
+    except Exception:
+        pass
+
+    r += 2
+    ws8.cell(row=r, column=1, value='奖学金')
+    ws8.cell(row=r, column=1).font = Font(bold=True, size=12)
+    r += 1
+    write_headers(ws8, r, ['项目', '数值'])
+    try:
+        q = db.query(func.sum(StudentScholarship.amount), func.count(StudentScholarship.id))
+        if aid_year:
+            q = q.filter(StudentScholarship.academic_year == aid_year)
+        total_amount, count = q.first()
+        r += 1
+        ws8.cell(row=r, column=1, value='发放总额')
+        ws8.cell(row=r, column=2, value=total_amount or 0)
+        r += 1
+        ws8.cell(row=r, column=1, value='获奖人数')
+        ws8.cell(row=r, column=2, value=count or 0)
+    except Exception:
+        pass
+
+    r += 2
+    ws8.cell(row=r, column=1, value='助学贷款')
+    ws8.cell(row=r, column=1).font = Font(bold=True, size=12)
+    r += 1
+    try:
+        total_loan = db.query(func.sum(StudentLoan.amount)).scalar() or 0
+        loan_cnt = db.query(StudentLoan).count()
+        ws8.cell(row=r, column=1, value='贷款总额')
+        ws8.cell(row=r, column=2, value=total_loan)
+        r += 1
+        ws8.cell(row=r, column=1, value='贷款人数')
+        ws8.cell(row=r, column=2, value=loan_cnt)
+    except Exception:
+        pass
+
+    r += 2
+    ws8.cell(row=r, column=1, value='勤工助学')
+    ws8.cell(row=r, column=1).font = Font(bold=True, size=12)
+    r += 1
+    try:
+        q = db.query(func.sum(StudentWorkStudy.compensation), func.count(StudentWorkStudy.id))
+        if aid_year:
+            q = q.filter(StudentWorkStudy.academic_year == aid_year)
+        total_comp, count = q.first()
+        ws8.cell(row=r, column=1, value='总报酬')
+        ws8.cell(row=r, column=2, value=total_comp or 0)
+        r += 1
+        ws8.cell(row=r, column=1, value='参与人次')
+        ws8.cell(row=r, column=2, value=count or 0)
+    except Exception:
+        pass
+
+    # ==================== Sheet 9: 荣誉 ====================
+    ws9 = wb.create_sheet('荣誉')
+    write_title(ws9, '评优评先统计')
+    r = 3
+    write_headers(ws9, r, ['级别', '获奖人次'])
+    try:
+        rows = db.query(StudentHonor.level, func.count(StudentHonor.id)).group_by(StudentHonor.level).all()
+        for level, cnt in rows:
+            r += 1
+            ws9.cell(row=r, column=1, value=level or '未知')
+            ws9.cell(row=r, column=2, value=cnt)
+    except Exception:
+        pass
+    r += 2
+    try:
+        student_count = db.query(StudentHonor.student_id).distinct().count()
+        ws9.cell(row=r, column=1, value='获奖学生数')
+        ws9.cell(row=r, column=2, value=student_count)
+    except Exception:
+        pass
+
+    # ==================== Sheet 10: 违纪 ====================
+    ws10 = wb.create_sheet('违纪')
+    write_title(ws10, '违纪处分统计')
+    r = 3
+    write_headers(ws10, r, ['处分类型', '次数'])
+    try:
+        rows = db.query(StudentDiscipline.discipline_type, func.count(StudentDiscipline.id)).group_by(StudentDiscipline.discipline_type).all()
+        for t, cnt in rows:
+            r += 1
+            ws10.cell(row=r, column=1, value=t or '未知')
+            ws10.cell(row=r, column=2, value=cnt)
+    except Exception:
+        pass
+    r += 2
+    try:
+        student_count = db.query(StudentDiscipline.student_id).distinct().count()
+        ws10.cell(row=r, column=1, value='涉及学生数')
+        ws10.cell(row=r, column=2, value=student_count)
+    except Exception:
+        pass
+
+    # ==================== Sheet 11: 访谈 ====================
+    ws11 = wb.create_sheet('访谈')
+    write_title(ws11, '学生访谈统计')
+    r = 3
+    write_headers(ws11, r, ['访谈类型', '次数'])
+    try:
+        rows = db.query(StudentInterview.interview_type, func.count(StudentInterview.id)).group_by(StudentInterview.interview_type).all()
+        for t, cnt in rows:
+            r += 1
+            ws11.cell(row=r, column=1, value=t or '未知')
+            ws11.cell(row=r, column=2, value=cnt)
+    except Exception:
+        pass
+    r += 2
+    try:
+        total_interviews = db.query(StudentInterview).count()
+        pending = db.query(StudentInterview).filter(StudentInterview.status == '需跟进').count()
+        ws11.cell(row=r, column=1, value='访谈总次数')
+        ws11.cell(row=r, column=2, value=total_interviews)
+        r += 1
+        ws11.cell(row=r, column=1, value='待跟进数量')
+        ws11.cell(row=r, column=2, value=pending)
+    except Exception:
+        pass
+
+    # ==================== Sheet 12: 宿舍 ====================
+    ws12 = wb.create_sheet('宿舍')
+    write_title(ws12, '宿舍管理汇总')
+    r = 3
+    write_headers(ws12, r, ['项目', '数值'])
+    try:
+        visit_cnt = db.query(StudentDormVisit).count()
+        chat_cnt = db.query(StudentDormChat).count()
+        leave_cnt = db.query(StudentLeave).count()
+        r += 1
+        ws12.cell(row=r, column=1, value='宿舍走访次数')
+        ws12.cell(row=r, column=2, value=visit_cnt)
+        r += 1
+        ws12.cell(row=r, column=1, value='寝谈记录数')
+        ws12.cell(row=r, column=2, value=chat_cnt)
+        r += 1
+        ws12.cell(row=r, column=1, value='请假记录数')
+        ws12.cell(row=r, column=2, value=leave_cnt)
+    except Exception:
+        pass
+
+    # 请假按类型
+    r += 2
+    ws12.cell(row=r, column=1, value='请假按类型')
+    ws12.cell(row=r, column=1).font = Font(bold=True, size=12)
+    r += 1
+    write_headers(ws12, r, ['请假类型', '次数'])
+    try:
+        rows = db.query(StudentLeave.leave_type, func.count(StudentLeave.id)).group_by(StudentLeave.leave_type).all()
+        for t, cnt in rows:
+            r += 1
+            ws12.cell(row=r, column=1, value=t or '未知')
+            ws12.cell(row=r, column=2, value=cnt)
+    except Exception:
+        pass
+
+    # 写入 buffer
     try:
         buf = io.BytesIO()
         wb.save(buf)
@@ -793,37 +1483,40 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
 
 
 # ============================================================
-# 7. 学期差值统计（与上一学期对比）
+# 14. 学期差值统计（修复空数据崩溃）
 # ============================================================
 @router.get('/compare')
 def semester_compare(semester: str = Query(None), db: Session = Depends(get_db)):
-    """与上一学期对比：平均分、挂科率、预警人数、活动参与人次等"""
+    """与上一学期对比"""
     if not semester or semester == 'all':
-        return {'message': '请选择具体学期进行对比'}
-    
-    # 计算上一学期
+        return {'comparison': {}}
+
     parts = semester.split('-')
     if len(parts) != 3:
-        return {'error': '学期格式错误'}
-    y1, y2, term = int(parts[0]), int(parts[1]), int(parts[2])
+        return {'comparison': {}}
+
+    try:
+        y1, y2, term = int(parts[0]), int(parts[1]), int(parts[2])
+    except (ValueError, IndexError):
+        return {'comparison': {}}
+
     if term == 2:
         prev_semester = f"{y1}-{y2}-1"
     else:
         prev_semester = f"{y1-1}-{y1}-2"
-    
+
     result = {
         'current_semester': semester,
         'prev_semester': prev_semester,
         'comparison': {}
     }
-    
-    # 对比数据
+
     metrics = ['avg_score', 'fail_rate', 'warning_count', 'activity_participants']
-    
+
     for metric in metrics:
         curr_val = _get_semester_metric(db, semester, metric)
         prev_val = _get_semester_metric(db, prev_semester, metric)
-        
+
         if curr_val is not None and prev_val is not None:
             diff = curr_val - prev_val
             pct = (diff / prev_val * 100) if prev_val != 0 else 0
@@ -835,7 +1528,7 @@ def semester_compare(semester: str = Query(None), db: Session = Depends(get_db))
             }
         else:
             result['comparison'][metric] = None
-    
+
     return result
 
 
@@ -865,9 +1558,8 @@ def _get_semester_metric(db: Session, semester: str, metric: str):
                 WarningRecord.semester == semester
             ).count()
         elif metric == 'activity_participants':
-            # 活动参与人次 - 按学期筛选活动
             return db.query(func.count(ActivitySignup.id)).join(Activity).filter(
-                Activity.semester == semester
+                Activity.activity_date >= semester.split('-')[0] + '-09-01'
             ).scalar() or 0
     except Exception as e:
         logger.warning(f"获取指标 {metric} 异常: {e}")

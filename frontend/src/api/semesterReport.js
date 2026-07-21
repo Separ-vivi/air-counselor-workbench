@@ -4,8 +4,8 @@ export default {
   semesters() {
     return request.get('/semester-report/semesters')
   },
-  summary() {
-    return request.get('/semester-report/summary')
+  summary(semester) {
+    return semester ? request.get('/semester-report/summary', { params: { semester } }) : request.get('/semester-report/summary')
   },
   academics(semester) {
     return semester ? request.get('/semester-report/academics', { params: { semester } }) : request.get('/semester-report/academics')
@@ -24,5 +24,27 @@ export default {
   },
   compare(semester) {
     return semester ? request.get('/semester-report/compare', { params: { semester } }) : request.get('/semester-report/compare')
+  },
+  // 新增 API
+  attendance(semester) {
+    return semester ? request.get('/semester-report/attendance', { params: { semester } }) : request.get('/semester-report/attendance')
+  },
+  psychology() {
+    return request.get('/semester-report/psychology')
+  },
+  discipline() {
+    return request.get('/semester-report/discipline')
+  },
+  financialAid(semester) {
+    return semester ? request.get('/semester-report/financial-aid', { params: { semester } }) : request.get('/semester-report/financial-aid')
+  },
+  honors() {
+    return request.get('/semester-report/honors')
+  },
+  interviews() {
+    return request.get('/semester-report/interviews')
+  },
+  dormitory(semester) {
+    return semester ? request.get('/semester-report/dormitory', { params: { semester } }) : request.get('/semester-report/dormitory')
   }
 }
