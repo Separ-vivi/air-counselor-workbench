@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">V5-h-hotfix8</div>
+        <div class="brand-ver">V5-h-hotfix9</div>
       </div>
     </div>
 
@@ -38,6 +38,7 @@
         <el-menu-item index="/module/party"><el-icon><Flag /></el-icon><span>党团发展</span></el-menu-item>
         <el-menu-item index="/module/psychology"><el-icon><Sunny /></el-icon><span>心理关怀</span></el-menu-item>
         <el-menu-item index="/module/interview"><el-icon><ChatDotSquare /></el-icon><span>学生访谈</span></el-menu-item>
+        <el-menu-item index="/module/attendance"><el-icon><List /></el-icon><span>查课考勤</span></el-menu-item>
         <el-menu-item index="/module/family"><el-icon><HomeFilled /></el-icon><span>家庭档案</span></el-menu-item>
         <el-menu-item index="/module/cadres"><el-icon><Medal /></el-icon><span>学生干部</span></el-menu-item>
         <el-menu-item index="/module/activities"><el-icon><TrophyBase /></el-icon><span>学生活动</span></el-menu-item>

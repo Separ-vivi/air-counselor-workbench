@@ -175,3 +175,16 @@ export const system = {
   llmUpdate: (payload) => http.post('/system/llm-settings', payload),
   llmTest:   ()        => http.post('/system/llm-test', null, { timeout: 30000 }),
 }
+
+/** 查课考勤 */
+export const attendance = {
+  list: (params = {}) => http.get('/attendance/', { params }),
+  create: (data) => http.post('/attendance/', data),
+  update: (id, data) => http.put(`/attendance/${id}`, data),
+  remove: (id) => http.delete(`/attendance/${id}`),
+  stats: () => http.get('/attendance/stats'),
+  topStudents: (params = {}) => http.get('/attendance/top-students', { params }),
+  topCourses: (params = {}) => http.get('/attendance/top-courses', { params }),
+  monthlyTrend: () => http.get('/attendance/monthly-trend'),
+  exportExcel: (params = {}) => http.get('/attendance/export', { params, responseType: 'blob' })
+}
