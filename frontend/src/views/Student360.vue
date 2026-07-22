@@ -84,6 +84,12 @@
         </div>
       </div>
 
+      <!-- 成长轨迹雷达图 -->
+      <div class="radar-card">
+        <div class="radar-title">成长轨迹雷达图</div>
+        <div ref="radarChartRef" class="radar-body"></div>
+      </div>
+
       <!-- Tab 区 -->
       <div class="s360-body">
         <div class="side-tabs">
@@ -291,10 +297,11 @@ function inlineGoBack() {
   if (window.history.length > 1) _routerInline.back()
   else _routerInline.push('/dashboard')
 }
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getBasic, getSummary, updateBasic } from '@/api/student360.js'
+import * as echarts from 'echarts'
+import { getBasic, getSummary, updateBasic, getRadar } from '@/api/student360.js'
 import { tagsApi } from '@/api/tags.js'
 import { useOrgStore } from '@/stores/org.js'
 
@@ -324,6 +331,11 @@ const student = ref(null)
 const summary = ref(null)
 const loading = ref(false)
 const activeTab = ref('basic')
+
+// 雷达图相关
+const radarChartRef = ref(null)
+let radarChart = null
+const radarData = ref([])
 const pdfDialog = ref(false)
 const pdfFields = ref(['basic','academic','party','psych','aid','family','employment','status'])
 const pdfMask = ref(true)
@@ -423,17 +435,75 @@ async function loadHeader() {
     summary.value = s
     loadCompleteness()
     loadTags()
+    loadRadarData()
   } catch (e) {
     student.value = null
   } finally {
     loading.value = false
   }
 }
+
+async function loadRadarData() {
+  if (!sid.value || Number.isNaN(sid.value)) return
+  try {
+    const res = await getRadar(sid.value)
+    radarData.value = res?.dimensions || []
+    await nextTick()
+    initRadarChart()
+  } catch (e) {
+    console.error('加载雷达图数据失败:', e)
+  }
+}
+
+function initRadarChart() {
+  if (!radarChartRef.value) return
+  if (radarChart) radarChart.dispose()
+  radarChart = echarts.init(radarChartRef.value)
+  const indicators = radarData.value.map(d => ({ name: d.name, max: 100 }))
+  const values = radarData.value.map(d => d.score)
+  radarChart.setOption({
+    color: ['#5B92E5'],
+    tooltip: {},
+    radar: {
+      indicator: indicators.length ? indicators : [
+        { name: '学业成绩', max: 100 }, { name: '德育表现', max: 100 },
+        { name: '心理状态', max: 100 }, { name: '社会实践', max: 100 },
+        { name: '出勤表现', max: 100 }, { name: '综合测评', max: 100 }
+      ],
+      shape: 'polygon',
+      splitNumber: 5,
+      axisName: { color: '#4A7A8C', fontSize: 12 },
+      splitLine: { lineStyle: { color: 'rgba(91,146,229,0.15)' } },
+      splitArea: { areaStyle: { color: ['rgba(91,146,229,0.02)', 'rgba(91,146,229,0.06)'] } },
+      axisLine: { lineStyle: { color: 'rgba(91,146,229,0.2)' } }
+    },
+    series: [{
+      type: 'radar',
+      data: [{
+        value: values.length ? values : [50, 50, 50, 50, 50, 50],
+        name: '成长轨迹',
+        areaStyle: { color: 'rgba(91,146,229,0.18)' },
+        lineStyle: { color: '#5B92E5', width: 2 },
+        itemStyle: { color: '#5B92E5' }
+      }]
+    }]
+  })
+}
 watch(sid, loadHeader, { immediate: false })
 onMounted(async () => {
   await loadHeader()
   if (!orgStore.orgTree.length) orgStore.loadTree()
+  window.addEventListener('resize', handleRadarResize)
 })
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleRadarResize)
+  if (radarChart) { radarChart.dispose(); radarChart = null }
+})
+
+const handleRadarResize = () => {
+  radarChart?.resize()
+}
 
 // ---- V5-d: 学生标签 ----
 const allTags = ref([])
@@ -589,6 +659,24 @@ async function saveBasic() {
   transition: background 0.12s;
 }
 .s360-tag-check-item:hover { background: #F5F8FC; }
+
+.radar-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08);
+}
+.radar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2C3E50;
+  margin-bottom: 8px;
+}
+.radar-body {
+  width: 100%;
+  height: 300px;
+}
 </style>
 
 <!-- 打印相关必须放全局 style，scoped 会导致选择器加 data-v-xxx 后无法覆盖 SideBar/TopBar -->

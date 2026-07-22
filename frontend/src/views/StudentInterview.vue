@@ -56,6 +56,22 @@
       </div>
     </div>
 
+    <!-- 图表区域 -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">关注级别分布</div>
+        <div ref="typeChartRef" class="chart-body"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">月度趋势</div>
+        <div ref="trendChartRef" class="chart-body"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">访谈次数TOP5学生</div>
+        <div ref="topChartRef" class="chart-body"></div>
+      </div>
+    </div>
+
     <!-- 数据表格 - 带排序 -->
     <div class="table-container">
       <el-table :data="filteredData" style="width: 100%" v-loading="loading"
@@ -171,8 +187,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import * as echarts from 'echarts'
 import request from '@/api/index'
 import { useOrgStore } from '@/stores/org'
 import StudentSelect from '@/components/StudentSelect.vue'
@@ -184,6 +201,19 @@ const allData = ref([]) // 全量数据
 const students = ref([])
 const stats = ref({})
 const interviewTypes = ['常规访谈', '预警访谈', '心理访谈', '学业访谈', '就业访谈', '其他']
+
+// 图表相关
+const typeChartRef = ref(null)
+const trendChartRef = ref(null)
+const topChartRef = ref(null)
+let typeChart = null
+let trendChart = null
+let topChart = null
+const chartData = ref({
+  type_distribution: {},
+  monthly_trend: [],
+  top_students: []
+})
 
 // V5-h: 筛选条件
 const filterClassId = ref(null)
@@ -262,6 +292,95 @@ const loadStats = async () => {
     stats.value = res || {}
   } catch (error) {
     console.error('加载统计失败:', error)
+  }
+}
+
+const loadChartData = async () => {
+  try {
+    const res = await request.get('/interview/chart-data')
+    chartData.value = res || { type_distribution: {}, monthly_trend: [], top_students: [] }
+    await nextTick()
+    initCharts()
+  } catch (error) {
+    console.error('加载图表数据失败:', error)
+  }
+}
+
+const chartColors = ['#5B92E5', '#7BCFCB', '#4FC3B8', '#8FA9E5', '#5BC8D6', '#6BA5E0']
+
+const initCharts = () => {
+  // 1. 关注级别分布 - 环形饼图
+  if (typeChartRef.value) {
+    if (typeChart) typeChart.dispose()
+    typeChart = echarts.init(typeChartRef.value)
+    const typeData = Object.entries(chartData.value.type_distribution || {}).map(([name, value]) => ({ name, value }))
+    typeChart.setOption({
+      color: chartColors,
+      tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+      legend: { orient: 'horizontal', bottom: 0, textStyle: { fontSize: 11, color: '#7F8C8D' } },
+      series: [{
+        type: 'pie',
+        radius: ['40%', '65%'],
+        center: ['50%', '45%'],
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+        label: { show: false },
+        emphasis: { label: { show: true, fontSize: 13, fontWeight: 'bold' } },
+        data: typeData.length ? typeData : [{ name: '暂无数据', value: 0 }]
+      }]
+    })
+  }
+
+  // 2. 月度趋势 - 折线图
+  if (trendChartRef.value) {
+    if (trendChart) trendChart.dispose()
+    trendChart = echarts.init(trendChartRef.value)
+    const months = (chartData.value.monthly_trend || []).map(m => m.month)
+    const counts = (chartData.value.monthly_trend || []).map(m => m.count)
+    trendChart.setOption({
+      color: ['#5B92E5'],
+      tooltip: { trigger: 'axis' },
+      grid: { left: 40, right: 16, top: 16, bottom: 30 },
+      xAxis: { type: 'category', data: months, axisLabel: { fontSize: 10, color: '#7F8C8D', rotate: 30 } },
+      yAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#7F8C8D' }, splitLine: { lineStyle: { color: '#ECF1F7' } } },
+      series: [{
+        type: 'line',
+        data: counts,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(91,146,229,0.3)' },
+          { offset: 1, color: 'rgba(91,146,229,0.02)' }
+        ]) },
+        lineStyle: { width: 2 }
+      }]
+    })
+  }
+
+  // 3. 访谈次数TOP5学生 - 横向柱状图
+  if (topChartRef.value) {
+    if (topChart) topChart.dispose()
+    topChart = echarts.init(topChartRef.value)
+    const top5 = (chartData.value.top_students || []).slice(0, 5).reverse()
+    const names = top5.map(s => s.student_name)
+    const vals = top5.map(s => s.count)
+    topChart.setOption({
+      color: ['#7BCFCB'],
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: 60, right: 20, top: 10, bottom: 20 },
+      xAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#7F8C8D' }, splitLine: { lineStyle: { color: '#ECF1F7' } } },
+      yAxis: { type: 'category', data: names, axisLabel: { color: '#2C3E50', fontSize: 12 } },
+      series: [{
+        type: 'bar',
+        data: vals,
+        barWidth: 16,
+        itemStyle: { borderRadius: [0, 8, 8, 0], color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+          { offset: 0, color: '#7BCFCB' },
+          { offset: 1, color: '#5B92E5' }
+        ]) }
+      }]
+    })
   }
 }
 
@@ -363,8 +482,23 @@ onMounted(async () => {
   }
   loadData()
   loadStats()
+  loadChartData()
   loadStudents()
+  window.addEventListener('resize', handleChartResize)
 })
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleChartResize)
+  if (typeChart) { typeChart.dispose(); typeChart = null }
+  if (trendChart) { trendChart.dispose(); trendChart = null }
+  if (topChart) { topChart.dispose(); topChart = null }
+})
+
+const handleChartResize = () => {
+  typeChart?.resize()
+  trendChart?.resize()
+  topChart?.resize()
+}
 </script>
 
 <style scoped>
@@ -380,4 +514,8 @@ onMounted(async () => {
 .stat-value.done { color: #67C23A; }
 .stat-value.follow { color: #F56C6C; }
 .table-container { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08); }
+.charts-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+.chart-card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08); }
+.chart-title { font-size: 14px; font-weight: 600; color: #2C3E50; margin-bottom: 8px; }
+.chart-body { width: 100%; height: 260px; }
 </style>

@@ -25,6 +25,10 @@ export const getSummary  = (sid) => http.get(`/student360/${sid}/summary`)
 export const getTimeline = (sid, limit = 50) =>
   http.get(`/student360/${sid}/timeline`, { params: { limit } })
 
+/** 成长轨迹雷达图 */
+export const getRadar = (sid) =>
+  http.get(`/student360/${sid}/radar`)
+
 /**
  * 通用子资源工厂：对每个子资源生成 4 个 CRUD 方法
  * 用法：const api = resource('party'); api.list(sid); api.create(sid, data); …

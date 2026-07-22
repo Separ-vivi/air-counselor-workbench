@@ -1,6 +1,7 @@
 """学生访谈管理 API"""
 import logging
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, desc, or_
 from sqlalchemy.orm import Session
@@ -100,6 +101,52 @@ def list_interviews(
 def get_types():
     """获取访谈类型列表"""
     return ['常规访谈', '预警访谈', '心理访谈', '学业访谈', '就业访谈', '其他']
+
+
+@router.get('/chart-data')
+def get_chart_data(db: Session = Depends(get_db)):
+    """获取访谈图表数据：类型分布、月度趋势、TOP10学生"""
+    # 1. 关注级别分布 - 按访谈类型统计
+    type_rows = db.query(
+        StudentInterview.interview_type,
+        func.count(StudentInterview.id)
+    ).group_by(StudentInterview.interview_type).all()
+    type_distribution = {}
+    for itype, count in type_rows:
+        type_distribution[itype or '未知'] = count
+
+    # 2. 月度趋势 - 最近12个月
+    monthly_trend = []
+    now = datetime.now()
+    for i in range(11, -1, -1):
+        m = now - relativedelta(months=i)
+        month_str = m.strftime('%Y-%m')
+        count = db.query(func.count(StudentInterview.id)).filter(
+            func.substr(StudentInterview.interview_date, 1, 7) == month_str
+        ).scalar()
+        monthly_trend.append({'month': month_str, 'count': count})
+
+    # 3. 访谈次数TOP10学生
+    top_rows = db.query(
+        StudentInterview.student_id,
+        func.count(StudentInterview.id).label('cnt')
+    ).group_by(StudentInterview.student_id).order_by(desc('cnt')).limit(10).all()
+
+    top_students = []
+    for student_id, count in top_rows:
+        student = db.query(Student).filter(Student.id == student_id).first()
+        if student:
+            top_students.append({
+                'student_name': student.name,
+                'student_no': student.student_no,
+                'count': count
+            })
+
+    return {
+        'type_distribution': type_distribution,
+        'monthly_trend': monthly_trend,
+        'top_students': top_students
+    }
 
 
 @router.get('/statistics')

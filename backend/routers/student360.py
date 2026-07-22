@@ -19,7 +19,8 @@ from models import (
     StudentLoan, StudentWorkStudy, StudentHonor,
     StudentDormVisit, StudentLeave, StudentDiscipline,
     StudentDormChat, StudentAttendanceException,
-    StudentStatusChange, Project, ProjectStudent
+    StudentStatusChange, Project, ProjectStudent,
+    ComprehensiveAssessment
 )
 
 router = APIRouter(prefix='/api/student360', tags=['student360'])
@@ -1215,3 +1216,99 @@ def get_timeline(student_id: int, limit: int = 50, db: Session = Depends(get_db)
     # 按 created_at 排序
     timeline.sort(key=lambda x: x.get('created_at', ''), reverse=True)
     return timeline[:limit]
+
+
+# ===== 13. 成长轨迹雷达图 =====
+
+@router.get('/{student_id}/radar')
+def get_radar(student_id: int, db: Session = Depends(get_db)):
+    """成长轨迹雷达图 - 6维度0-100评分"""
+    # 1. 学业成绩 - 基于GPA均值映射到0-100
+    grade_records = db.query(GradeRecord).filter(GradeRecord.student_id == student_id).all()
+    if grade_records:
+        gpas = [g.gpa for g in grade_records if g.gpa is not None]
+        if gpas:
+            avg_gpa = sum(gpas) / len(gpas)
+            # GPA 0-4.0 映射到 0-100
+            academic_score = min(100, round(avg_gpa / 4.0 * 100))
+        else:
+            academic_score = 50
+    else:
+        academic_score = 50
+
+    # 2. 德育表现 - 党团发展 + 活动参与综合
+    party_score = 0
+    party_records = db.query(PartyProgress).filter(PartyProgress.student_id == student_id).all()
+    party_stage_map = {
+        '群众': 20, '入党申请人': 35, '入党积极分子': 55,
+        '发展对象': 70, '中共预备党员': 85, '中共党员': 95,
+        '共青团员': 40, '共青团入团申请人': 30,
+    }
+    if party_records:
+        # 取最高阶段
+        max_stage_score = 0
+        for p in party_records:
+            stage_score = party_stage_map.get(p.stage, 20)
+            if stage_score > max_stage_score:
+                max_stage_score = stage_score
+        party_score = max_stage_score
+    else:
+        party_score = 20
+
+    activity_count = db.query(ActivitySignup).filter(ActivitySignup.student_id == student_id).count()
+    activity_score = min(100, activity_count * 10)  # 每参加一次+10，上限100
+
+    moral_score = min(100, round((party_score * 0.5 + activity_score * 0.5)))
+
+    # 3. 心理状态 - 无心理记录=90，有记录看记录数
+    psych_count = db.query(PsychologyRecord).filter(PsychologyRecord.student_id == student_id).count()
+    if psych_count == 0:
+        psychology_score = 90
+    elif psych_count <= 2:
+        psychology_score = 75
+    elif psych_count <= 5:
+        psychology_score = 60
+    else:
+        psychology_score = 45
+
+    # 4. 社会实践 - 活动参与次数 + 签到率
+    signups = db.query(ActivitySignup).filter(ActivitySignup.student_id == student_id).all()
+    if signups:
+        checked_in = sum(1 for s in signups if s.checked_in)
+        checkin_rate = checked_in / len(signups)
+        practice_score = min(100, round(activity_count * 5 + checkin_rate * 50))
+    else:
+        practice_score = 30
+
+    # 5. 出勤表现 - 考勤异常越少分越高
+    attendance_count = db.query(StudentAttendanceException).filter(
+        StudentAttendanceException.student_id == student_id
+    ).count()
+    if attendance_count == 0:
+        attendance_score = 95
+    elif attendance_count <= 2:
+        attendance_score = 80
+    elif attendance_count <= 5:
+        attendance_score = 60
+    else:
+        attendance_score = 40
+
+    # 6. 综合测评 - 从综合测评表取最近一条total_score
+    comp_record = db.query(ComprehensiveAssessment).filter(
+        ComprehensiveAssessment.student_id == student_id
+    ).order_by(desc(ComprehensiveAssessment.id)).first()
+    if comp_record and comp_record.total_score:
+        comprehensive_score = min(100, max(0, round(comp_record.total_score)))
+    else:
+        comprehensive_score = 50
+
+    return {
+        'dimensions': [
+            {'name': '学业成绩', 'score': academic_score},
+            {'name': '德育表现', 'score': moral_score},
+            {'name': '心理状态', 'score': psychology_score},
+            {'name': '社会实践', 'score': practice_score},
+            {'name': '出勤表现', 'score': attendance_score},
+            {'name': '综合测评', 'score': comprehensive_score}
+        ]
+    }
