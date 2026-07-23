@@ -19,15 +19,20 @@
           <StudentSelect v-model="filterStudentId" style="width: 240px" @change="onFilterChange" />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="filterStatus" placeholder="全部" clearable @change="loadData" style="width: 120px">
+          <el-select v-model="filterStatus" placeholder="全部" clearable @change="onFilterChange" style="width: 120px">
             <el-option label="待进行" value="待进行" />
             <el-option label="已完成" value="已完成" />
             <el-option label="需跟进" value="需跟进" />
           </el-select>
         </el-form-item>
         <el-form-item label="类型">
-          <el-select v-model="filterType" placeholder="全部" clearable @change="loadData" style="width: 120px">
+          <el-select v-model="filterType" placeholder="全部" clearable @change="onFilterChange" style="width: 120px">
             <el-option v-for="t in interviewTypes" :key="t" :label="t" :value="t" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="学期">
+          <el-select v-model="filterSemester" placeholder="全部学期" clearable @change="onFilterChange" style="width: 180px">
+            <el-option v-for="s in semesterList" :key="s.code" :label="s.label" :value="s.code" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -54,6 +59,11 @@
         <div class="stat-label">需跟进</div>
         <div class="stat-value follow">{{ stats.by_status?.['需跟进'] || 0 }}</div>
       </div>
+      <div class="stat-card">
+        <div class="stat-label">访谈覆盖率</div>
+        <div class="stat-value coverage">{{ coverageRate }}%</div>
+        <div class="stat-sub">已访谈 {{ coveredStudentCount }} / {{ totalStudentCount }} 人</div>
+      </div>
     </div>
 
     <!-- 图表区域 -->
@@ -74,7 +84,7 @@
 
     <!-- 数据表格 - 带排序 -->
     <div class="table-container">
-      <el-table :data="filteredData" style="width: 100%" v-loading="loading"
+      <el-table :data="paginatedData" style="width: 100%" v-loading="loading"
         :default-sort="{ prop: 'interview_date', order: 'descending' }">
         <el-table-column prop="student_no" label="学号" width="120" sortable />
         <el-table-column prop="student_name" label="姓名" width="100" sortable />
@@ -220,6 +230,8 @@ const filterClassId = ref(null)
 const filterStudentId = ref(null)
 const filterStatus = ref('')
 const filterType = ref('')
+const filterSemester = ref('')
+const semesterList = ref([])
 const currentPage = ref(1)
 const pageSize = ref(20)
 const dialogVisible = ref(false)
@@ -243,7 +255,24 @@ const form = ref({
 
 const allClasses = computed(() => orgStore.allClasses || [])
 
-// 前端过滤（班级 + 学生 + 状态 + 类型）
+// 学期代码 → 日期范围
+const semesterDateRange = (code) => {
+  // 格式如 2025-2026-1 → 第1学期: 2025-09-01 ~ 2026-01-31, 第2学期: 2026-02-01 ~ 2026-07-31
+  const parts = code.split('-')
+  if (parts.length !== 3) return null
+  const startYear = parseInt(parts[0])
+  const endYear = parseInt(parts[1])
+  const sem = parseInt(parts[2])
+  if (isNaN(startYear) || isNaN(endYear) || isNaN(sem)) return null
+  if (sem === 1) {
+    return { start: `${startYear}-09-01`, end: `${endYear}-01-31` }
+  } else if (sem === 2) {
+    return { start: `${endYear}-02-01`, end: `${endYear}-07-31` }
+  }
+  return null
+}
+
+// 前端过滤（班级 + 学生 + 状态 + 类型 + 学期）
 const filteredData = computed(() => {
   let data = allData.value
   if (filterClassId.value) {
@@ -259,7 +288,30 @@ const filteredData = computed(() => {
   if (filterType.value) {
     data = data.filter(r => r.interview_type === filterType.value)
   }
+  if (filterSemester.value) {
+    const range = semesterDateRange(filterSemester.value)
+    if (range) {
+      data = data.filter(r => r.interview_date >= range.start && r.interview_date <= range.end)
+    }
+  }
   return data
+})
+
+// 分页数据
+const paginatedData = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredData.value.slice(start, start + pageSize.value)
+})
+
+// 覆盖率统计
+const totalStudentCount = ref(0)
+const coveredStudentCount = computed(() => {
+  const ids = new Set(filteredData.value.map(r => r.student_id))
+  return ids.size
+})
+const coverageRate = computed(() => {
+  if (!totalStudentCount.value) return 0
+  return ((coveredStudentCount.value / totalStudentCount.value) * 100).toFixed(1)
 })
 
 const getTypeTagType = (type) => {
@@ -403,7 +455,26 @@ const resetFilters = () => {
   filterStudentId.value = null
   filterStatus.value = ''
   filterType.value = ''
+  filterSemester.value = ''
   currentPage.value = 1
+}
+
+const loadSemesters = async () => {
+  try {
+    const res = await request.get('/semester-report/semesters')
+    semesterList.value = Array.isArray(res) ? res : []
+  } catch (error) {
+    console.error('加载学期列表失败:', error)
+  }
+}
+
+const loadTotalStudents = async () => {
+  try {
+    const res = await request.get('/interview/coverage')
+    totalStudentCount.value = res?.total_students || 0
+  } catch (error) {
+    console.error('加载学生总数失败:', error)
+  }
 }
 
 const showAddDialog = () => {
@@ -484,6 +555,8 @@ onMounted(async () => {
   loadStats()
   loadChartData()
   loadStudents()
+  loadSemesters()
+  loadTotalStudents()
   window.addEventListener('resize', handleChartResize)
 })
 
@@ -506,13 +579,15 @@ const handleChartResize = () => {
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .page-header h2 { margin: 0; color: #2C3E50; }
 .page-actions { display: flex; align-items: center; }
-.stats-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.stats-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 20px; }
 .stat-card { background: #fff; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08); }
 .stat-label { font-size: 13px; color: #7F8C8D; margin-bottom: 8px; }
 .stat-value { font-size: 28px; font-weight: 700; color: #2C3E50; }
 .stat-value.pending { color: #E6A23C; }
 .stat-value.done { color: #67C23A; }
 .stat-value.follow { color: #F56C6C; }
+.stat-value.coverage { color: #5B92E5; }
+.stat-sub { font-size: 11px; color: #7F8C8D; margin-top: 4px; }
 .table-container { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08); }
 .charts-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
 .chart-card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08); }

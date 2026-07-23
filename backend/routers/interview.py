@@ -177,6 +177,19 @@ def get_statistics(db: Session = Depends(get_db)):
     }
 
 
+@router.get('/coverage')
+def get_coverage(db: Session = Depends(get_db)):
+    """获取访谈覆盖率数据：总学生数"""
+    total_students = db.query(Student).count()
+    covered_students = db.query(StudentInterview.student_id).distinct().count()
+    coverage_rate = round((covered_students / total_students * 100), 1) if total_students > 0 else 0
+    return {
+        'total_students': total_students,
+        'covered_students': covered_students,
+        'coverage_rate': coverage_rate
+    }
+
+
 @router.get('/{interview_id}')
 def get_interview(interview_id: int, db: Session = Depends(get_db)):
     """获取单条访谈记录"""
