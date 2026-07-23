@@ -1,8 +1,11 @@
 """党团发展 + 心理关怀 + 家校沟通 路由"""
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from typing import Optional
+from datetime import datetime, timedelta
+from collections import Counter
+import json as _json
 from database import get_db
 from models import PartyProgress, PsychologyRecord, FamilyContact, Student, ClassModel
 
@@ -344,6 +347,51 @@ def export_party_progress(
     )
 
 
+# ===== 党团发展 统计图表 =====
+@router.get('/party-progress/chart-data')
+def party_progress_chart_data(db: Session = Depends(get_db)):
+    """党团发展统计图表数据"""
+    # 1. stage_distribution: GROUP BY stage, COUNT(*)
+    stage_rows = db.query(
+        PartyProgress.stage, func.count(PartyProgress.id)
+    ).group_by(PartyProgress.stage).all()
+    stage_distribution = [{'stage': s or '', 'count': c} for s, c in stage_rows]
+
+    # 2. monthly_trend: 按 stage_date 的 YYYY-MM 分组，最近12个月
+    today = datetime.now()
+    months = [(today - timedelta(days=30 * i)).strftime('%Y-%m') for i in range(11, -1, -1)]
+    # stage_date 是 String(20)，格式 YYYY-MM-DD，取前7位
+    month_rows = db.query(
+        func.substr(PartyProgress.stage_date, 1, 7).label('month'),
+        func.count(PartyProgress.id)
+    ).filter(
+        PartyProgress.stage_date != '', PartyProgress.stage_date.isnot(None)
+    ).group_by(
+        func.substr(PartyProgress.stage_date, 1, 7)
+    ).all()
+    month_map = {m: c for m, c in month_rows if m}
+    monthly_trend = [{'month': m, 'count': month_map.get(m, 0)} for m in months]
+
+    # 3. top_students: 按 student_id 分组，取 TOP10
+    top_rows = db.query(
+        PartyProgress.student_id, func.count(PartyProgress.id).label('cnt')
+    ).group_by(PartyProgress.student_id).order_by(func.count(PartyProgress.id).desc()).limit(10).all()
+    top_students = []
+    for sid, cnt in top_rows:
+        stu = db.query(Student).get(sid)
+        top_students.append({
+            'student_name': stu.name if stu else '',
+            'student_no': stu.student_no if stu else '',
+            'count': cnt,
+        })
+
+    return {
+        'stage_distribution': stage_distribution,
+        'monthly_trend': monthly_trend,
+        'top_students': top_students,
+    }
+
+
 # ===== 心理关怀 =====
 def _psy_dict(r, db):
     from models import ClassModel
@@ -561,6 +609,65 @@ def delete_psychology(rid: int, db: Session = Depends(get_db)):
         db.delete(r)
         db.commit()
     return {'ok': True}
+
+
+# ===== 心理关怀 统计图表 =====
+@router.get('/psychology/chart-data')
+def psychology_chart_data(db: Session = Depends(get_db)):
+    """心理关怀统计图表数据"""
+    # 1. level_distribution: GROUP BY attention_level, COUNT(*)
+    level_rows = db.query(
+        PsychologyRecord.attention_level, func.count(PsychologyRecord.id)
+    ).group_by(PsychologyRecord.attention_level).all()
+    level_distribution = [{'level': lv or '', 'count': c} for lv, c in level_rows]
+
+    # 2. monthly_trend: 按 record_date 的 YYYY-MM 分组，最近12个月
+    today = datetime.now()
+    months = [(today - timedelta(days=30 * i)).strftime('%Y-%m') for i in range(11, -1, -1)]
+    month_rows = db.query(
+        func.substr(PsychologyRecord.record_date, 1, 7).label('month'),
+        func.count(PsychologyRecord.id)
+    ).filter(
+        PsychologyRecord.record_date != '', PsychologyRecord.record_date.isnot(None)
+    ).group_by(
+        func.substr(PsychologyRecord.record_date, 1, 7)
+    ).all()
+    month_map = {m: c for m, c in month_rows if m}
+    monthly_trend = [{'month': m, 'count': month_map.get(m, 0)} for m in months]
+
+    # 3. emotion_tags_distribution: 解析 JSON array 字符串，展平统计
+    tag_counter = Counter()
+    all_tags_rows = db.query(PsychologyRecord.emotion_tags).filter(
+        PsychologyRecord.emotion_tags != '', PsychologyRecord.emotion_tags.isnot(None)
+    ).all()
+    for (tags_str,) in all_tags_rows:
+        try:
+            tags = _json.loads(tags_str)
+            if isinstance(tags, list):
+                tag_counter.update(tags)
+        except (ValueError, TypeError):
+            pass
+    emotion_tags_distribution = [{'tag': t, 'count': c} for t, c in tag_counter.most_common()]
+
+    # 4. top_students: 按 student_id 分组，取 TOP10
+    top_rows = db.query(
+        PsychologyRecord.student_id, func.count(PsychologyRecord.id).label('cnt')
+    ).group_by(PsychologyRecord.student_id).order_by(func.count(PsychologyRecord.id).desc()).limit(10).all()
+    top_students = []
+    for sid, cnt in top_rows:
+        stu = db.query(Student).get(sid)
+        top_students.append({
+            'student_name': stu.name if stu else '',
+            'student_no': stu.student_no if stu else '',
+            'count': cnt,
+        })
+
+    return {
+        'level_distribution': level_distribution,
+        'monthly_trend': monthly_trend,
+        'emotion_tags_distribution': emotion_tags_distribution,
+        'top_students': top_students,
+    }
 
 
 # ===== 家校沟通 =====
