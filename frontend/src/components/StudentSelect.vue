@@ -37,7 +37,7 @@ import http from '@/api/index.js'
 
 const props = defineProps({
   modelValue: { type: [Number, String, null], default: null },
-  placeholder: { type: String, default: '搜索学号 / 姓名 / 拼音（无缓存实时查）' }
+  placeholder: { type: String, default: '搜索学号 / 姓名 / 拼音' }
 })
 defineEmits(['update:modelValue'])
 
