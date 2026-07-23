@@ -47,6 +47,28 @@
       </el-col>
     </el-row>
 
+    <!-- 统计图表区域 -->
+    <el-row :gutter="16" class="chart-row">
+      <el-col :xs="24" :sm="12" :lg="8">
+        <div class="chart-card">
+          <div class="chart-title">发展阶段分布</div>
+          <div ref="stagePieRef" class="chart-container"></div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :lg="8">
+        <div class="chart-card">
+          <div class="chart-title">月度发展趋势</div>
+          <div ref="monthlyTrendRef" class="chart-container"></div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :lg="8">
+        <div class="chart-card">
+          <div class="chart-title">TOP活跃学生</div>
+          <div ref="topStudentsRef" class="chart-container"></div>
+        </div>
+      </el-col>
+    </el-row>
+
     <el-card shadow="never">
       <el-table
         :data="list"
@@ -116,7 +138,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Download } from '@element-plus/icons-vue'
 import { party as partyApi } from '@/api/modules'
@@ -124,6 +146,7 @@ import http from '@/api/index.js'
 import { useStudentStore } from '@/stores/student'
 import StudentSelect from '@/components/StudentSelect.vue'
 import { triggerDownload, stampedName } from '@/utils/download'
+import * as echarts from 'echarts'
 
 const studentStore = useStudentStore()
 
@@ -136,6 +159,173 @@ const list = ref([])
 const loading = ref(false)
 const classes = ref([])
 const filter = reactive({ student_id: null, stage: '', kw: '', class_id: null })
+
+// 冰蓝薄荷色系
+const chartColors = ['#5B92E5', '#7BCFCB', '#4FC3B8', '#8FA9E5', '#A8D5E2', '#6BB5C9']
+
+// 图表容器引用
+const stagePieRef = ref(null)
+const monthlyTrendRef = ref(null)
+const topStudentsRef = ref(null)
+
+// 图表实例
+let stagePieChart = null
+let monthlyTrendChart = null
+let topStudentsChart = null
+
+// 初始化阶段分布饼图
+const initStagePie = (data) => {
+  if (!stagePieRef.value) return
+  if (stagePieChart) stagePieChart.dispose()
+  stagePieChart = echarts.init(stagePieRef.value)
+  const pieData = data.map((item, idx) => ({
+    name: item.stage,
+    value: item.count,
+    itemStyle: { color: chartColors[idx % chartColors.length] }
+  }))
+  stagePieChart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+    legend: {
+      orient: 'vertical',
+      right: 10,
+      top: 'center',
+      textStyle: { color: '#5A6B80', fontSize: 12 }
+    },
+    series: [{
+      type: 'pie',
+      radius: ['0%', '70%'],
+      center: ['40%', '50%'],
+      avoidLabelOverlap: true,
+      itemStyle: { borderRadius: 6, borderColor: '#ECF1F7', borderWidth: 2 },
+      label: { show: true, formatter: '{b}\n{c}人', color: '#5A6B80', fontSize: 11 },
+      labelLine: { lineStyle: { color: '#B0C4DE' } },
+      emphasis: {
+        itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.15)' },
+        label: { fontSize: 13, fontWeight: 'bold' }
+      },
+      data: pieData
+    }]
+  })
+}
+
+// 初始化月度趋势折线图
+const initMonthlyTrend = (data) => {
+  if (!monthlyTrendRef.value) return
+  if (monthlyTrendChart) monthlyTrendChart.dispose()
+  monthlyTrendChart = echarts.init(monthlyTrendRef.value)
+  const months = data.map(d => d.month)
+  const counts = data.map(d => d.count)
+  monthlyTrendChart.setOption({
+    tooltip: { trigger: 'axis', formatter: '{b}<br/>新增: {c}人' },
+    grid: { left: 45, right: 20, top: 20, bottom: 35 },
+    xAxis: {
+      type: 'category',
+      data: months,
+      axisLabel: { color: '#5A6B80', fontSize: 11, rotate: months.length > 6 ? 30 : 0 },
+      axisLine: { lineStyle: { color: '#C8D6E5' } },
+      axisTick: { show: false }
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLabel: { color: '#5A6B80', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#E8EFF7', type: 'dashed' } },
+      axisLine: { show: false },
+      axisTick: { show: false }
+    },
+    series: [{
+      type: 'line',
+      data: counts,
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 7,
+      lineStyle: { color: '#5B92E5', width: 2.5 },
+      itemStyle: { color: '#5B92E5', borderColor: '#fff', borderWidth: 2 },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(91,146,229,0.35)' },
+          { offset: 1, color: 'rgba(91,146,229,0.05)' }
+        ])
+      }
+    }]
+  })
+}
+
+// 初始化TOP学生柱状图
+const initTopStudents = (data) => {
+  if (!topStudentsRef.value) return
+  if (topStudentsChart) topStudentsChart.dispose()
+  topStudentsChart = echarts.init(topStudentsRef.value)
+  const names = data.map(d => d.student_name)
+  const counts = data.map(d => d.count)
+  topStudentsChart.setOption({
+    tooltip: { trigger: 'axis', formatter: '{b}<br/>活动次数: {c}' },
+    grid: { left: 70, right: 20, top: 20, bottom: 35 },
+    xAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLabel: { color: '#5A6B80', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#E8EFF7', type: 'dashed' } },
+      axisLine: { show: false },
+      axisTick: { show: false }
+    },
+    yAxis: {
+      type: 'category',
+      data: names.reverse(),
+      axisLabel: { color: '#5A6B80', fontSize: 12 },
+      axisLine: { lineStyle: { color: '#C8D6E5' } },
+      axisTick: { show: false }
+    },
+    series: [{
+      type: 'bar',
+      data: counts.reverse(),
+      barWidth: 18,
+      itemStyle: {
+        borderRadius: [0, 6, 6, 0],
+        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+          { offset: 0, color: '#7BCFCB' },
+          { offset: 1, color: '#4FC3B8' }
+        ])
+      },
+      emphasis: {
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: '#5B92E5' },
+            { offset: 1, color: '#8FA9E5' }
+          ])
+        }
+      },
+      label: { show: true, position: 'right', color: '#5A6B80', fontSize: 11 }
+    }]
+  })
+}
+
+// 加载图表数据
+const loadChartData = async () => {
+  try {
+    const res = await http.get('/party-progress/chart-data')
+    const data = res?.data || res || {}
+    if (data.stage_distribution?.length) initStagePie(data.stage_distribution)
+    else initStagePie(stages.map(s => ({ stage: s, count: 0 })))
+    if (data.monthly_trend?.length) initMonthlyTrend(data.monthly_trend)
+    else initMonthlyTrend([])
+    if (data.top_students?.length) initTopStudents(data.top_students)
+    else initTopStudents([])
+  } catch (e) {
+    console.warn('党团图表数据加载失败，使用本地统计', e)
+    // 降级：使用本地 stageStats 数据
+    initStagePie(stages.map(s => ({ stage: s, count: list.value.filter(r => r.stage === s).length })))
+    initMonthlyTrend([])
+    initTopStudents([])
+  }
+}
+
+// 窗口 resize 处理
+const handleResize = () => {
+  stagePieChart?.resize()
+  monthlyTrendChart?.resize()
+  topStudentsChart?.resize()
+}
 
 // v3j-B-b03 · 排序 + 搜索 + 多选
 const sortBy = ref('stage_date')
@@ -241,12 +431,27 @@ watch(() => studentStore.refreshBumper, reload)
 
 const loadClasses = async () => {
   try {
-    const res = await http.get('/org/classes')  // v3j-C c01-hotfix1: 修 /classes 404
+    const res = await http.get('/org/classes')
     classes.value = Array.isArray(res) ? res : (res?.items || res?.data || [])
   } catch (e) { classes.value = [] }
 }
 
-onMounted(() => { loadClasses(); reload() })
+onMounted(() => {
+  loadClasses()
+  reload()
+  loadChartData()
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  stagePieChart?.dispose()
+  monthlyTrendChart?.dispose()
+  topStudentsChart?.dispose()
+  stagePieChart = null
+  monthlyTrendChart = null
+  topStudentsChart = null
+})
 </script>
 
 <style scoped>
@@ -256,4 +461,29 @@ onMounted(() => { loadClasses(); reload() })
 .stat-card { border-radius: 12px; text-align: center; }
 .stat-label { color: #909399; font-size: 13px; margin-bottom: 8px; }
 .stat-value { font-size: 24px; font-weight: 600; }
+
+/* 图表区域样式 */
+.chart-row { margin-bottom: 16px; }
+.chart-card {
+  background: #ECF1F7;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
+  transition: box-shadow 0.2s;
+}
+.chart-card:hover {
+  box-shadow: 0 4px 12px rgba(91, 146, 229, 0.15);
+}
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3A4F6B;
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+.chart-container {
+  width: 100%;
+  height: 300px;
+}
 </style>

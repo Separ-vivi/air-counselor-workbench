@@ -47,6 +47,48 @@
       有 {{ reminders.length }} 条心理关注提醒需要处理
     </el-alert>
 
+    <!-- 统计图表区域 -->
+    <el-row :gutter="16" class="chart-row">
+      <el-col :xs="24" :sm="12" :lg="8">
+        <div class="chart-card">
+          <div class="chart-title">关注等级分布</div>
+          <div ref="levelDistRef" class="chart-container"></div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :lg="8">
+        <div class="chart-card">
+          <div class="chart-title">月度咨询趋势</div>
+          <div ref="monthlyTrendRef" class="chart-container"></div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :lg="8">
+        <div class="chart-card">
+          <div class="chart-title">情绪标签分布</div>
+          <div ref="emotionTagsRef" class="chart-container"></div>
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- TOP关注学生卡片 -->
+    <div class="top-students-section" v-if="topStudents.length">
+      <div class="chart-title" style="margin-bottom: 12px;">TOP关注学生</div>
+      <el-row :gutter="16">
+        <el-col :xs="24" :sm="12" :lg="8" v-for="(stu, idx) in topStudents" :key="stu.student_no" style="margin-bottom: 12px;">
+          <div class="top-student-card">
+            <div class="top-student-rank" :style="{ background: rankColors[idx] || '#8FA9E5' }">{{ idx + 1 }}</div>
+            <div class="top-student-info">
+              <div class="top-student-name">{{ stu.student_name }}</div>
+              <div class="top-student-no">{{ stu.student_no }}</div>
+            </div>
+            <div class="top-student-count">
+              <span class="count-number">{{ stu.count }}</span>
+              <span class="count-label">次咨询</span>
+            </div>
+          </div>
+        </el-col>
+      </el-row>
+    </div>
+
     <el-card shadow="never">
       <el-table
         :data="filteredList"
@@ -132,13 +174,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Bell, Download } from '@element-plus/icons-vue'
 import { psychology as psyApi } from '@/api/modules'
 import { useStudentStore } from '@/stores/student'
 import StudentSelect from '@/components/StudentSelect.vue'
 import { triggerDownload, stampedName } from '@/utils/download'
+import * as echarts from 'echarts'
+import http from '@/api/index.js'
 
 const studentStore = useStudentStore()
 
@@ -147,6 +191,186 @@ const list = ref([])
 const reminders = ref([])
 const loading = ref(false)
 const filter = reactive({ student_id: null, attention_level: '', kw: '', reminded_state: '' })
+
+// 冰蓝薄荷色系
+const chartColors = ['#5B92E5', '#7BCFCB', '#4FC3B8', '#8FA9E5', '#A8D5E2', '#6BB5C9', '#95B8D1']
+const rankColors = ['#5B92E5', '#7BCFCB', '#4FC3B8', '#8FA9E5', '#A8D5E2']
+
+// 图表容器引用
+const levelDistRef = ref(null)
+const monthlyTrendRef = ref(null)
+const emotionTagsRef = ref(null)
+
+// 图表实例
+let levelDistChart = null
+let monthlyTrendChart = null
+let emotionTagsChart = null
+
+// TOP关注学生数据
+const topStudents = ref([])
+
+// 初始化关注等级分布环形图
+const initLevelDist = (data) => {
+  if (!levelDistRef.value) return
+  if (levelDistChart) levelDistChart.dispose()
+  levelDistChart = echarts.init(levelDistRef.value)
+  const pieData = data.map((item, idx) => ({
+    name: item.level,
+    value: item.count,
+    itemStyle: { color: chartColors[idx % chartColors.length] }
+  }))
+  levelDistChart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+    legend: {
+      orient: 'vertical',
+      right: 10,
+      top: 'center',
+      textStyle: { color: '#5A6B80', fontSize: 12 }
+    },
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      center: ['40%', '50%'],
+      avoidLabelOverlap: true,
+      itemStyle: { borderRadius: 6, borderColor: '#ECF1F7', borderWidth: 2 },
+      label: { show: true, formatter: '{b}\n{c}人', color: '#5A6B80', fontSize: 11 },
+      labelLine: { lineStyle: { color: '#B0C4DE' } },
+      emphasis: {
+        itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.15)' },
+        label: { fontSize: 13, fontWeight: 'bold' }
+      },
+      data: pieData
+    }]
+  })
+}
+
+// 初始化月度咨询趋势折线图
+const initMonthlyTrend = (data) => {
+  if (!monthlyTrendRef.value) return
+  if (monthlyTrendChart) monthlyTrendChart.dispose()
+  monthlyTrendChart = echarts.init(monthlyTrendRef.value)
+  const months = data.map(d => d.month)
+  const counts = data.map(d => d.count)
+  monthlyTrendChart.setOption({
+    tooltip: { trigger: 'axis', formatter: '{b}<br/>咨询: {c}次' },
+    grid: { left: 45, right: 20, top: 20, bottom: 35 },
+    xAxis: {
+      type: 'category',
+      data: months,
+      axisLabel: { color: '#5A6B80', fontSize: 11, rotate: months.length > 6 ? 30 : 0 },
+      axisLine: { lineStyle: { color: '#C8D6E5' } },
+      axisTick: { show: false }
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLabel: { color: '#5A6B80', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#E8EFF7', type: 'dashed' } },
+      axisLine: { show: false },
+      axisTick: { show: false }
+    },
+    series: [{
+      type: 'line',
+      data: counts,
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 7,
+      lineStyle: { color: '#7BCFCB', width: 2.5 },
+      itemStyle: { color: '#7BCFCB', borderColor: '#fff', borderWidth: 2 },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(123,207,203,0.35)' },
+          { offset: 1, color: 'rgba(123,207,203,0.05)' }
+        ])
+      }
+    }]
+  })
+}
+
+// 初始化情绪标签分布柱状图
+const initEmotionTags = (data) => {
+  if (!emotionTagsRef.value) return
+  if (emotionTagsChart) emotionTagsChart.dispose()
+  emotionTagsChart = echarts.init(emotionTagsRef.value)
+  const tags = data.map(d => d.tag)
+  const counts = data.map(d => d.count)
+  emotionTagsChart.setOption({
+    tooltip: { trigger: 'axis', formatter: '{b}<br/>出现频次: {c}' },
+    grid: { left: 50, right: 20, top: 20, bottom: 35 },
+    xAxis: {
+      type: 'category',
+      data: tags,
+      axisLabel: { color: '#5A6B80', fontSize: 11, rotate: tags.length > 5 ? 25 : 0 },
+      axisLine: { lineStyle: { color: '#C8D6E5' } },
+      axisTick: { show: false }
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLabel: { color: '#5A6B80', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#E8EFF7', type: 'dashed' } },
+      axisLine: { show: false },
+      axisTick: { show: false }
+    },
+    series: [{
+      type: 'bar',
+      data: counts.map((val, idx) => ({
+        value: val,
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
+            { offset: 0, color: '#8FA9E5' },
+            { offset: 1, color: chartColors[idx % chartColors.length] }
+          ]),
+          borderRadius: [6, 6, 0, 0]
+        }
+      })),
+      barWidth: 28,
+      emphasis: {
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
+            { offset: 0, color: '#5B92E5' },
+            { offset: 1, color: '#4FC3B8' }
+          ])
+        }
+      },
+      label: { show: true, position: 'top', color: '#5A6B80', fontSize: 11 }
+    }]
+  })
+}
+
+// 加载图表数据
+const loadChartData = async () => {
+  try {
+    const res = await http.get('/psychology/chart-data')
+    const data = res?.data || res || {}
+    if (data.level_distribution?.length) initLevelDist(data.level_distribution)
+    else initLevelDist(levels.map(l => ({ level: l, count: 0 })))
+    if (data.monthly_trend?.length) initMonthlyTrend(data.monthly_trend)
+    else initMonthlyTrend([])
+    if (data.emotion_tags_distribution?.length) initEmotionTags(data.emotion_tags_distribution)
+    else initEmotionTags([])
+    if (data.top_students?.length) topStudents.value = data.top_students.slice(0, 5)
+    else topStudents.value = []
+  } catch (e) {
+    console.warn('心理图表数据加载失败，使用本地统计', e)
+    // 降级：使用本地统计
+    const localLevelDist = levels.map(l => ({
+      level: l,
+      count: list.value.filter(r => r.attention_level === l).length
+    }))
+    initLevelDist(localLevelDist)
+    initMonthlyTrend([])
+    initEmotionTags([])
+    topStudents.value = []
+  }
+}
+
+// 窗口 resize 处理
+const handleResize = () => {
+  levelDistChart?.resize()
+  monthlyTrendChart?.resize()
+  emotionTagsChart?.resize()
+}
 
 // v3j-B-b03 · 排序 + 搜索 + 多选
 const sortBy = ref('assessment_date')
@@ -174,11 +398,11 @@ const lvTag = (l) => {
 
 // v3j-D · 心理关注等级马卡龙化（对齐 ClassPsychology）
 const lvTagStyle = (l) => {
-  if (!l) return { background: '#F0F2F5', color: '#909399', border: 'none' }  // 无档案 → 灰
+  if (!l) return { background: '#F0F2F5', color: '#909399', border: 'none' }
   if (l.includes('一')) return { background: '#FF9AA2', color: '#7A2E36', border: 'none', fontWeight: 600 }
   if (l.includes('二')) return { background: '#FFDAC1', color: '#8A4E1F', border: 'none', fontWeight: 600 }
   if (l.includes('三')) return { background: '#B5EAD7', color: '#1F5A46', border: 'none', fontWeight: 600 }
-  if (l.includes('普通')) return { background: '#C7CEEA', color: '#3B4B7A', border: 'none', fontWeight: 600 }  // 普通 → 紫
+  if (l.includes('普通')) return { background: '#C7CEEA', color: '#3B4B7A', border: 'none', fontWeight: 600 }
   return { background: '#F0F2F5', color: '#909399', border: 'none' }
 }
 
@@ -304,11 +528,121 @@ const onDelete = async (row) => {
 }
 
 watch(() => studentStore.refreshBumper, reload)
-onMounted(() => { reload(); loadReminders() })
+onMounted(() => {
+  reload()
+  loadReminders()
+  loadChartData()
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  levelDistChart?.dispose()
+  monthlyTrendChart?.dispose()
+  emotionTagsChart?.dispose()
+  levelDistChart = null
+  monthlyTrendChart = null
+  emotionTagsChart = null
+})
 </script>
 
 <style scoped>
 .module-page { padding: 4px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
+
+/* 图表区域样式 */
+.chart-row { margin-bottom: 16px; }
+.chart-card {
+  background: #ECF1F7;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
+  transition: box-shadow 0.2s;
+}
+.chart-card:hover {
+  box-shadow: 0 4px 12px rgba(91, 146, 229, 0.15);
+}
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3A4F6B;
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+.chart-container {
+  width: 100%;
+  height: 300px;
+}
+
+/* TOP关注学生卡片样式 */
+.top-students-section {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #ECF1F7;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
+}
+.top-student-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #F5F8FC;
+  border-radius: 10px;
+  border: 1px solid #DDE5F0;
+  transition: all 0.2s;
+}
+.top-student-card:hover {
+  background: #EDF2FA;
+  border-color: #B8CCE8;
+  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.12);
+}
+.top-student-rank {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.top-student-info {
+  flex: 1;
+  min-width: 0;
+}
+.top-student-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3A4F6B;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.top-student-no {
+  font-size: 12px;
+  color: #8A9BB5;
+  margin-top: 2px;
+}
+.top-student-count {
+  text-align: center;
+  flex-shrink: 0;
+}
+.count-number {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  color: #5B92E5;
+  line-height: 1.1;
+}
+.count-label {
+  display: block;
+  font-size: 11px;
+  color: #8A9BB5;
+  margin-top: 2px;
+}
 </style>
