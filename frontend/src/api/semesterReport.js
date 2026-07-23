@@ -10,14 +10,14 @@ export default {
   academics(semester) {
     return semester ? request.get('/semester-report/academics', { params: { semester } }) : request.get('/semester-report/academics')
   },
-  partyDevelopment() {
-    return request.get('/semester-report/party-development')
+  partyDevelopment(semester) {
+    return semester ? request.get('/semester-report/party-development', { params: { semester } }) : request.get('/semester-report/party-development')
   },
-  employment() {
-    return request.get('/semester-report/employment')
+  employment(semester) {
+    return semester ? request.get('/semester-report/employment', { params: { semester } }) : request.get('/semester-report/employment')
   },
-  activities() {
-    return request.get('/semester-report/activities')
+  activities(semester) {
+    return semester ? request.get('/semester-report/activities', { params: { semester } }) : request.get('/semester-report/activities')
   },
   export(semester) {
     return semester ? request.get('/semester-report/export', { params: { semester }, responseType: 'blob' }) : request.get('/semester-report/export', { responseType: 'blob' })
@@ -25,7 +25,6 @@ export default {
   compare(semester) {
     return semester ? request.get('/semester-report/compare', { params: { semester } }) : request.get('/semester-report/compare')
   },
-  // 新增 API
   attendance(semester) {
     return semester ? request.get('/semester-report/attendance', { params: { semester } }) : request.get('/semester-report/attendance')
   },
