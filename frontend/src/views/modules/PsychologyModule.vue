@@ -57,6 +57,16 @@
       有 {{ reminders.length }} 条心理关注提醒需要处理
     </el-alert>
 
+    <!-- 统计卡片 -->
+    <el-row :gutter="16" style="margin-bottom: 12px">
+      <el-col :span="5" v-for="s in psyStats" :key="s.label">
+        <el-card shadow="hover" class="stat-card">
+          <div class="stat-label">{{ s.label }}</div>
+          <div class="stat-value" :style="{ color: s.color }">{{ s.count }}</div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <!-- 统计图表区域 -->
     <el-row :gutter="16" class="chart-row">
       <el-col :xs="24" :sm="12" :lg="8">
@@ -78,26 +88,6 @@
         </div>
       </el-col>
     </el-row>
-
-    <!-- TOP关注学生卡片 -->
-    <div class="top-students-section" v-if="topStudents.length">
-      <div class="chart-title" style="margin-bottom: 12px;">TOP关注学生</div>
-      <el-row :gutter="16">
-        <el-col :xs="24" :sm="12" :lg="8" v-for="(stu, idx) in topStudents" :key="stu.student_no" style="margin-bottom: 12px;">
-          <div class="top-student-card">
-            <div class="top-student-rank" :style="{ background: rankColors[idx] || '#8FA9E5' }">{{ idx + 1 }}</div>
-            <div class="top-student-info">
-              <div class="top-student-name">{{ stu.student_name }}</div>
-              <div class="top-student-no">{{ stu.student_no }}</div>
-            </div>
-            <div class="top-student-count">
-              <span class="count-number">{{ stu.count }}</span>
-              <span class="count-label">次咨询</span>
-            </div>
-          </div>
-        </el-col>
-      </el-row>
-    </div>
 
     <el-card shadow="never">
       <el-table
@@ -214,7 +204,7 @@ const filter = reactive({ student_id: null, attention_level: '', kw: '', reminde
 
 // 冰蓝薄荷色系
 const chartColors = ['#5B92E5', '#7BCFCB', '#4FC3B8', '#8FA9E5', '#A8D5E2', '#6BB5C9', '#95B8D1']
-const rankColors = ['#5B92E5', '#7BCFCB', '#4FC3B8', '#8FA9E5', '#A8D5E2']
+
 
 // 图表容器引用
 const levelDistRef = ref(null)
@@ -227,7 +217,6 @@ let monthlyTrendChart = null
 let emotionTagsChart = null
 
 // TOP关注学生数据
-const topStudents = ref([])
 
 // 初始化关注等级分布环形图
 const initLevelDist = (data) => {
@@ -369,8 +358,6 @@ const loadChartData = async () => {
     else initMonthlyTrend([])
     if (data.emotion_tags_distribution?.length) initEmotionTags(data.emotion_tags_distribution)
     else initEmotionTags([])
-    if (data.top_students?.length) topStudents.value = data.top_students.slice(0, 5)
-    else topStudents.value = []
   } catch (e) {
     console.warn('心理图表数据加载失败，使用本地统计', e)
     // 降级：使用本地统计
@@ -381,7 +368,6 @@ const loadChartData = async () => {
     initLevelDist(localLevelDist)
     initMonthlyTrend([])
     initEmotionTags([])
-    topStudents.value = []
   }
 }
 
@@ -484,6 +470,18 @@ const filteredList = computed(() => {
     })
   }
   return rs
+})
+
+// 统计卡片
+const psyStats = computed(() => {
+  const data = filteredList.value
+  return [
+    { label: '总记录数', count: data.length, color: '#2C3E50' },
+    { label: '一级关注', count: data.filter(r => r.attention_level === '一级关注').length, color: '#E74C3C' },
+    { label: '二级关注', count: data.filter(r => r.attention_level === '二级关注').length, color: '#F39C12' },
+    { label: '三级关注', count: data.filter(r => r.attention_level === '三级关注').length, color: '#3498DB' },
+    { label: '普通', count: data.filter(r => r.attention_level === '普通').length, color: '#2ECC71' },
+  ]
 })
 
 const total = computed(() => filteredList.value.length)
@@ -630,12 +628,12 @@ onBeforeUnmount(() => {
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
 
 /* 图表区域样式 */
-.chart-row { margin-bottom: 16px; }
+.chart-row { margin-bottom: 12px; }
 .chart-card {
   background: #ECF1F7;
   border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
+  padding: 12px;
+  margin-bottom: 12px;
   box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
   transition: box-shadow 0.2s;
 }
@@ -649,80 +647,14 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
   padding-left: 4px;
 }
+.stat-card { border-radius: 12px; text-align: center; }
+.stat-card .stat-label { color: #909399; font-size: 13px; margin-bottom: 8px; }
+.stat-card .stat-value { font-size: 24px; font-weight: 600; }
 .chart-container {
   width: 100%;
-  height: 300px;
+  height: 220px;
 }
 
-/* TOP关注学生卡片样式 */
-.top-students-section {
-  margin-bottom: 16px;
-  padding: 16px;
-  background: #ECF1F7;
-  border-radius: 12px;
-  box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
-}
-.top-student-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: #F5F8FC;
-  border-radius: 10px;
-  border: 1px solid #DDE5F0;
-  transition: all 0.2s;
-}
-.top-student-card:hover {
-  background: #EDF2FA;
-  border-color: #B8CCE8;
-  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.12);
-}
-.top-student-rank {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-.top-student-info {
-  flex: 1;
-  min-width: 0;
-}
-.top-student-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #3A4F6B;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.top-student-no {
-  font-size: 12px;
-  color: #8A9BB5;
-  margin-top: 2px;
-}
-.top-student-count {
-  text-align: center;
-  flex-shrink: 0;
-}
-.count-number {
-  display: block;
-  font-size: 22px;
-  font-weight: 700;
-  color: #5B92E5;
-  line-height: 1.1;
-}
-.count-label {
-  display: block;
-  font-size: 11px;
-  color: #8A9BB5;
-  margin-top: 2px;
-}
 .pagination-wrap {
   margin-top: 16px;
   display: flex;

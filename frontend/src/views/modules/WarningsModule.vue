@@ -256,6 +256,7 @@ const renderCharts = () => {
   if (levelPieRef.value) {
     if (levelPieChart) levelPieChart.dispose()
     levelPieChart = echarts.init(levelPieRef.value)
+    // 使用 filteredRows 数据（已含学期等筛选）
     const data = [
       { name: '一级(红)', value: stats.value.red, itemStyle: { color: '#F56C6C' } },
       { name: '二级(黄)', value: stats.value.yellow, itemStyle: { color: '#E6A23C' } },
@@ -274,23 +275,28 @@ const renderCharts = () => {
       }]
     })
   }
-  // 学期预警趋势折线图
+  // 学期预警趋势折线图（含补零）
   if (trendLineRef.value) {
     if (trendLineChart) trendLineChart.dispose()
     trendLineChart = echarts.init(trendLineRef.value)
+    // 从全部数据中提取所有学期列表
+    const allSemSet = new Set()
+    list.value.forEach(r => { if (r.semester) allSemSet.add(r.semester) })
+    semesters.value.forEach(s => allSemSet.add(s))
+    const allSemList = [...allSemSet].filter(Boolean).sort()
+    // 统计各学期预警数
     const semMap = {}
     list.value.forEach(r => {
       const sem = r.semester || '未知'
       semMap[sem] = (semMap[sem] || 0) + 1
     })
-    const semesters = Object.keys(semMap).sort()
-    const counts = semesters.map(s => semMap[s])
+    const counts = allSemList.map(s => semMap[s] || 0)
     trendLineChart.setOption({
       tooltip: { trigger: 'axis', formatter: '{b}<br/>预警数: {c}' },
       grid: { left: 45, right: 20, top: 20, bottom: 35 },
       xAxis: {
-        type: 'category', data: semesters,
-        axisLabel: { color: '#5A6B80', fontSize: 11, rotate: semesters.length > 4 ? 30 : 0 },
+        type: 'category', data: allSemList,
+        axisLabel: { color: '#5A6B80', fontSize: 11, rotate: allSemList.length > 4 ? 30 : 0 },
         axisLine: { lineStyle: { color: '#C8D6E5' } }, axisTick: { show: false }
       },
       yAxis: {
@@ -318,7 +324,7 @@ const renderCharts = () => {
     if (classBarChart) classBarChart.dispose()
     classBarChart = echarts.init(classBarRef.value)
     const classMap = {}
-    list.value.forEach(r => {
+    filteredRows.value.forEach(r => {
       const cls = r.class_name || '未知'
       classMap[cls] = (classMap[cls] || 0) + 1
     })
@@ -525,12 +531,12 @@ onBeforeUnmount(() => {
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
 
 /* 图表区域 */
-.chart-row { margin-bottom: 16px; }
+.chart-row { margin-bottom: 12px; }
 .chart-card {
   background: #ECF1F7;
   border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
+  padding: 12px;
+  margin-bottom: 12px;
   box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
 }
 .chart-title {
@@ -542,7 +548,7 @@ onBeforeUnmount(() => {
 }
 .chart-container {
   width: 100%;
-  height: 300px;
+  height: 220px;
 }
 .pagination-wrap {
   margin-top: 16px;

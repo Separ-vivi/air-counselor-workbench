@@ -15,7 +15,7 @@
         </div>
         <div class="stat-info">
           <div class="stat-label">{{ card.label }}</div>
-          <div class="stat-value">{{ summary[card.key] || 0 }}</div>
+          <div class="stat-value">{{ filteredSummary[card.key] || 0 }}</div>
         </div>
       </div>
     </div>
@@ -68,7 +68,7 @@
                   </el-select>
                 </el-form-item>
                 <el-form-item>
-                  <el-select v-model="filterYear" placeholder="学年" clearable style="width: 160px" @change="loadList">
+                  <el-select v-model="filterYear" placeholder="学年" clearable style="width: 160px" @change="onYearChange">
                     <el-option v-for="y in semesters" :key="y" :label="y" :value="y" />
                   </el-select>
                 </el-form-item>
@@ -187,6 +187,22 @@ const statCards = [
   { key: 'honor_count', label: '评优评先', icon: Medal, gradient: 'linear-gradient(135deg,#7BCFCB,#8FA9E5)' },
 ]
 
+// 按学年筛选后的统计值
+const filteredSummary = computed(() => {
+  if (!filterYear.value) return summary.value
+  // 从列表数据中按学年重新计算统计
+  const data = listData.value
+  const s = { ...summary.value }
+  const counts = { hardship_count: 0, grant_count: 0, scholarship_count: 0, loan_count: 0, work_study_count: 0, honor_count: 0 }
+  data.forEach(r => {
+    if (r.academic_year === filterYear.value) {
+      const key = r.aid_type + '_count'
+      if (counts[key] !== undefined) counts[key]++
+    }
+  })
+  return { ...s, ...counts }
+})
+
 // 图表 ref
 const hardshipPieRef = ref(null)
 const grantBarRef = ref(null)
@@ -219,6 +235,11 @@ const loadChartData = async () => {
     chartData.value = res || {}
     topRecipients.value = res.top_recipients || []
   } catch (e) { console.error('加载图表数据失败:', e) }
+}
+
+const onYearChange = () => {
+  loadList()
+  loadSummary()
 }
 
 const loadList = async () => {
@@ -413,7 +434,7 @@ onBeforeUnmount(() => {
 .chart-card { border-radius: 12px; }
 .chart-card :deep(.el-card__header) { padding: 12px 18px; border-bottom: 1px solid #ECF1F7; }
 .chart-title { font-size: 14px; font-weight: 600; color: #2C3E50; }
-.chart-box { height: 300px; }
+.chart-box { height: 220px; }
 
 /* 底部布局 */
 .bottom-layout { display: flex; gap: 16px; }

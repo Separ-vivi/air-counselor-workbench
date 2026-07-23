@@ -60,24 +60,19 @@
 
     <!-- 统计图表区域 -->
     <el-row :gutter="16" class="chart-row">
-      <el-col :xs="24" :sm="12" :lg="8">
+      <el-col :xs="24" :sm="12" :lg="12">
         <div class="chart-card">
           <div class="chart-title">发展阶段分布</div>
           <div ref="stagePieRef" class="chart-container"></div>
         </div>
       </el-col>
-      <el-col :xs="24" :sm="12" :lg="8">
+      <el-col :xs="24" :sm="12" :lg="12">
         <div class="chart-card">
           <div class="chart-title">月度发展趋势</div>
           <div ref="monthlyTrendRef" class="chart-container"></div>
         </div>
       </el-col>
-      <el-col :xs="24" :sm="12" :lg="8">
-        <div class="chart-card">
-          <div class="chart-title">TOP发展记录最多</div>
-          <div ref="topStudentsRef" class="chart-container"></div>
-        </div>
-      </el-col>
+
     </el-row>
 
     <el-card shadow="never">
@@ -203,26 +198,9 @@ const semesterList = computed(() => {
   return [...s].filter(Boolean).sort().reverse()
 })
 
-// 前端分页 + 筛选
+// 前端分页
 const pagedList = computed(() => {
-  let data = list.value
-  if (filter.semester) {
-    data = data.filter(r => {
-      if (r.semester) return r.semester === filter.semester
-      if (r.stage_date) {
-        const d = new Date(r.stage_date)
-        const y = d.getFullYear()
-        const m = d.getMonth() + 1
-        const ay = m >= 9 ? y : y - 1
-        const sem = `${ay}-${ay + 1}-${m >= 2 && m < 9 ? 2 : 1}`
-        return sem === filter.semester
-      }
-      return false
-    })
-  }
-  if (filter.dateRange && filter.dateRange.length === 2) {
-    data = data.filter(r => r.stage_date && r.stage_date >= filter.dateRange[0] && r.stage_date <= filter.dateRange[1])
-  }
+  const data = filteredList.value
   total.value = data.length
   const start = (currentPage.value - 1) * pageSize.value
   return data.slice(start, start + pageSize.value)
@@ -245,12 +223,10 @@ const chartColors = ['#5B92E5', '#7BCFCB', '#4FC3B8', '#8FA9E5', '#A8D5E2', '#6B
 // 图表容器引用
 const stagePieRef = ref(null)
 const monthlyTrendRef = ref(null)
-const topStudentsRef = ref(null)
 
 // 图表实例
 let stagePieChart = null
 let monthlyTrendChart = null
-let topStudentsChart = null
 
 // 初始化阶段分布饼图
 const initStagePie = (data) => {
@@ -330,54 +306,6 @@ const initMonthlyTrend = (data) => {
   })
 }
 
-// 初始化TOP学生柱状图
-const initTopStudents = (data) => {
-  if (!topStudentsRef.value) return
-  if (topStudentsChart) topStudentsChart.dispose()
-  topStudentsChart = echarts.init(topStudentsRef.value)
-  const names = data.map(d => d.student_name)
-  const counts = data.map(d => d.count)
-  topStudentsChart.setOption({
-    tooltip: { trigger: 'axis', formatter: '{b}<br/>记录次数: {c}' },
-    grid: { left: 70, right: 20, top: 20, bottom: 35 },
-    xAxis: {
-      type: 'value',
-      minInterval: 1,
-      axisLabel: { color: '#5A6B80', fontSize: 11 },
-      splitLine: { lineStyle: { color: '#E8EFF7', type: 'dashed' } },
-      axisLine: { show: false },
-      axisTick: { show: false }
-    },
-    yAxis: {
-      type: 'category',
-      data: names.reverse(),
-      axisLabel: { color: '#5A6B80', fontSize: 12 },
-      axisLine: { lineStyle: { color: '#C8D6E5' } },
-      axisTick: { show: false }
-    },
-    series: [{
-      type: 'bar',
-      data: counts.reverse(),
-      barWidth: 18,
-      itemStyle: {
-        borderRadius: [0, 6, 6, 0],
-        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-          { offset: 0, color: '#7BCFCB' },
-          { offset: 1, color: '#4FC3B8' }
-        ])
-      },
-      emphasis: {
-        itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: '#5B92E5' },
-            { offset: 1, color: '#8FA9E5' }
-          ])
-        }
-      },
-      label: { show: true, position: 'right', color: '#5A6B80', fontSize: 11 }
-    }]
-  })
-}
 
 // 加载图表数据
 const loadChartData = async () => {
@@ -388,14 +316,12 @@ const loadChartData = async () => {
     else initStagePie(stages.map(s => ({ stage: s, count: 0 })))
     if (data.monthly_trend?.length) initMonthlyTrend(data.monthly_trend)
     else initMonthlyTrend([])
-    if (data.top_students?.length) initTopStudents(data.top_students)
-    else initTopStudents([])
+
   } catch (e) {
     console.warn('党团图表数据加载失败，使用本地统计', e)
     // 降级：使用本地 stageStats 数据
     initStagePie(stages.map(s => ({ stage: s, count: list.value.filter(r => r.stage === s).length })))
     initMonthlyTrend([])
-    initTopStudents([])
   }
 }
 
@@ -403,7 +329,6 @@ const loadChartData = async () => {
 const handleResize = () => {
   stagePieChart?.resize()
   monthlyTrendChart?.resize()
-  topStudentsChart?.resize()
 }
 
 // v3j-B-b03 · 排序 + 搜索 + 多选
@@ -426,8 +351,30 @@ const stageTag = (s) => {
   const m = { '递交入党申请书': 'info', '入党积极分子': 'primary', '发展对象': 'warning', '中共预备党员': 'danger', '中共党员': 'success' }
   return m[s] || ''
 }
+const filteredList = computed(() => {
+  let data = list.value
+  if (filter.semester) {
+    data = data.filter(r => {
+      if (r.semester) return r.semester === filter.semester
+      if (r.stage_date) {
+        const d = new Date(r.stage_date)
+        const y = d.getFullYear()
+        const m = d.getMonth() + 1
+        const ay = m >= 9 ? y : y - 1
+        const sem = `${ay}-${ay + 1}-${m >= 2 && m < 9 ? 2 : 1}`
+        return sem === filter.semester
+      }
+      return false
+    })
+  }
+  if (filter.dateRange && filter.dateRange.length === 2) {
+    data = data.filter(r => r.stage_date && r.stage_date >= filter.dateRange[0] && r.stage_date <= filter.dateRange[1])
+  }
+  return data
+})
+
 const stageStats = computed(() =>
-  stages.map((s) => ({ stage: s, count: list.value.filter((r) => r.stage === s).length, color: stageColor[s] }))
+  stages.map((s) => ({ stage: s, count: filteredList.value.filter((r) => r.stage === s).length, color: stageColor[s] }))
 )
 
 const buildParams = () => {
@@ -526,10 +473,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
   stagePieChart?.dispose()
   monthlyTrendChart?.dispose()
-  topStudentsChart?.dispose()
   stagePieChart = null
   monthlyTrendChart = null
-  topStudentsChart = null
 })
 </script>
 
@@ -542,12 +487,12 @@ onBeforeUnmount(() => {
 .stat-value { font-size: 24px; font-weight: 600; }
 
 /* 图表区域样式 */
-.chart-row { margin-bottom: 16px; }
+.chart-row { margin-bottom: 12px; }
 .chart-card {
   background: #ECF1F7;
   border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
+  padding: 12px;
+  margin-bottom: 12px;
   box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
   transition: box-shadow 0.2s;
 }
@@ -563,7 +508,7 @@ onBeforeUnmount(() => {
 }
 .chart-container {
   width: 100%;
-  height: 300px;
+  height: 220px;
 }
 .pagination-wrap {
   margin-top: 16px;

@@ -79,7 +79,7 @@
           <div class="card-value" style="color:#E74C3C">{{ summaryData?.discipline_count || 0 }}</div>
         </div>
         <div class="summary-card">
-          <div class="card-title">党员人数</div>
+          <div class="card-title">累计党员人数</div>
           <div class="card-value" style="color:#C0392B">{{ summaryData?.party_member_count || 0 }}</div>
         </div>
       </div>
@@ -97,6 +97,16 @@
               <span v-else>→</span>
               {{ formatDiff(key, item?.diff) }} ({{ item?.change_pct || 0 }}%)
             </div>
+          </div>
+        </div>
+        <!-- 党员人数变化 -->
+        <div class="comparison-card" v-if="summaryData?.party_member_count != null">
+          <div class="metric-label">党员人数变化</div>
+          <div class="metric-current">{{ summaryData.party_member_count }}</div>
+          <div :class="['metric-change', (comparisonData?.party_member_diff || 0) > 0 ? 'up' : (comparisonData?.party_member_diff || 0) < 0 ? 'down' : '']">
+            <span v-if="(comparisonData?.party_member_diff || 0) > 0">↑ +{{ comparisonData.party_member_diff }}</span>
+            <span v-else-if="(comparisonData?.party_member_diff || 0) < 0">↓ {{ comparisonData.party_member_diff }}</span>
+            <span v-else>→ 0</span>
           </div>
         </div>
       </div>
@@ -233,22 +243,9 @@
           <div v-else class="chart-empty">暂无数据</div>
         </div>
         <div class="chart-card">
-          <h3>访谈统计</h3>
+          <h3>访谈统计 <span style="font-size:12px;color:#7F8C8D;font-weight:400;margin-left:8px;">覆盖率 {{ interviewsData?.coverage_rate || 0 }}% | {{ interviewsData?.covered_student_count || 0 }}/{{ interviewsData?.total_student_count || 0 }}人</span></h3>
           <div v-if="interviewsData?.by_type && Object.keys(interviewsData.by_type).length" ref="interviewChart" class="chart-container"></div>
           <div v-else class="chart-empty">暂无数据</div>
-        </div>
-        <div class="chart-card">
-          <h3>访谈覆盖率</h3>
-          <div class="stat-cards">
-            <div class="stat-item">
-              <div class="stat-label">覆盖率</div>
-              <div class="stat-value" style="color:#5B92E5">{{ interviewsData?.coverage_rate || 0 }}%</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-label">被访谈/总学生</div>
-              <div class="stat-value" style="color:#2C3E50; font-size:20px;">{{ interviewsData?.covered_student_count || 0 }} / {{ interviewsData?.total_student_count || 0 }}</div>
-            </div>
-          </div>
         </div>
       </div>
     </template>
@@ -338,6 +335,7 @@ const getMetricLabel = (key) => {
     honor_count: '荣誉人次',
     interview_count: '访谈次数',
     interview_coverage: '访谈覆盖率',
+    party_member_diff: '党员人数变化',
   }
   return labels[key] || key
 }
@@ -347,6 +345,7 @@ const formatMetric = (key, value) => {
   if (key === 'avg_score') return value.toFixed(2) + ' 分'
   if (key === 'fail_rate') return value.toFixed(2) + '%'
   if (key === 'interview_coverage') return value.toFixed(1) + '%'
+  if (key === 'party_member_diff') return value + ' 人'
   return value
 }
 
@@ -355,6 +354,7 @@ const formatDiff = (key, diff) => {
   if (key === 'avg_score') return (diff > 0 ? '+' : '') + diff.toFixed(2) + ' 分'
   if (key === 'fail_rate') return (diff > 0 ? '+' : '') + diff.toFixed(2) + '%'
   if (key === 'interview_coverage') return (diff > 0 ? '+' : '') + diff.toFixed(1) + '%'
+  if (key === 'party_member_diff') return (diff > 0 ? '+' : '') + diff + ' 人'
   return (diff > 0 ? '+' : '') + diff
 }
 
@@ -814,14 +814,14 @@ onBeforeUnmount(() => {
 .charts-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
+  gap: 14px;
+  margin-bottom: 14px;
 }
 
 .chart-card {
   background: #fff;
   border-radius: 12px;
-  padding: 20px;
+  padding: 14px 16px;
   box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08);
 }
 
@@ -832,11 +832,11 @@ onBeforeUnmount(() => {
 }
 
 .chart-container {
-  height: 280px;
+  height: 220px;
 }
 
 .chart-empty {
-  height: 280px;
+  height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -846,7 +846,7 @@ onBeforeUnmount(() => {
 
 /* 统计卡片（心理咨询） */
 .stat-cards {
-  height: 280px;
+  height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
