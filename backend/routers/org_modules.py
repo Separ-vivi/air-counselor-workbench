@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import Optional
 from database import get_db
+from routers.utils import semester_to_date_range
 from models import StudentCadreRecord, ClassTeacher, EmploymentRecord, Student, ClassModel
 
 router = APIRouter(prefix='/api')
@@ -56,13 +57,27 @@ def list_cadres(
     level: Optional[str] = Query(None),
     position: Optional[str] = Query(None),
     student_id: Optional[int] = Query(None),
+    semester: Optional[str] = Query(None, description='按学期筛选'),
     search: str = Query('', description='搜索学号/姓名/职务/组织'),
     sort_by: str = Query('position', description='排序字段'),
     order: str = Query('asc', description='asc/desc'),
     db: Session = Depends(get_db)
 ):
-    """学生干部列表 (v3j-B-b03 · 支持 search + sort_by + order + class_name 过滤)"""
+    """学生干部列表 (v3j-B-b03 · 支持 search + sort_by + order + class_name + semester)"""
     q = db.query(StudentCadreRecord).outerjoin(Student, StudentCadreRecord.student_id == Student.id)
+    if semester and semester != 'all':
+        _start, _end = semester_to_date_range(semester)
+        if _start and _end:
+            # 按任职日期范围筛选：任期内与学期有交集
+            q = q.filter(
+                # start_date <= semester_end AND (end_date >= semester_start OR end_date is null)
+                StudentCadreRecord.start_date <= _end,
+                or_(
+                    StudentCadreRecord.end_date >= _start,
+                    StudentCadreRecord.end_date == '',
+                    StudentCadreRecord.end_date.is_(None),
+                )
+            )
     # class_name 过滤：在数据库层通过 join ClassModel 实现，支持模糊匹配
     if class_name:
         q = q.outerjoin(ClassModel, Student.class_id == ClassModel.id).filter(

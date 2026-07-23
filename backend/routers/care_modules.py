@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from collections import Counter
 import json as _json
 from database import get_db
+from routers.utils import semester_to_date_range
 from models import PartyProgress, PsychologyRecord, FamilyContact, Student, ClassModel
 
 router = APIRouter(prefix='/api')
@@ -43,17 +44,11 @@ def list_party_progress(
     if class_id is not None:
         q = q.filter(Student.class_id == class_id)
     if semester and semester != 'all':
-        # 学期转日期范围
-        parts = semester.split('-')
-        if len(parts) == 3:
-            y1, y2, term = parts[0], parts[1], parts[2]
-            if term == '1':
-                start, end = f"{y1}-09-01", f"{y2}-01-31"
-            else:
-                start, end = f"{y1}-09-01", f"{y2}-07-31"
+        _start, _end = semester_to_date_range(semester)
+        if _start and _end:
             q = q.filter(
-                PartyProgress.stage_date >= start,
-                PartyProgress.stage_date <= end
+                PartyProgress.stage_date >= _start,
+                PartyProgress.stage_date <= _end
             )
     if search:
         pattern = f"%{search.strip()}%"
@@ -364,67 +359,69 @@ def export_party_progress(
 # ===== 党团发展 统计图表 =====
 @router.get('/party-progress/chart-data')
 def party_progress_chart_data(semester: Optional[str] = Query(None, description='按学期筛选'), db: Session = Depends(get_db)):
-    """党团发展统计图表数据（支持学期筛选）"""
-    # 构建学期日期范围过滤
-    stage_date_filter = []
-    if semester and semester != 'all':
-        parts = semester.split('-')
-        if len(parts) == 3:
-            y1, y2, term = parts[0], parts[1], parts[2]
-            if term == '1':
-                start, end = f"{y1}-09-01", f"{y2}-01-31"
-            else:
-                start, end = f"{y1}-09-01", f"{y2}-07-31"
-            stage_date_filter = [
-                PartyProgress.stage_date >= start,
-                PartyProgress.stage_date <= end
-            ]
+    """党团发展统计图表数据（支持学期筛选）
+    - stage_distribution: 截止到该学期结束时每个学生的最新stage分布（累计）
+    - monthly_trend: 截止到该学期结束的所有月度趋势
+    """
+    # 构建学期日期范围
+    _start, _end = semester_to_date_range(semester) if semester and semester != 'all' else (None, None)
     
-    # 1. stage_distribution: GROUP BY stage, COUNT(*)
-    stage_q = db.query(PartyProgress.stage, func.count(PartyProgress.id))
-    if stage_date_filter:
-        stage_q = stage_q.filter(*stage_date_filter)
-    stage_rows = stage_q.group_by(PartyProgress.stage).all()
+    # 1. stage_distribution: 截止到学期结束日期，每个学生的最新stage分布（累计）
+    if _end:
+        # 截止到学期结束日期的最新stage
+        subq = (
+            db.query(
+                PartyProgress.student_id,
+                func.max(PartyProgress.id).label('max_id')
+            )
+            .filter(PartyProgress.stage_date <= _end)
+            .group_by(PartyProgress.student_id)
+            .subquery()
+        )
+        stage_rows = (
+            db.query(PartyProgress.stage, func.count(PartyProgress.student_id))
+            .join(subq, PartyProgress.id == subq.c.max_id)
+            .group_by(PartyProgress.stage)
+            .all()
+        )
+    else:
+        # 无学期筛选：所有记录的最新stage
+        subq = (
+            db.query(
+                PartyProgress.student_id,
+                func.max(PartyProgress.id).label('max_id')
+            )
+            .group_by(PartyProgress.student_id)
+            .subquery()
+        )
+        stage_rows = (
+            db.query(PartyProgress.stage, func.count(PartyProgress.student_id))
+            .join(subq, PartyProgress.id == subq.c.max_id)
+            .group_by(PartyProgress.stage)
+            .all()
+        )
     stage_distribution = [{'stage': s or '', 'count': c} for s, c in stage_rows]
 
-    # 2. monthly_trend: 按 stage_date 的 YYYY-MM 分组，最近12个月
+    # 2. monthly_trend: 截止到学期结束的月度趋势
     today = datetime.now()
     months = [(today - timedelta(days=30 * i)).strftime('%Y-%m') for i in range(11, -1, -1)]
-    # stage_date 是 String(20)，格式 YYYY-MM-DD，取前7位
     month_q = db.query(
         func.substr(PartyProgress.stage_date, 1, 7).label('month'),
         func.count(PartyProgress.id)
     ).filter(
         PartyProgress.stage_date != '', PartyProgress.stage_date.isnot(None)
     )
-    if stage_date_filter:
-        month_q = month_q.filter(*stage_date_filter)
+    if _end:
+        month_q = month_q.filter(PartyProgress.stage_date <= _end)
     month_rows = month_q.group_by(
         func.substr(PartyProgress.stage_date, 1, 7)
     ).all()
     month_map = {m: c for m, c in month_rows if m}
     monthly_trend = [{'month': m, 'count': month_map.get(m, 0)} for m in months]
 
-    # 3. top_students: 按 student_id 分组，取 TOP10
-    top_q = db.query(
-        PartyProgress.student_id, func.count(PartyProgress.id).label('cnt')
-    )
-    if stage_date_filter:
-        top_q = top_q.filter(*stage_date_filter)
-    top_rows = top_q.group_by(PartyProgress.student_id).order_by(func.count(PartyProgress.id).desc()).limit(10).all()
-    top_students = []
-    for sid, cnt in top_rows:
-        stu = db.get(Student, sid)
-        top_students.append({
-            'student_name': stu.name if stu else '',
-            'student_no': stu.student_no if stu else '',
-            'count': cnt,
-        })
-
     return {
         'stage_distribution': stage_distribution,
         'monthly_trend': monthly_trend,
-        'top_students': top_students,
     }
 
 
@@ -471,17 +468,25 @@ def _psy_normalize_input(data: dict) -> dict:
 def list_psychology(
     student_id: Optional[int] = Query(None),
     attention_level: Optional[str] = Query(None),
+    semester: Optional[str] = Query(None, description='按学期筛选'),
     search: str = Query('', description='搜索学号/姓名/主题/备注'),
     sort_by: str = Query('record_date', description='排序字段'),
     order: str = Query('desc', description='asc/desc'),
     db: Session = Depends(get_db)
 ):
-    """心理档案列表 (v3j-B-b03 · 支持 search + sort_by + order)"""
+    """心理档案列表 (v3j-B-b03 · 支持 search + sort_by + order + semester)"""
     q = db.query(PsychologyRecord).outerjoin(Student, PsychologyRecord.student_id == Student.id)
     if student_id:
         q = q.filter(PsychologyRecord.student_id == student_id)
     if attention_level:
         q = q.filter(PsychologyRecord.attention_level == attention_level)
+    if semester and semester != 'all':
+        _start, _end = semester_to_date_range(semester)
+        if _start and _end:
+            q = q.filter(
+                PsychologyRecord.record_date >= _start,
+                PsychologyRecord.record_date <= _end,
+            )
     if search:
         pattern = f"%{search.strip()}%"
         q = q.filter(
@@ -610,23 +615,38 @@ def psychology_reminders(db: Session = Depends(get_db)):
 
 # ===== 心理关怀 统计图表 =====
 @router.get('/psychology/chart-data')
-def psychology_chart_data(db: Session = Depends(get_db)):
-    """心理关怀统计图表数据"""
+def psychology_chart_data(semester: Optional[str] = Query(None, description='按学期筛选'), db: Session = Depends(get_db)):
+    """心理关怀统计图表数据（支持学期筛选）"""
+    # 构建学期日期范围过滤
+    _start, _end = semester_to_date_range(semester) if semester and semester != 'all' else (None, None)
+    date_filters = []
+    if _start and _end:
+        date_filters = [
+            PsychologyRecord.record_date >= _start,
+            PsychologyRecord.record_date <= _end,
+        ]
+    
     # 1. level_distribution: GROUP BY attention_level, COUNT(*)
-    level_rows = db.query(
+    level_q = db.query(
         PsychologyRecord.attention_level, func.count(PsychologyRecord.id)
-    ).group_by(PsychologyRecord.attention_level).all()
+    )
+    if date_filters:
+        level_q = level_q.filter(*date_filters)
+    level_rows = level_q.group_by(PsychologyRecord.attention_level).all()
     level_distribution = [{'level': lv or '', 'count': c} for lv, c in level_rows]
 
     # 2. monthly_trend: 按 record_date 的 YYYY-MM 分组，最近12个月
     today = datetime.now()
     months = [(today - timedelta(days=30 * i)).strftime('%Y-%m') for i in range(11, -1, -1)]
-    month_rows = db.query(
+    month_q = db.query(
         func.substr(PsychologyRecord.record_date, 1, 7).label('month'),
         func.count(PsychologyRecord.id)
     ).filter(
         PsychologyRecord.record_date != '', PsychologyRecord.record_date.isnot(None)
-    ).group_by(
+    )
+    if date_filters:
+        month_q = month_q.filter(*date_filters)
+    month_rows = month_q.group_by(
         func.substr(PsychologyRecord.record_date, 1, 7)
     ).all()
     month_map = {m: c for m, c in month_rows if m}
@@ -634,9 +654,12 @@ def psychology_chart_data(db: Session = Depends(get_db)):
 
     # 3. emotion_tags_distribution: 解析 JSON array 字符串，展平统计
     tag_counter = Counter()
-    all_tags_rows = db.query(PsychologyRecord.emotion_tags).filter(
+    tag_q = db.query(PsychologyRecord.emotion_tags).filter(
         PsychologyRecord.emotion_tags != '', PsychologyRecord.emotion_tags.isnot(None)
-    ).all()
+    )
+    if date_filters:
+        tag_q = tag_q.filter(*date_filters)
+    all_tags_rows = tag_q.all()
     for (tags_str,) in all_tags_rows:
         try:
             tags = _json.loads(tags_str)
@@ -646,24 +669,10 @@ def psychology_chart_data(db: Session = Depends(get_db)):
             pass
     emotion_tags_distribution = [{'tag': t, 'count': c} for t, c in tag_counter.most_common()]
 
-    # 4. top_students: 按 student_id 分组，取 TOP10
-    top_rows = db.query(
-        PsychologyRecord.student_id, func.count(PsychologyRecord.id).label('cnt')
-    ).group_by(PsychologyRecord.student_id).order_by(func.count(PsychologyRecord.id).desc()).limit(10).all()
-    top_students = []
-    for sid, cnt in top_rows:
-        stu = db.get(Student, sid)
-        top_students.append({
-            'student_name': stu.name if stu else '',
-            'student_no': stu.student_no if stu else '',
-            'count': cnt,
-        })
-
     return {
         'level_distribution': level_distribution,
         'monthly_trend': monthly_trend,
         'emotion_tags_distribution': emotion_tags_distribution,
-        'top_students': top_students,
     }
 
 

@@ -21,6 +21,8 @@ from models import (
     StudentAttendanceException, StudentInterview
 )
 
+from routers.utils import semester_to_date_range, get_prev_semester
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/api/semester-report', tags=['学期报表'])
@@ -66,7 +68,7 @@ def _semester_date_range(semester: str):
         if term == '1':
             return f"{y1}-09-01", f"{y2}-01-31"
         else:
-            return f"{y1}-09-01", f"{y2}-07-31"
+            return f"{y2}-02-01", f"{y2}-07-31"
     return None, None
 
 
@@ -257,7 +259,7 @@ def semester_summary(semester: str = Query(None), db: Session = Depends(get_db))
     except Exception as e:
         logger.warning(f"summary 荣誉人次异常: {e}")
 
-    # 党员人数（按学期过滤：取该学期内最新 stage，统计预备党员+正式党员）
+    # 党员人数（累计值：截止到该学期结束日期的最新 stage）
     try:
         _pp_subq = db.query(
             PartyProgress.student_id,
@@ -265,9 +267,9 @@ def semester_summary(semester: str = Query(None), db: Session = Depends(get_db))
         )
         if semester and semester != 'all':
             _pp_start, _pp_end = _semester_date_range(semester)
-            if _pp_start and _pp_end:
+            if _pp_end:
+                # 截止到学期结束日期的所有记录
                 _pp_subq = _pp_subq.filter(
-                    PartyProgress.stage_date >= _pp_start,
                     PartyProgress.stage_date <= _pp_end
                 )
         _pp_subq = _pp_subq.group_by(PartyProgress.student_id).subquery()
@@ -1704,7 +1706,49 @@ def semester_compare(semester: str = Query(None), db: Session = Depends(get_db))
         else:
             result['comparison'][metric] = None
 
+    # 党员人数变化（累计值差值）
+    try:
+        curr_party = _get_cumulative_party_member_count(db, semester)
+        prev_party = _get_cumulative_party_member_count(db, prev_semester)
+        diff = curr_party - prev_party
+        pct = (diff / prev_party * 100) if prev_party != 0 else 0
+        result['comparison']['party_member_change'] = {
+            'current': curr_party,
+            'previous': prev_party,
+            'diff': diff,
+            'change_pct': round(pct, 1)
+        }
+    except Exception as e:
+        logger.warning(f"party_member_change 异常: {e}")
+        result['comparison']['party_member_change'] = None
+
     return result
+
+
+
+def _get_cumulative_party_member_count(db, semester):
+    """获取截止到指定学期结束的累计党员数"""
+    from routers.utils import semester_to_date_range
+    try:
+        _subq = db.query(
+            PartyProgress.student_id,
+            func.max(PartyProgress.id).label('max_id')
+        )
+        if semester and semester != 'all':
+            _start, _end = semester_to_date_range(semester)
+            if _end:
+                _subq = _subq.filter(PartyProgress.stage_date <= _end)
+        _subq = _subq.group_by(PartyProgress.student_id).subquery()
+        count = (
+            db.query(func.count(PartyProgress.student_id))
+            .join(_subq, PartyProgress.id == _subq.c.max_id)
+            .filter(PartyProgress.stage.in_(['中共预备党员', '中共党员']))
+            .scalar() or 0
+        )
+        return count
+    except Exception as e:
+        logger.warning(f"累计党员数异常: {e}")
+        return 0
 
 
 def _get_semester_metric(db: Session, semester: str, metric: str):

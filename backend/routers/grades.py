@@ -9,6 +9,7 @@ import io
 from datetime import datetime
 from database import get_db
 from models import Student, GradeRecord, WarningRecord, Setting, ClassModel
+from routers.utils import semester_to_date_range
 from schemas import GradeOut
 
 router = APIRouter(prefix='/api/grades', tags=['学业管理'])
@@ -656,3 +657,70 @@ def batch_mark_warning_reminded(payload: dict = Body(...), db: Session = Depends
     )
     db.commit()
     return {'updated': updated, 'reminded': reminded}
+
+# ===== 预警趋势图表数据（含零填充）=====
+@router.get('/warnings/chart-data')
+def warning_chart_data(db: Session = Depends(get_db)):
+    """预警趋势图表数据：包含所有有记录的学期，即使某学期预警数为0也返回"""
+    # 获取所有有记录的学期（从成绩记录和预警记录中收集）
+    all_semesters = set()
+    try:
+        rows = db.query(GradeRecord.semester).distinct().all()
+        for r in rows:
+            if r[0]:
+                all_semesters.add(r[0])
+    except Exception:
+        pass
+    try:
+        rows = db.query(WarningRecord.semester).distinct().all()
+        for r in rows:
+            if r[0]:
+                all_semesters.add(r[0])
+    except Exception:
+        pass
+    
+    sorted_semesters = sorted(all_semesters)
+    
+    # 按学期统计预警数
+    semester_counts = {}
+    try:
+        rows = (
+            db.query(WarningRecord.semester, func.count(WarningRecord.id))
+            .group_by(WarningRecord.semester)
+            .all()
+        )
+        semester_counts = {s: c for s, c in rows if s}
+    except Exception:
+        pass
+    
+    # 按类型统计（每个学期）
+    semester_type_counts = {}
+    try:
+        rows = (
+            db.query(WarningRecord.semester, WarningRecord.warning_type, func.count(WarningRecord.id))
+            .group_by(WarningRecord.semester, WarningRecord.warning_type)
+            .all()
+        )
+        for sem, wtype, cnt in rows:
+            if sem:
+                if sem not in semester_type_counts:
+                    semester_type_counts[sem] = {}
+                semester_type_counts[sem][wtype or 'unknown'] = cnt
+    except Exception:
+        pass
+    
+    # 构建趋势数据（零填充）
+    trend = []
+    for sem in sorted_semesters:
+        type_data = semester_type_counts.get(sem, {})
+        trend.append({
+            'semester': sem,
+            'total': semester_counts.get(sem, 0),
+            'red': type_data.get('red', 0),
+            'yellow': type_data.get('yellow', 0),
+        })
+    
+    return {
+        'semesters': sorted_semesters,
+        'trend': trend,
+    }

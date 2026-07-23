@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import Optional
 from database import get_db
+from routers.utils import semester_to_date_range
 from models import Activity, ActivitySignup, PartyStudy, ClassMeeting, Student
 
 router = APIRouter(prefix='/api')
@@ -33,12 +34,20 @@ def _act_normalize_input(data: dict) -> dict:
 @router.get('/activities')
 def list_activities(
     search: str = Query('', description='搜索活动名/类型/组织者/地点'),
+    semester: Optional[str] = Query(None, description='按学期筛选'),
     sort_by: str = Query('activity_date', description='排序字段'),
     order: str = Query('desc', description='asc/desc'),
     db: Session = Depends(get_db)
 ):
-    """活动列表 (v3j-B-b02 · 支持 search + sort_by + order)"""
+    """活动列表 (v3j-B-b02 · 支持 search + sort_by + order + semester)"""
     query = db.query(Activity)
+    if semester and semester != 'all':
+        _start, _end = semester_to_date_range(semester)
+        if _start and _end:
+            query = query.filter(
+                Activity.activity_date >= _start,
+                Activity.activity_date <= _end,
+            )
     if search:
         pattern = f"%{search.strip()}%"
         query = query.filter(
