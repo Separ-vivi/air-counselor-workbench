@@ -251,10 +251,11 @@ def seed_large_dataset():
                 pos = cadre_positions[i] if i < len(cadre_positions) else '委员'
                 _level = ('校级' if pos in ('学生会主席','团委副书记') else ('团支部' if pos == '团支书' else ('院级' if pos in ('学习委员',) else '班级')))  # v3j-C c02-hotfix2: 团支书 level → 团支部
                 _org = {'学生会主席':'校学生会','团委副书记':'校团委','学习委员':'班委会','团支书':'团支部','班长':'班委会','副班长':'班委会'}.get(pos, '班委会')
-                _sdate = f'{2024+i%3}-09-01'
-                _edate = f'{2026+i%3}-08-31'
+                _cadre_terms = [('2024-09-01','2025-08-31','2024-2025'), ('2025-09-01','2026-07-31','2025-2026')]
+                _ct = _cadre_terms[i % len(_cadre_terms)]
+                _sdate, _edate, _term = _ct
                 _email = f'{stu.student_no or stu.id}@stu.example.edu'
-                db.add(StudentCadreRecord(student_id=stu.id, position=pos, term=f'{2024+i%3}-{2026+i%3}',
+                db.add(StudentCadreRecord(student_id=stu.id, position=pos, term=_term,
                     level=_level, organization=_org, start_date=_sdate, end_date=_edate, email=_email, notes=''))
                 stats['cadres'] += 1
         db.commit()
@@ -271,7 +272,7 @@ def seed_large_dataset():
             for i, stu in enumerate(picks):
                 pos = party_positions[i]
                 _sdate = '2025-09-01'
-                _edate = '2026-08-31'
+                _edate = '2026-07-31'
                 _email = f'{stu.student_no or stu.id}@stu.example.edu'
                 db.add(StudentCadreRecord(
                     student_id=stu.id, position=pos, term='2025-2026',
@@ -319,7 +320,7 @@ def seed_large_dataset():
         db.commit()
 
         # 成绩 + 预警
-        semesters = ['2024-2025-1', '2024-2025-2', '2025-2026-1', '2025-2026-2', '2026-2027-1']
+        semesters = ['2024-2025-1', '2024-2025-2', '2025-2026-1', '2025-2026-2']
         bulk_grades = []
         stats['warnings'] = 0
         for stu in all_students:
@@ -605,7 +606,7 @@ def seed_large_dataset():
         # 学籍异动
         stats['status_changes'] = 0
         for stu in random.sample(all_students, k=int(len(all_students)*0.03)):
-            db.add(StudentStatusChange(student_id=stu.id, change_type=random.choice(['休学','复学','转专业','参军']), start_date='2026-03-01', end_date='2025-09-01', reason='个人原因', original_info='原班级', target_info='新班级', attachment='', notes=''))
+            db.add(StudentStatusChange(student_id=stu.id, change_type=random.choice(['休学','复学','转专业','参军']), start_date='2025-09-01', end_date='2026-03-01', reason='个人原因', original_info='原班级', target_info='新班级', attachment='', notes=''))
             stats['status_changes'] += 1
         db.commit()
 
