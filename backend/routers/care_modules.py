@@ -572,45 +572,6 @@ def psychology_reminders(db: Session = Depends(get_db)):
     return result
 
 
-
-@router.get('/psychology/{record_id}')
-def get_psychology(record_id: int, db: Session = Depends(get_db)):
-    r = db.query(PsychologyRecord).get(record_id)
-    if not r:
-        raise HTTPException(404, '记录不存在')
-    return _psy_dict(r, db)
-
-
-@router.post('/psychology')
-def create_psychology(data: dict, db: Session = Depends(get_db)):
-    r = PsychologyRecord(**_psy_normalize_input(data))
-    db.add(r)
-    db.commit()
-    db.refresh(r)
-    return {'id': r.id}
-
-
-@router.put('/psychology/{rid}')
-def update_psychology(rid: int, data: dict, db: Session = Depends(get_db)):
-    r = db.query(PsychologyRecord).get(rid)
-    if not r:
-        raise HTTPException(404, '记录不存在')
-    for k, v in _psy_normalize_input(data).items():
-        if hasattr(r, k):
-            setattr(r, k, v)
-    db.commit()
-    return {'ok': True}
-
-
-@router.delete('/psychology/{rid}')
-def delete_psychology(rid: int, db: Session = Depends(get_db)):
-    r = db.query(PsychologyRecord).get(rid)
-    if r:
-        db.delete(r)
-        db.commit()
-    return {'ok': True}
-
-
 # ===== 心理关怀 统计图表 =====
 @router.get('/psychology/chart-data')
 def psychology_chart_data(db: Session = Depends(get_db)):
@@ -713,6 +674,46 @@ def _fam_normalize_input(data: dict) -> dict:
         d['parent_name'] = f"{rel}{d['parent_name']}"
     allowed = {'student_id','contact_date','parent_name','contact_method','topic','conclusion','attachment'}
     return {k: v for k, v in d.items() if k in allowed}
+
+
+@router.get('/psychology/{record_id}')
+def get_psychology(record_id: int, db: Session = Depends(get_db)):
+    r = db.query(PsychologyRecord).get(record_id)
+    if not r:
+        raise HTTPException(404, '记录不存在')
+    return _psy_dict(r, db)
+
+
+@router.post('/psychology')
+def create_psychology(data: dict, db: Session = Depends(get_db)):
+    r = PsychologyRecord(**_psy_normalize_input(data))
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return {'id': r.id}
+
+
+@router.put('/psychology/{rid}')
+def update_psychology(rid: int, data: dict, db: Session = Depends(get_db)):
+    r = db.query(PsychologyRecord).get(rid)
+    if not r:
+        raise HTTPException(404, '记录不存在')
+    for k, v in _psy_normalize_input(data).items():
+        if hasattr(r, k):
+            setattr(r, k, v)
+    db.commit()
+    return {'ok': True}
+
+
+@router.delete('/psychology/{rid}')
+def delete_psychology(rid: int, db: Session = Depends(get_db)):
+    r = db.query(PsychologyRecord).get(rid)
+    if r:
+        db.delete(r)
+        db.commit()
+    return {'ok': True}
+
+
 
 
 @router.get('/family-contacts')
