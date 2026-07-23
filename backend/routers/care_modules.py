@@ -29,11 +29,12 @@ def list_party_progress(
     student_id: Optional[int] = Query(None),
     stage: Optional[str] = Query(None),
     class_id: Optional[int] = Query(None, description='v3j-C c01 · 按班级筛选'),
+    semester: Optional[str] = Query(None, description='按学期筛选，格式如 2024-2025-1'),
     sort_by: str = Query('stage_date', description='排序字段'),
     order: str = Query('desc', description='asc/desc'),
     db: Session = Depends(get_db)
 ):
-    """党团发展列表 (v3j-B-b03 · 支持 search + sort_by + order；v3j-C c01 · 加 class_id)"""
+    """党团发展列表 (v3j-B-b03 · 支持 search + sort_by + order；v3j-C c01 · 加 class_id；支持学期筛选)"""
     q = db.query(PartyProgress, Student).join(Student, PartyProgress.student_id == Student.id)
     if student_id:
         q = q.filter(PartyProgress.student_id == student_id)
@@ -41,6 +42,19 @@ def list_party_progress(
         q = q.filter(PartyProgress.stage == stage)
     if class_id is not None:
         q = q.filter(Student.class_id == class_id)
+    if semester and semester != 'all':
+        # 学期转日期范围
+        parts = semester.split('-')
+        if len(parts) == 3:
+            y1, y2, term = parts[0], parts[1], parts[2]
+            if term == '1':
+                start, end = f"{y1}-09-01", f"{y2}-01-31"
+            else:
+                start, end = f"{y1}-09-01", f"{y2}-07-31"
+            q = q.filter(
+                PartyProgress.stage_date >= start,
+                PartyProgress.stage_date <= end
+            )
     if search:
         pattern = f"%{search.strip()}%"
         q = q.filter(
@@ -122,7 +136,7 @@ def create_party_progress(data: dict, db: Session = Depends(get_db)):
 
 @router.put('/party-progress/{pid}')
 def update_party_progress(pid: int, data: dict, db: Session = Depends(get_db)):
-    p = db.query(PartyProgress).get(pid)
+    p = db.get(PartyProgress, pid)
     if not p:
         raise HTTPException(404, '记录不存在')
     for k, v in data.items():
@@ -134,7 +148,7 @@ def update_party_progress(pid: int, data: dict, db: Session = Depends(get_db)):
 
 @router.delete('/party-progress/{pid}')
 def delete_party_progress(pid: int, db: Session = Depends(get_db)):
-    p = db.query(PartyProgress).get(pid)
+    p = db.get(PartyProgress, pid)
     if p:
         db.delete(p)
         db.commit()
@@ -191,7 +205,7 @@ def party_progress_overview(
 @router.get('/party-progress/detail/{student_id}')
 def party_progress_detail(student_id: int, db: Session = Depends(get_db)):
     """党团发展详情 - 时间线视图"""
-    student = db.query(Student).get(student_id)
+    student = db.get(Student, student_id)
     if not student:
         raise HTTPException(404, '学生不存在')
     
@@ -235,7 +249,7 @@ def party_progress_detail(student_id: int, db: Session = Depends(get_db)):
         timeline[current_stage_index]['is_current'] = True
     
     # 获取班级/专业名（Student 没有 class_name/major 字段，需通过 relationship）
-    cls_obj = db.query(ClassModel).get(student.class_id) if student.class_id else None
+    cls_obj = db.get(ClassModel, student.class_id) if student.class_id else None
     major_obj = cls_obj.major if cls_obj else None
     return {
         'student': {
@@ -349,36 +363,58 @@ def export_party_progress(
 
 # ===== 党团发展 统计图表 =====
 @router.get('/party-progress/chart-data')
-def party_progress_chart_data(db: Session = Depends(get_db)):
-    """党团发展统计图表数据"""
+def party_progress_chart_data(semester: Optional[str] = Query(None, description='按学期筛选'), db: Session = Depends(get_db)):
+    """党团发展统计图表数据（支持学期筛选）"""
+    # 构建学期日期范围过滤
+    stage_date_filter = []
+    if semester and semester != 'all':
+        parts = semester.split('-')
+        if len(parts) == 3:
+            y1, y2, term = parts[0], parts[1], parts[2]
+            if term == '1':
+                start, end = f"{y1}-09-01", f"{y2}-01-31"
+            else:
+                start, end = f"{y1}-09-01", f"{y2}-07-31"
+            stage_date_filter = [
+                PartyProgress.stage_date >= start,
+                PartyProgress.stage_date <= end
+            ]
+    
     # 1. stage_distribution: GROUP BY stage, COUNT(*)
-    stage_rows = db.query(
-        PartyProgress.stage, func.count(PartyProgress.id)
-    ).group_by(PartyProgress.stage).all()
+    stage_q = db.query(PartyProgress.stage, func.count(PartyProgress.id))
+    if stage_date_filter:
+        stage_q = stage_q.filter(*stage_date_filter)
+    stage_rows = stage_q.group_by(PartyProgress.stage).all()
     stage_distribution = [{'stage': s or '', 'count': c} for s, c in stage_rows]
 
     # 2. monthly_trend: 按 stage_date 的 YYYY-MM 分组，最近12个月
     today = datetime.now()
     months = [(today - timedelta(days=30 * i)).strftime('%Y-%m') for i in range(11, -1, -1)]
     # stage_date 是 String(20)，格式 YYYY-MM-DD，取前7位
-    month_rows = db.query(
+    month_q = db.query(
         func.substr(PartyProgress.stage_date, 1, 7).label('month'),
         func.count(PartyProgress.id)
     ).filter(
         PartyProgress.stage_date != '', PartyProgress.stage_date.isnot(None)
-    ).group_by(
+    )
+    if stage_date_filter:
+        month_q = month_q.filter(*stage_date_filter)
+    month_rows = month_q.group_by(
         func.substr(PartyProgress.stage_date, 1, 7)
     ).all()
     month_map = {m: c for m, c in month_rows if m}
     monthly_trend = [{'month': m, 'count': month_map.get(m, 0)} for m in months]
 
     # 3. top_students: 按 student_id 分组，取 TOP10
-    top_rows = db.query(
+    top_q = db.query(
         PartyProgress.student_id, func.count(PartyProgress.id).label('cnt')
-    ).group_by(PartyProgress.student_id).order_by(func.count(PartyProgress.id).desc()).limit(10).all()
+    )
+    if stage_date_filter:
+        top_q = top_q.filter(*stage_date_filter)
+    top_rows = top_q.group_by(PartyProgress.student_id).order_by(func.count(PartyProgress.id).desc()).limit(10).all()
     top_students = []
     for sid, cnt in top_rows:
-        stu = db.query(Student).get(sid)
+        stu = db.get(Student, sid)
         top_students.append({
             'student_name': stu.name if stu else '',
             'student_no': stu.student_no if stu else '',
@@ -395,10 +431,10 @@ def party_progress_chart_data(db: Session = Depends(get_db)):
 # ===== 心理关怀 =====
 def _psy_dict(r, db):
     from models import ClassModel
-    stu = db.query(Student).get(r.student_id)
+    stu = db.get(Student, r.student_id)
     cls_name = ''
     if stu and stu.class_id:
-        cls = db.query(ClassModel).get(stu.class_id)
+        cls = db.get(ClassModel, stu.class_id)
         cls_name = cls.class_name if cls else ''
     return {
         'id': r.id, 'student_id': r.student_id,
@@ -564,7 +600,7 @@ def psychology_reminders(db: Session = Depends(get_db)):
     ).all()
     result = []
     for r in items:
-        stu = db.query(Student).get(r.student_id)
+        stu = db.get(Student, r.student_id)
         result.append({
             'id': r.id, 'student_name': stu.name if stu else '',
             'topic': r.topic, 'next_follow_date': r.next_follow_date,
@@ -616,7 +652,7 @@ def psychology_chart_data(db: Session = Depends(get_db)):
     ).group_by(PsychologyRecord.student_id).order_by(func.count(PsychologyRecord.id).desc()).limit(10).all()
     top_students = []
     for sid, cnt in top_rows:
-        stu = db.query(Student).get(sid)
+        stu = db.get(Student, sid)
         top_students.append({
             'student_name': stu.name if stu else '',
             'student_no': stu.student_no if stu else '',
@@ -634,10 +670,10 @@ def psychology_chart_data(db: Session = Depends(get_db)):
 # ===== 家校沟通 =====
 def _fam_dict(c, db):
     from models import ClassModel
-    stu = db.query(Student).get(c.student_id)
+    stu = db.get(Student, c.student_id)
     cls_name = ''
     if stu and stu.class_id:
-        cls = db.query(ClassModel).get(stu.class_id)
+        cls = db.get(ClassModel, stu.class_id)
         cls_name = cls.class_name if cls else ''
     # 从 parent_name '父亲XX' / '母亲XX' 抽出关系
     _rel = ''
@@ -678,7 +714,7 @@ def _fam_normalize_input(data: dict) -> dict:
 
 @router.get('/psychology/{record_id}')
 def get_psychology(record_id: int, db: Session = Depends(get_db)):
-    r = db.query(PsychologyRecord).get(record_id)
+    r = db.get(PsychologyRecord, record_id)
     if not r:
         raise HTTPException(404, '记录不存在')
     return _psy_dict(r, db)
@@ -695,7 +731,7 @@ def create_psychology(data: dict, db: Session = Depends(get_db)):
 
 @router.put('/psychology/{rid}')
 def update_psychology(rid: int, data: dict, db: Session = Depends(get_db)):
-    r = db.query(PsychologyRecord).get(rid)
+    r = db.get(PsychologyRecord, rid)
     if not r:
         raise HTTPException(404, '记录不存在')
     for k, v in _psy_normalize_input(data).items():
@@ -707,7 +743,7 @@ def update_psychology(rid: int, data: dict, db: Session = Depends(get_db)):
 
 @router.delete('/psychology/{rid}')
 def delete_psychology(rid: int, db: Session = Depends(get_db)):
-    r = db.query(PsychologyRecord).get(rid)
+    r = db.get(PsychologyRecord, rid)
     if r:
         db.delete(r)
         db.commit()
@@ -729,7 +765,7 @@ def list_family_contacts(student_id: Optional[int] = None, contact_type: Optiona
 
 @router.get('/family-contacts/{contact_id}')
 def get_family_contact(contact_id: int, db: Session = Depends(get_db)):
-    c = db.query(FamilyContact).get(contact_id)
+    c = db.get(FamilyContact, contact_id)
     if not c:
         raise HTTPException(404, '记录不存在')
     return _fam_dict(c, db)
@@ -746,7 +782,7 @@ def create_family_contact(data: dict, db: Session = Depends(get_db)):
 
 @router.put('/family-contacts/{cid}')
 def update_family_contact(cid: int, data: dict, db: Session = Depends(get_db)):
-    c = db.query(FamilyContact).get(cid)
+    c = db.get(FamilyContact, cid)
     if not c:
         raise HTTPException(404, '记录不存在')
     for k, v in _fam_normalize_input(data).items():
@@ -758,7 +794,7 @@ def update_family_contact(cid: int, data: dict, db: Session = Depends(get_db)):
 
 @router.delete('/family-contacts/{cid}')
 def delete_family_contact(cid: int, db: Session = Depends(get_db)):
-    c = db.query(FamilyContact).get(cid)
+    c = db.get(FamilyContact, cid)
     if c:
         db.delete(c)
         db.commit()
@@ -771,7 +807,7 @@ def delete_family_contact(cid: int, db: Session = Depends(get_db)):
 def toggle_psy_reminded(rec_id: int, db: Session = Depends(get_db)):
     """切换心理档案的已提醒状态"""
     from datetime import datetime as _dt
-    r = db.query(PsychologyRecord).get(rec_id)
+    r = db.get(PsychologyRecord, rec_id)
     if not r:
         raise HTTPException(404, '记录不存在')
     r.reminded = not bool(getattr(r, 'reminded', False))

@@ -257,19 +257,23 @@ def semester_summary(semester: str = Query(None), db: Session = Depends(get_db))
     except Exception as e:
         logger.warning(f"summary 荣誉人次异常: {e}")
 
-    # 党员人数（取每个学生最新stage，统计'中共预备党员'或'中共党员'的去重学生数）
+    # 党员人数（按学期过滤：取该学期内最新 stage，统计预备党员+正式党员）
     try:
-        subq = (
-            db.query(
-                PartyProgress.student_id,
-                func.max(PartyProgress.id).label('max_id')
-            )
-            .group_by(PartyProgress.student_id)
-            .subquery()
+        _pp_subq = db.query(
+            PartyProgress.student_id,
+            func.max(PartyProgress.id).label('max_id')
         )
+        if semester and semester != 'all':
+            _pp_start, _pp_end = _semester_date_range(semester)
+            if _pp_start and _pp_end:
+                _pp_subq = _pp_subq.filter(
+                    PartyProgress.stage_date >= _pp_start,
+                    PartyProgress.stage_date <= _pp_end
+                )
+        _pp_subq = _pp_subq.group_by(PartyProgress.student_id).subquery()
         result['party_member_count'] = (
             db.query(func.count(PartyProgress.student_id))
-            .join(subq, PartyProgress.id == subq.c.max_id)
+            .join(_pp_subq, PartyProgress.id == _pp_subq.c.max_id)
             .filter(PartyProgress.stage.in_(['中共预备党员', '中共党员']))
             .scalar() or 0
         )
@@ -1044,16 +1048,23 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
         ws1.cell(row=r, column=1, value=label)
         ws1.cell(row=r, column=2, value=val)
 
-    # 党员人数
+    # 党员人数（按学期过滤）
     try:
-        party_subq = (
-            db.query(PartyProgress.student_id, func.max(PartyProgress.id).label('max_id'))
-            .group_by(PartyProgress.student_id)
-            .subquery()
+        _exp_pp_subq = db.query(
+            PartyProgress.student_id,
+            func.max(PartyProgress.id).label('max_id')
         )
+        if semester and semester != 'all':
+            _exp_start, _exp_end = _semester_date_range(semester)
+            if _exp_start and _exp_end:
+                _exp_pp_subq = _exp_pp_subq.filter(
+                    PartyProgress.stage_date >= _exp_start,
+                    PartyProgress.stage_date <= _exp_end
+                )
+        _exp_pp_subq = _exp_pp_subq.group_by(PartyProgress.student_id).subquery()
         party_member_count = (
             db.query(func.count(PartyProgress.student_id))
-            .join(party_subq, PartyProgress.id == party_subq.c.max_id)
+            .join(_exp_pp_subq, PartyProgress.id == _exp_pp_subq.c.max_id)
             .filter(PartyProgress.stage.in_(['中共预备党员', '中共党员']))
             .scalar() or 0
         )
@@ -1631,11 +1642,13 @@ def export_semester_report(semester: str = Query(None), db: Session = Depends(ge
         logger.error(f'semester report export save failed: {e}')
         raise HTTPException(500, f'Excel 生成失败: {type(e).__name__}: {str(e)}')
 
+    from urllib.parse import quote
     filename = f"学期报表_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    encoded_filename = quote(filename)
     return StreamingResponse(
         buf,
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+        headers={'Content-Disposition': f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
 

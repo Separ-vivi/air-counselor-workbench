@@ -117,7 +117,6 @@ def financial_aid_chart_data(db: Session = Depends(get_db)):
     for model, amount_col in [
         (StudentGrant, StudentGrant.amount),
         (StudentScholarship, StudentScholarship.amount),
-        (StudentLoan, StudentLoan.amount),
         (StudentWorkStudy, StudentWorkStudy.compensation),
     ]:
         for row in db.query(
@@ -147,7 +146,7 @@ def financial_aid_chart_data(db: Session = Depends(get_db)):
     top_ids = sorted(student_amounts, key=student_amounts.get, reverse=True)[:5]
     top_recipients = []
     for sid in top_ids:
-        stu = db.query(Student).get(sid)
+        stu = db.get(Student, sid)
         if stu:
             top_recipients.append({
                 'student_name': stu.name,
@@ -190,7 +189,7 @@ def financial_aid_list(
         return q
 
     def _add_student_info(row_dict, student_id):
-        stu = db.query(Student).get(student_id)
+        stu = db.get(Student, student_id)
         if stu:
             row_dict['student_name'] = stu.name
             row_dict['student_no'] = stu.student_no
