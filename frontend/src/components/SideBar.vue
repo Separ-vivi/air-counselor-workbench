@@ -53,8 +53,8 @@
         <el-menu-item index="/notes"><el-icon><EditPen /></el-icon><span>记事本</span></el-menu-item>
         <el-menu-item index="/calendar"><el-icon><Calendar /></el-icon><span>校历倒计时</span></el-menu-item>
         <el-menu-item index="/projects"><el-icon><Collection /></el-icon><span>项目追踪</span></el-menu-item>
-        <el-menu-item index="/semester-report"><el-icon><TrendCharts /></el-icon><span>学期报表</span></el-menu-item>
         <el-menu-item index="/summary"><el-icon><PieChart /></el-icon><span>周汇总</span></el-menu-item>
+        <el-menu-item index="/semester-report"><el-icon><TrendCharts /></el-icon><span>学期报表</span></el-menu-item>
       </el-sub-menu>
 
       <!-- 第5组 知识中心 -->

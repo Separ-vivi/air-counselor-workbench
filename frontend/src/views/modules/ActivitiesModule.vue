@@ -19,17 +19,23 @@
         <el-card shadow="never">
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center">
-              <span>活动列表 · 共 {{ filteredList.length }} 条</span>
-              <div style="display: flex; gap: 8px">
+              <span>活动列表 · 共 {{ total }} 条</span>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap">
                 <el-select v-model="filterType" placeholder="全部类型" clearable size="small" style="width: 140px">
                   <el-option v-for="t in allTypes" :key="t" :label="t" :value="t" />
                 </el-select>
+                <el-select v-model="filterSemester" placeholder="全部学期" clearable filterable size="small" style="width: 160px">
+                  <el-option v-for="s in semesterList" :key="s" :label="s" :value="s" />
+                </el-select>
+                <el-date-picker v-model="filterDateRange" type="daterange" range-separator="至"
+                  start-placeholder="开始" end-placeholder="结束" format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD" size="small" style="width: 230px" />
                 <el-input v-model="filterKw" placeholder="搜索活动名/组织者/地点" clearable size="small" style="width: 200px" />
               </div>
             </div>
           </template>
           <el-table
-            :data="filteredList"
+            :data="pagedList"
             v-loading="loading"
             stripe
             border
@@ -59,6 +65,16 @@
               </template>
             </el-table-column>
           </el-table>
+          <div class="pagination-wrap">
+            <el-pagination
+              v-model:current-page="currentPage"
+              v-model:page-size="pageSize"
+              :page-sizes="[20, 50, 100]"
+              :total="total"
+              layout="total, sizes, prev, pager, next"
+              small
+            />
+          </div>
         </el-card>
       </el-col>
 
@@ -179,14 +195,68 @@ const allTypes = computed(() => {
   return Array.from(s)
 })
 const filteredList = computed(() => {
-  if (!filterType.value) return list.value
-  return list.value.filter((r) => (r.activity_type || '') === filterType.value)
+  let data = list.value
+  if (filterType.value) data = data.filter((r) => (r.activity_type || '') === filterType.value)
+  if (filterSemester.value) {
+    data = data.filter(r => {
+      if (r.semester) return r.semester === filterSemester.value
+      if (r.activity_date) {
+        const d = new Date(r.activity_date)
+        const y = d.getFullYear()
+        const m = d.getMonth() + 1
+        const ay = m >= 9 ? y : y - 1
+        const sem = `${ay}-${ay + 1}-${m >= 2 && m < 9 ? 2 : 1}`
+        return sem === filterSemester.value
+      }
+      return false
+    })
+  }
+  if (filterDateRange.value && filterDateRange.value.length === 2) {
+    data = data.filter(r => r.activity_date && r.activity_date >= filterDateRange.value[0] && r.activity_date <= filterDateRange.value[1])
+  }
+  return data
+})
+
+const total = computed(() => filteredList.value.length)
+const pagedList = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredList.value.slice(start, start + pageSize.value)
 })
 const roles = ['参与者', '组织者', '负责人', '志愿者', '嘉宾']
 
 const list = ref([])
 const filterKw = ref('')
+const filterSemester = ref('')
+const filterDateRange = ref(null)
 const loading = ref(false)
+
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(20)
+
+// 学期列表（从数据动态提取）
+const semesterList = computed(() => {
+  const s = new Set()
+  list.value.forEach(r => {
+    if (r.semester) s.add(r.semester)
+    else if (r.activity_date) {
+      const d = new Date(r.activity_date)
+      const y = d.getFullYear()
+      const m = d.getMonth() + 1
+      const ay = m >= 9 ? y : y - 1
+      s.add(`${ay}-${ay + 1}-${m >= 2 && m < 9 ? 2 : 1}`)
+    }
+  })
+  return [...s].filter(Boolean).sort().reverse()
+})
+
+const resetFilters = () => {
+  filterType.value = ''
+  filterKw.value = ''
+  filterSemester.value = ''
+  filterDateRange.value = null
+  currentPage.value = 1
+}
 const currentActivity = ref(null)
 const signups = ref([])
 const signupsLoading = ref(false)
@@ -339,4 +409,9 @@ onMounted(reload)
 .module-page { padding: 4px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
+.pagination-wrap {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
 </style>

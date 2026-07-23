@@ -31,12 +31,22 @@
             <el-option v-for="l in levels" :key="l" :label="l" :value="l" />
           </el-select>
         </el-form-item>
+        <el-form-item label="学年">
+          <el-select v-model="filter.academicYear" placeholder="全部学年" clearable filterable style="width: 180px" @change="reload">
+            <el-option v-for="s in academicYearList" :key="s" :label="s" :value="s" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="日期范围">
+          <el-date-picker v-model="filter.dateRange" type="daterange" range-separator="至"
+            start-placeholder="开始" end-placeholder="结束" format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD" style="width: 240px" @change="reload" />
+        </el-form-item>
       </el-form>
     </el-card>
 
     <el-card shadow="never">
       <el-table
-        :data="list"
+        :data="pagedList"
         v-loading="loading"
         stripe
         border
@@ -73,6 +83,16 @@
           </template>
         </el-table-column>
       </el-table>
+      <div class="pagination-wrap">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="currentPage = 1"
+        />
+      </div>
     </el-card>
 
     <el-dialog v-model="dlg" :title="editing?.id ? '编辑干部记录' : '新增干部记录'" width="560px">
@@ -138,7 +158,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Document, Download } from '@element-plus/icons-vue'
 import { cadres as cadresApi } from '@/api/modules'
@@ -161,7 +181,66 @@ const organizations = [
 const list = ref([])
 const directory = ref([])
 const loading = ref(false)
-const filter = reactive({ student_id: null, position: '', level: '', kw: '' })
+const filter = reactive({ student_id: null, position: '', level: '', kw: '', academicYear: '', dateRange: null })
+
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(20)
+
+// 学年列表（从数据动态提取）
+const academicYearList = computed(() => {
+  const s = new Set()
+  list.value.forEach(r => {
+    if (r.academic_year) s.add(r.academic_year)
+    else if (r.start_date) {
+      const d = new Date(r.start_date)
+      const y = d.getFullYear()
+      const m = d.getMonth() + 1
+      const ay = m >= 9 ? y : y - 1
+      s.add(`${ay}-${ay + 1}`)
+    }
+  })
+  return [...s].filter(Boolean).sort().reverse()
+})
+
+const resetFilters = () => {
+  filter.student_id = null
+  filter.position = ''
+  filter.level = ''
+  filter.kw = ''
+  filter.academicYear = ''
+  filter.dateRange = null
+  currentPage.value = 1
+  reload()
+}
+
+// 前端筛选 + 分页
+const filteredList = computed(() => {
+  let data = list.value
+  if (filter.academicYear) {
+    data = data.filter(r => {
+      if (r.academic_year) return r.academic_year === filter.academicYear
+      if (r.start_date) {
+        const d = new Date(r.start_date)
+        const y = d.getFullYear()
+        const m = d.getMonth() + 1
+        const ay = m >= 9 ? y : y - 1
+        return `${ay}-${ay + 1}` === filter.academicYear
+      }
+      return false
+    })
+  }
+  if (filter.dateRange && filter.dateRange.length === 2) {
+    data = data.filter(r => r.start_date && r.start_date >= filter.dateRange[0] && r.start_date <= filter.dateRange[1])
+  }
+  return data
+})
+
+const total = computed(() => filteredList.value.length)
+const pagedList = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredList.value.slice(start, start + pageSize.value)
+})
 
 // v3j-B-b03 · 排序 + 搜索 + 多选
 const sortBy = ref('position')
@@ -278,4 +357,9 @@ onMounted(reload)
 .module-page { padding: 4px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
+.pagination-wrap {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
 </style>

@@ -40,6 +40,16 @@
             <el-option label="仅已提醒" value="reminded" />
           </el-select>
         </el-form-item>
+        <el-form-item label="学期">
+          <el-select v-model="filter.semester" placeholder="全部学期" clearable filterable style="width: 180px" @change="reload">
+            <el-option v-for="s in semesterList" :key="s" :label="s" :value="s" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="日期范围">
+          <el-date-picker v-model="filter.dateRange" type="daterange" range-separator="至"
+            start-placeholder="开始" end-placeholder="结束" format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD" style="width: 240px" @change="reload" />
+        </el-form-item>
       </el-form>
     </el-card>
 
@@ -91,7 +101,7 @@
 
     <el-card shadow="never">
       <el-table
-        :data="filteredList"
+        :data="pagedList"
         v-loading="loading"
         stripe
         border
@@ -140,6 +150,16 @@
           </template>
         </el-table-column>
       </el-table>
+      <div class="pagination-wrap">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="currentPage = 1"
+        />
+      </div>
     </el-card>
 
     <el-dialog v-model="dlg" :title="editing?.id ? '编辑心理档案' : '新增心理档案'" width="520px">
@@ -190,7 +210,7 @@ const levels = ['一级关注', '二级关注', '三级关注', '普通']
 const list = ref([])
 const reminders = ref([])
 const loading = ref(false)
-const filter = reactive({ student_id: null, attention_level: '', kw: '', reminded_state: '' })
+const filter = reactive({ student_id: null, attention_level: '', kw: '', reminded_state: '', semester: '', dateRange: null })
 
 // 冰蓝薄荷色系
 const chartColors = ['#5B92E5', '#7BCFCB', '#4FC3B8', '#8FA9E5', '#A8D5E2', '#6BB5C9', '#95B8D1']
@@ -406,12 +426,70 @@ const lvTagStyle = (l) => {
   return { background: '#F0F2F5', color: '#909399', border: 'none' }
 }
 
-// v3h: 前端二次过滤（提醒状态）
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(20)
+
+// 学期列表（从数据动态提取）
+const semesterList = computed(() => {
+  const s = new Set()
+  list.value.forEach(r => {
+    if (r.semester) s.add(r.semester)
+    else if (r.record_date || r.assessment_date) {
+      const d = new Date(r.record_date || r.assessment_date)
+      const y = d.getFullYear()
+      const m = d.getMonth() + 1
+      const ay = m >= 9 ? y : y - 1
+      s.add(`${ay}-${ay + 1}-${m >= 2 && m < 9 ? 2 : 1}`)
+    }
+  })
+  return [...s].filter(Boolean).sort().reverse()
+})
+
+const resetFilters = () => {
+  filter.student_id = null
+  filter.attention_level = ''
+  filter.kw = ''
+  filter.reminded_state = ''
+  filter.semester = ''
+  filter.dateRange = null
+  currentPage.value = 1
+  reload()
+}
+
+// 前端二次过滤（提醒状态 + 学期 + 日期范围） + 分页
 const filteredList = computed(() => {
   let rs = list.value
   if (filter.reminded_state === 'reminded') rs = rs.filter((r) => !!r.reminded)
   else if (filter.reminded_state === 'unreminded') rs = rs.filter((r) => !r.reminded)
+  if (filter.semester) {
+    rs = rs.filter(r => {
+      if (r.semester) return r.semester === filter.semester
+      const dStr = r.record_date || r.assessment_date
+      if (dStr) {
+        const d = new Date(dStr)
+        const y = d.getFullYear()
+        const m = d.getMonth() + 1
+        const ay = m >= 9 ? y : y - 1
+        const sem = `${ay}-${ay + 1}-${m >= 2 && m < 9 ? 2 : 1}`
+        return sem === filter.semester
+      }
+      return false
+    })
+  }
+  if (filter.dateRange && filter.dateRange.length === 2) {
+    rs = rs.filter(r => {
+      const dStr = r.record_date || r.assessment_date
+      return dStr && dStr >= filter.dateRange[0] && dStr <= filter.dateRange[1]
+    })
+  }
   return rs
+})
+
+const total = computed(() => filteredList.value.length)
+const pagedList = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredList.value.slice(start, start + pageSize.value)
 })
 
 // v3h: 单条切换已提醒
@@ -644,5 +722,10 @@ onBeforeUnmount(() => {
   font-size: 11px;
   color: #8A9BB5;
   margin-top: 2px;
+}
+.pagination-wrap {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

@@ -32,8 +32,19 @@
             <el-option v-for="s in stages" :key="s" :label="s" :value="s" />
           </el-select>
         </el-form-item>
+        <el-form-item label="学期">
+          <el-select v-model="filter.semester" placeholder="全部学期" clearable filterable style="width: 180px" @change="reload">
+            <el-option v-for="s in semesterList" :key="s" :label="s" :value="s" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="日期范围">
+          <el-date-picker v-model="filter.dateRange" type="daterange" range-separator="至"
+            start-placeholder="开始" end-placeholder="结束" format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD" style="width: 240px" @change="reload" />
+        </el-form-item>
         <el-form-item>
           <el-button @click="reload">查询</el-button>
+          <el-button @click="resetFilters">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -63,7 +74,7 @@
       </el-col>
       <el-col :xs="24" :sm="12" :lg="8">
         <div class="chart-card">
-          <div class="chart-title">TOP活跃学生</div>
+          <div class="chart-title">TOP发展记录最多</div>
           <div ref="topStudentsRef" class="chart-container"></div>
         </div>
       </el-col>
@@ -71,7 +82,7 @@
 
     <el-card shadow="never">
       <el-table
-        :data="list"
+        :data="pagedList"
         v-loading="loading"
         stripe
         border
@@ -107,6 +118,17 @@
           </template>
         </el-table-column>
       </el-table>
+      <div class="pagination-wrap">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="reload"
+          @current-change="reload"
+        />
+      </div>
     </el-card>
 
     <el-dialog v-model="dlg" :title="editing?.id ? '编辑党团进程' : '新增党团进程'" width="520px">
@@ -158,7 +180,64 @@ const stageColor = { '递交入党申请书': '#909399', '入党积极分子': '
 const list = ref([])
 const loading = ref(false)
 const classes = ref([])
-const filter = reactive({ student_id: null, stage: '', kw: '', class_id: null })
+const filter = reactive({ student_id: null, stage: '', kw: '', class_id: null, semester: '', dateRange: null })
+
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
+// 学期列表（从数据动态提取）
+const semesterList = computed(() => {
+  const s = new Set()
+  list.value.forEach(r => {
+    if (r.semester) s.add(r.semester)
+    else if (r.stage_date) {
+      const d = new Date(r.stage_date)
+      const y = d.getFullYear()
+      const m = d.getMonth() + 1
+      const ay = m >= 9 ? y : y - 1
+      s.add(`${ay}-${ay + 1}-${m >= 2 && m < 9 ? 2 : 1}`)
+    }
+  })
+  return [...s].filter(Boolean).sort().reverse()
+})
+
+// 前端分页 + 筛选
+const pagedList = computed(() => {
+  let data = list.value
+  if (filter.semester) {
+    data = data.filter(r => {
+      if (r.semester) return r.semester === filter.semester
+      if (r.stage_date) {
+        const d = new Date(r.stage_date)
+        const y = d.getFullYear()
+        const m = d.getMonth() + 1
+        const ay = m >= 9 ? y : y - 1
+        const sem = `${ay}-${ay + 1}-${m >= 2 && m < 9 ? 2 : 1}`
+        return sem === filter.semester
+      }
+      return false
+    })
+  }
+  if (filter.dateRange && filter.dateRange.length === 2) {
+    data = data.filter(r => r.stage_date && r.stage_date >= filter.dateRange[0] && r.stage_date <= filter.dateRange[1])
+  }
+  total.value = data.length
+  const start = (currentPage.value - 1) * pageSize.value
+  return data.slice(start, start + pageSize.value)
+})
+
+const resetFilters = () => {
+  filter.student_id = null
+  filter.stage = ''
+  filter.kw = ''
+  filter.class_id = null
+  filter.semester = ''
+  filter.dateRange = null
+  currentPage.value = 1
+  reload()
+}
 
 // 冰蓝薄荷色系
 const chartColors = ['#5B92E5', '#7BCFCB', '#4FC3B8', '#8FA9E5', '#A8D5E2', '#6BB5C9']
@@ -259,7 +338,7 @@ const initTopStudents = (data) => {
   const names = data.map(d => d.student_name)
   const counts = data.map(d => d.count)
   topStudentsChart.setOption({
-    tooltip: { trigger: 'axis', formatter: '{b}<br/>活动次数: {c}' },
+    tooltip: { trigger: 'axis', formatter: '{b}<br/>记录次数: {c}' },
     grid: { left: 70, right: 20, top: 20, bottom: 35 },
     xAxis: {
       type: 'value',
@@ -485,5 +564,10 @@ onBeforeUnmount(() => {
 .chart-container {
   width: 100%;
   height: 300px;
+}
+.pagination-wrap {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

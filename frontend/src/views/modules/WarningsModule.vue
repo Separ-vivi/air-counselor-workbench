@@ -82,9 +82,31 @@
       </el-col>
     </el-row>
 
+    <!-- ECharts 统计图表 -->
+    <el-row :gutter="16" class="chart-row">
+      <el-col :xs="24" :sm="12" :lg="8">
+        <div class="chart-card">
+          <div class="chart-title">预警等级分布</div>
+          <div ref="levelPieRef" class="chart-container"></div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :lg="8">
+        <div class="chart-card">
+          <div class="chart-title">学期预警趋势</div>
+          <div ref="trendLineRef" class="chart-container"></div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :lg="8">
+        <div class="chart-card">
+          <div class="chart-title">班级预警分布</div>
+          <div ref="classBarRef" class="chart-container"></div>
+        </div>
+      </el-col>
+    </el-row>
+
     <el-card shadow="never">
       <el-table
-        :data="filteredRows"
+        :data="pagedRows"
         stripe
         border
         v-loading="loading"
@@ -128,6 +150,16 @@
           </template>
         </el-table-column>
       </el-table>
+      <div class="pagination-wrap">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="currentPage = 1"
+        />
+      </div>
     </el-card>
 
     <!-- v3j-C c02-hotfix2 · 学业预警学生点击弹挂科明细，不再跳 360 -->
@@ -155,7 +187,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh, Download } from '@element-plus/icons-vue'
 import { grades as gradesApi } from '@/api/modules'
@@ -163,6 +195,7 @@ import { useOrgStore } from '@/stores/org'
 import { useStudentStore } from '@/stores/student'
 import StudentSelect from '@/components/StudentSelect.vue'
 import { triggerDownload, stampedName } from '@/utils/download'
+import * as echarts from 'echarts'
 
 const orgStore = useOrgStore()
 const studentStore = useStudentStore()
@@ -199,6 +232,135 @@ const filteredRows = computed(() => {
   else if (filter.reminded_state === 'unreminded') rs = rs.filter((r) => !r.reminded)
   return rs
 })
+
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = computed(() => filteredRows.value.length)
+const pagedRows = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredRows.value.slice(start, start + pageSize.value)
+})
+
+// 图表
+const chartColors = ['#5B92E5', '#7BCFCB', '#4FC3B8', '#8FA9E5', '#A8D5E2', '#6BB5C9']
+const levelPieRef = ref(null)
+const trendLineRef = ref(null)
+const classBarRef = ref(null)
+let levelPieChart = null
+let trendLineChart = null
+let classBarChart = null
+
+const renderCharts = () => {
+  // 预警等级分布饼图
+  if (levelPieRef.value) {
+    if (levelPieChart) levelPieChart.dispose()
+    levelPieChart = echarts.init(levelPieRef.value)
+    const data = [
+      { name: '一级(红)', value: stats.value.red, itemStyle: { color: '#F56C6C' } },
+      { name: '二级(黄)', value: stats.value.yellow, itemStyle: { color: '#E6A23C' } },
+      { name: '三级(蓝)', value: stats.value.blue, itemStyle: { color: '#5B92E5' } }
+    ].filter(d => d.value > 0)
+    levelPieChart.setOption({
+      tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+      legend: { bottom: 0, textStyle: { fontSize: 12, color: '#606266' } },
+      series: [{
+        type: 'pie', radius: ['40%', '68%'], center: ['50%', '45%'],
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+        label: { show: false },
+        emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
+        data
+      }]
+    })
+  }
+  // 学期预警趋势折线图
+  if (trendLineRef.value) {
+    if (trendLineChart) trendLineChart.dispose()
+    trendLineChart = echarts.init(trendLineRef.value)
+    const semMap = {}
+    list.value.forEach(r => {
+      const sem = r.semester || '未知'
+      semMap[sem] = (semMap[sem] || 0) + 1
+    })
+    const semesters = Object.keys(semMap).sort()
+    const counts = semesters.map(s => semMap[s])
+    trendLineChart.setOption({
+      tooltip: { trigger: 'axis', formatter: '{b}<br/>预警数: {c}' },
+      grid: { left: 45, right: 20, top: 20, bottom: 35 },
+      xAxis: {
+        type: 'category', data: semesters,
+        axisLabel: { color: '#5A6B80', fontSize: 11, rotate: semesters.length > 4 ? 30 : 0 },
+        axisLine: { lineStyle: { color: '#C8D6E5' } }, axisTick: { show: false }
+      },
+      yAxis: {
+        type: 'value', minInterval: 1,
+        axisLabel: { color: '#5A6B80', fontSize: 11 },
+        splitLine: { lineStyle: { color: '#E8EFF7', type: 'dashed' } },
+        axisLine: { show: false }, axisTick: { show: false }
+      },
+      series: [{
+        type: 'line', data: counts, smooth: true,
+        symbol: 'circle', symbolSize: 7,
+        lineStyle: { color: '#5B92E5', width: 2.5 },
+        itemStyle: { color: '#5B92E5', borderColor: '#fff', borderWidth: 2 },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(91,146,229,0.35)' },
+            { offset: 1, color: 'rgba(91,146,229,0.05)' }
+          ])
+        }
+      }]
+    })
+  }
+  // 班级预警分布柱状图
+  if (classBarRef.value) {
+    if (classBarChart) classBarChart.dispose()
+    classBarChart = echarts.init(classBarRef.value)
+    const classMap = {}
+    list.value.forEach(r => {
+      const cls = r.class_name || '未知'
+      classMap[cls] = (classMap[cls] || 0) + 1
+    })
+    const classes = Object.keys(classMap).sort((a, b) => classMap[b] - classMap[a]).slice(0, 15)
+    const counts = classes.map(c => classMap[c])
+    classBarChart.setOption({
+      tooltip: { trigger: 'axis', formatter: '{b}<br/>预警数: {c}' },
+      grid: { left: 50, right: 20, top: 20, bottom: 45 },
+      xAxis: {
+        type: 'category', data: classes,
+        axisLabel: { color: '#5A6B80', fontSize: 11, rotate: 30 },
+        axisLine: { lineStyle: { color: '#C8D6E5' } }, axisTick: { show: false }
+      },
+      yAxis: {
+        type: 'value', minInterval: 1,
+        axisLabel: { color: '#5A6B80', fontSize: 11 },
+        splitLine: { lineStyle: { color: '#E8EFF7', type: 'dashed' } },
+        axisLine: { show: false }, axisTick: { show: false }
+      },
+      series: [{
+        type: 'bar', data: counts.map((val, idx) => ({
+          value: val,
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
+              { offset: 0, color: '#8FA9E5' },
+              { offset: 1, color: chartColors[idx % chartColors.length] }
+            ]),
+            borderRadius: [6, 6, 0, 0]
+          }
+        })),
+        barWidth: 28,
+        label: { show: true, position: 'top', color: '#5A6B80', fontSize: 11 }
+      }]
+    })
+  }
+}
+
+const handleResize = () => {
+  levelPieChart?.resize()
+  trendLineChart?.resize()
+  classBarChart?.resize()
+}
 
 const stats = computed(() => {
   const s = { total: filteredRows.value.length, red: 0, yellow: 0, blue: 0 }
@@ -329,11 +491,27 @@ const exportAll = async () => {
   } catch (e) { ElMessage.error('导出失败') }
 }
 
+// 当数据加载完成后渲染图表
+watch(list, () => {
+  nextTick(() => renderCharts())
+}, { deep: true })
+
 watch(() => studentStore.refreshBumper, reload)
 onMounted(() => {
   if (!orgStore.orgTree.length) orgStore.loadTree()
   loadSemesters()
   reload()
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  levelPieChart?.dispose()
+  trendLineChart?.dispose()
+  classBarChart?.dispose()
+  levelPieChart = null
+  trendLineChart = null
+  classBarChart = null
 })
 </script>
 
@@ -345,4 +523,30 @@ onMounted(() => {
 .stat-label { color: #909399; font-size: 13px; margin-bottom: 8px; }
 .stat-value { font-size: 26px; font-weight: 600; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+/* 图表区域 */
+.chart-row { margin-bottom: 16px; }
+.chart-card {
+  background: #ECF1F7;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
+}
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3A4F6B;
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+.chart-container {
+  width: 100%;
+  height: 300px;
+}
+.pagination-wrap {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
 </style>

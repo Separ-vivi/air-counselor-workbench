@@ -15,7 +15,7 @@
       <div class="ws-list" v-loading="loading">
         <el-empty v-if="!loading && list.length === 0" description="暂无周汇总，点右上「自动生成」" :image-size="80" />
         <div
-          v-for="s in list"
+          v-for="s in pagedList"
           :key="s.id"
           class="ws-item"
           :class="{ active: current?.id === s.id }"
@@ -28,6 +28,16 @@
             </el-tag>
             <span class="date">{{ formatTime(s.created_at) }}</span>
           </div>
+        </div>
+        <div class="ws-pagination" v-if="list.length > wsPageSize">
+          <el-pagination
+            v-model:current-page="wsPage"
+            v-model:page-size="wsPageSize"
+            :page-sizes="[20, 50, 100]"
+            :total="list.length"
+            layout="total, sizes, prev, pager, next"
+            small
+          />
         </div>
       </div>
 
@@ -115,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, MagicStick } from '@element-plus/icons-vue'
 import { summariesApi } from '@/api/productivity.js'
@@ -123,6 +133,14 @@ import { summariesApi } from '@/api/productivity.js'
 const list = ref([])
 const current = ref(null)
 const loading = ref(false)
+const wsPage = ref(1)
+const wsPageSize = ref(20)
+
+
+const pagedList = computed(() => {
+  const start = (wsPage.value - 1) * wsPageSize.value
+  return list.value.slice(start, start + wsPageSize.value)
+})
 const generating = ref(false)
 const genDialog = ref(false)
 const genForm = ref({ week_offset: 0, dimensions: [], format: 'bullet' })
@@ -291,5 +309,11 @@ onMounted(load)
   font-size: 14px;
   line-height: 1.75;
   color: #3A3A3A;
+}
+
+.ws-pagination {
+  padding: 8px 4px;
+  display: flex;
+  justify-content: center;
 }
 </style>

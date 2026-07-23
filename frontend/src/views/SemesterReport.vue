@@ -119,7 +119,7 @@
       <div class="charts-row" v-if="academicsData?.top10?.length">
         <div class="chart-card" style="grid-column: 1 / -1">
           <h3>成绩 Top 10</h3>
-          <el-table :data="academicsData?.top10 || []" style="width: 100%">
+          <el-table :data="pagedTop10" style="width: 100%" row-key="student_no">
             <el-table-column prop="student_no" label="学号" width="120" />
             <el-table-column prop="name" label="姓名" width="100" />
             <el-table-column prop="class_name" label="班级" />
@@ -129,6 +129,15 @@
               </template>
             </el-table-column>
           </el-table>
+          <div class="pagination-wrap" v-if="(academicsData?.top10 || []).length > top10PageSize">
+            <el-pagination
+              v-model:current-page="top10Page"
+              v-model:page-size="top10PageSize"
+              :page-sizes="[20, 50, 100]"
+              :total="(academicsData?.top10 || []).length"
+              layout="total, sizes, prev, pager, next"
+            />
+          </div>
         </div>
       </div>
 
@@ -247,7 +256,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick, onBeforeUnmount } from 'vue'
+import { ref, onMounted, computed, nextTick, onBeforeUnmount, watch } from 'vue'
 import * as echarts from 'echarts'
 import semesterReportApi from '@/api/semesterReport'
 import { ElMessage } from 'element-plus'
@@ -269,6 +278,15 @@ const semesters = ref([])
 const currentSemester = ref('')
 const comparisonData = ref({})
 const exporting = ref(false)
+
+// Top10 分页
+const top10Page = ref(1)
+const top10PageSize = ref(20)
+const pagedTop10 = computed(() => {
+  const all = academicsData.value?.top10 || []
+  const start = (top10Page.value - 1) * top10PageSize.value
+  return all.slice(start, start + top10PageSize.value)
+})
 
 // 图表 refs
 const classAvgChart = ref(null)
@@ -905,5 +923,12 @@ onBeforeUnmount(() => {
 .empty-hint {
   font-size: 14px;
   color: #7F8C8D;
+}
+
+/* 分页 */
+.pagination-wrap {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

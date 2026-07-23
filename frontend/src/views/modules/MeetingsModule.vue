@@ -24,12 +24,22 @@
         <el-form-item label="搜索">
           <el-input v-model="filter.theme" placeholder="主题/主持人/记录人/班级" clearable style="width: 240px" />
         </el-form-item>
+        <el-form-item label="学期">
+          <el-select v-model="filter.semester" placeholder="全部学期" clearable filterable style="width: 180px" @change="reload">
+            <el-option v-for="s in semesterList" :key="s" :label="s" :value="s" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="日期范围">
+          <el-date-picker v-model="filter.dateRange" type="daterange" range-separator="至"
+            start-placeholder="开始" end-placeholder="结束" format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD" style="width: 240px" @change="reload" />
+        </el-form-item>
       </el-form>
     </el-card>
 
     <el-card shadow="never">
       <el-table
-        :data="list"
+        :data="pagedList"
         v-loading="loading"
         stripe
         border
@@ -66,6 +76,16 @@
           </template>
         </el-table-column>
       </el-table>
+      <div class="pagination-wrap">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="currentPage = 1"
+        />
+      </div>
     </el-card>
 
     <el-dialog v-model="dlg" :title="editing?.id ? '编辑班会' : '新增班会'" width="600px">
@@ -117,7 +137,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Download } from '@element-plus/icons-vue'
 import { classMeetings as mApi } from '@/api/modules'
@@ -128,7 +148,65 @@ const orgStore = useOrgStore()
 
 const list = ref([])
 const loading = ref(false)
-const filter = reactive({ class_id: null, theme: '' })
+const filter = reactive({ class_id: null, theme: '', semester: '', dateRange: null })
+
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(20)
+
+// 学期列表（从数据动态提取）
+const semesterList = computed(() => {
+  const s = new Set()
+  list.value.forEach(r => {
+    if (r.semester) s.add(r.semester)
+    else if (r.meeting_date) {
+      const d = new Date(r.meeting_date)
+      const y = d.getFullYear()
+      const m = d.getMonth() + 1
+      const ay = m >= 9 ? y : y - 1
+      s.add(`${ay}-${ay + 1}-${m >= 2 && m < 9 ? 2 : 1}`)
+    }
+  })
+  return [...s].filter(Boolean).sort().reverse()
+})
+
+const resetFilters = () => {
+  filter.class_id = null
+  filter.theme = ''
+  filter.semester = ''
+  filter.dateRange = null
+  currentPage.value = 1
+  reload()
+}
+
+// 前端筛选 + 分页
+const filteredList = computed(() => {
+  let data = list.value
+  if (filter.semester) {
+    data = data.filter(r => {
+      if (r.semester) return r.semester === filter.semester
+      if (r.meeting_date) {
+        const d = new Date(r.meeting_date)
+        const y = d.getFullYear()
+        const m = d.getMonth() + 1
+        const ay = m >= 9 ? y : y - 1
+        const sem = `${ay}-${ay + 1}-${m >= 2 && m < 9 ? 2 : 1}`
+        return sem === filter.semester
+      }
+      return false
+    })
+  }
+  if (filter.dateRange && filter.dateRange.length === 2) {
+    data = data.filter(r => r.meeting_date && r.meeting_date >= filter.dateRange[0] && r.meeting_date <= filter.dateRange[1])
+  }
+  return data
+})
+
+const total = computed(() => filteredList.value.length)
+const pagedList = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredList.value.slice(start, start + pageSize.value)
+})
 
 // v3j-B-b03 · 排序 + 搜索 + 多选
 const sortBy = ref('meeting_date')
@@ -225,4 +303,9 @@ onMounted(() => {
 .module-page { padding: 4px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
+.pagination-wrap {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
 </style>
