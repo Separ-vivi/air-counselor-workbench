@@ -115,8 +115,8 @@ def seed_large_dataset():
         existing_snos = {row[0] for row in db.query(Student.student_no).all()}
 
         # 年级：只灌 1 届（辅导员真实场景 = 带一届学生）
-        year_names = ['2024 级']
-        year_prefix = {'2024 级': 2024}
+        year_names = ['2025 级']
+        year_prefix = {'2025 级': 2024}
         grades = {}
         for yn in year_names:
             g = db.query(Grade).filter(Grade.grade_name == yn).first()
@@ -158,7 +158,7 @@ def seed_large_dataset():
             '材料成型及控制工程': '材控',
         }
         for (gn, mn), mobj in majors.items():
-            year_short = gn[2:4]  # '2024 级' -> '24'
+            year_short = gn[2:4]  # '2025 级' -> '24'
             major_code = major_short[mn]
             n_class = major_class_count.get(mn, 2)
             for ci in range(1, n_class + 1):
@@ -191,7 +191,7 @@ def seed_large_dataset():
                 name = gen_chinese_name()
                 gender = random.choices(['男','女'], weights=[55,45])[0]
                 birth_year = grade_year - 18 - random.randint(0, 1)
-                campus = random.choices(CAMPUSES, weights=[30,70])[0] if grade_year >= 2024 else random.choices(CAMPUSES, weights=[60,40])[0]
+                campus = random.choices(CAMPUSES, weights=[30,70])[0] if grade_year >= 2025 else random.choices(CAMPUSES, weights=[60,40])[0]
                 is_off = random.random() < 0.08
                 if is_off:
                     building = ''; room = ''
@@ -251,10 +251,10 @@ def seed_large_dataset():
                 pos = cadre_positions[i] if i < len(cadre_positions) else '委员'
                 _level = ('校级' if pos in ('学生会主席','团委副书记') else ('团支部' if pos == '团支书' else ('院级' if pos in ('学习委员',) else '班级')))  # v3j-C c02-hotfix2: 团支书 level → 团支部
                 _org = {'学生会主席':'校学生会','团委副书记':'校团委','学习委员':'班委会','团支书':'团支部','班长':'班委会','副班长':'班委会'}.get(pos, '班委会')
-                _sdate = f'{2022+i%3}-09-01'
-                _edate = f'{2024+i%3}-08-31'
+                _sdate = f'{2024+i%3}-09-01'
+                _edate = f'{2026+i%3}-08-31'
                 _email = f'{stu.student_no or stu.id}@stu.example.edu'
-                db.add(StudentCadreRecord(student_id=stu.id, position=pos, term=f'{2022+i%3}-{2024+i%3}',
+                db.add(StudentCadreRecord(student_id=stu.id, position=pos, term=f'{2024+i%3}-{2026+i%3}',
                     level=_level, organization=_org, start_date=_sdate, end_date=_edate, email=_email, notes=''))
                 stats['cadres'] += 1
         db.commit()
@@ -270,11 +270,11 @@ def seed_large_dataset():
             picks = random.sample(party_pool, min(4, len(party_pool)))  # v3j-C c02-hotfix2: 4 个党支部职务
             for i, stu in enumerate(picks):
                 pos = party_positions[i]
-                _sdate = '2024-09-01'
-                _edate = '2025-08-31'
+                _sdate = '2025-09-01'
+                _edate = '2026-08-31'
                 _email = f'{stu.student_no or stu.id}@stu.example.edu'
                 db.add(StudentCadreRecord(
-                    student_id=stu.id, position=pos, term='2024-2025',
+                    student_id=stu.id, position=pos, term='2025-2026',
                     level='党支部', organization='党支部',  # v3j-C c02-hotfix2: 党支部干部 level → 党支部
                     start_date=_sdate, end_date=_edate,
                     email=_email, notes=''
@@ -319,7 +319,7 @@ def seed_large_dataset():
         db.commit()
 
         # 成绩 + 预警
-        semesters = ['2022-2023-1','2022-2023-2','2023-2024-1','2023-2024-2','2024-2025-1']
+        semesters = ['2024-2025-1', '2024-2025-2', '2025-2026-1', '2025-2026-2', '2026-2027-1']
         bulk_grades = []
         stats['warnings'] = 0
         for stu in all_students:
@@ -327,7 +327,7 @@ def seed_large_dataset():
             mj = db.query(Major).get(cls.major_id)
             gr = db.query(Grade).get(mj.grade_id)
             year = year_prefix[gr.grade_name]
-            n_sem = min(len(semesters), 2026 - year)
+            n_sem = min(len(semesters), 2027 - year)
             student_semesters = semesters[:max(1, n_sem)]
             fail_courses = 0
             for sem in student_semesters:
@@ -379,7 +379,7 @@ def seed_large_dataset():
             mj = db.query(Major).get(cls.major_id)
             gr = db.query(Grade).get(mj.grade_id)
             year = year_prefix[gr.grade_name]
-            n_sem = min(len(semesters), 2026 - year)
+            n_sem = min(len(semesters), 2027 - year)
             student_sems = semesters[:max(1, n_sem)]
             for sem in student_sems:
                 moral = round(max(0, min(100, random.gauss(82, 8))), 1)
@@ -436,7 +436,7 @@ def seed_large_dataset():
             for i, s in enumerate(stages):
                 db.add(PartyProgress(
                     student_id=stu.id, stage=s,
-                    stage_date=f'{2022+i//2}-{random.randint(1,12):02d}-{random.randint(1,28):02d}',
+                    stage_date=f'{2024+i//2}-{random.randint(1,12):02d}-{random.randint(1,28):02d}',
                     contact_person=random.choice(['陈教授','周副教授','林副教授']), notes='',
                 ))
                 stats['party_progress'] += 1
@@ -477,23 +477,23 @@ def seed_large_dataset():
 
         # 活动 + 报名（含机械学院常见比赛）
         activity_defs = [
-            ('2024 春季运动会','2024-04-15','体育场','校春季田径运动会','体育'),
-            ('机械创新设计大赛校赛','2024-03-25','机械楼报告厅','全国大学生机械创新设计大赛校内选拔','学科竞赛'),
-            ('全国大学生数学建模竞赛','2024-09-05','数学建模基地','三天两夜校外赛','学科竞赛'),
-            ('大学生机器人大赛（RoboMaster）','2024-05-20','工训中心','机器人对抗赛校队选拔','学科竞赛'),
-            ('中国大学生方程式汽车大赛（FSC）','2024-04-08','汽车实验室','赛车设计与制造','学科竞赛'),
-            ('全国大学生工程训练综合能力竞赛','2024-06-15','工训中心','工训赛校内选拔','学科竞赛'),
-            ('"互联网+"大学生创新创业大赛','2024-05-15','创业孵化中心','创新创业项目路演','创新创业'),
-            ('"挑战杯"课外学术科技作品竞赛','2024-04-20','大学生活动中心','学术科技作品竞赛','创新创业'),
-            ('大学生节能减排社会实践与科技竞赛','2024-07-10','节能减排研究所','低碳环保设计','学科竞赛'),
-            ('全国大学生先进成图技术大赛','2024-05-05','工程图学实验室','CAD 建模竞赛','学科竞赛'),
-            ('3D 打印创新设计大赛','2024-06-01','增材制造实验室','3D 打印方案设计','学科竞赛'),
-            ('迎新晚会','2024-09-20','大剧场','迎接新生','文体'),
-            ('党史学习月','2024-06-01','党建活动室','党史教育','党建'),
-            ('心理健康周','2024-10-10','心理咨询中心','心理疏导','心理'),
-            ('志愿服务日','2024-12-05','社区','敬老院服务','志愿'),
-            ('宿舍文化节','2024-05-10','东区广场','宿舍装饰评比','文体'),
-            ('毕业生就业双选会','2024-11-08','体育馆','校招双选','就业'),
+            ('2024 春季运动会','2026-04-15','体育场','校春季田径运动会','体育'),
+            ('机械创新设计大赛校赛','2026-03-25','机械楼报告厅','全国大学生机械创新设计大赛校内选拔','学科竞赛'),
+            ('全国大学生数学建模竞赛','2026-09-05','数学建模基地','三天两夜校外赛','学科竞赛'),
+            ('大学生机器人大赛（RoboMaster）','2026-05-20','工训中心','机器人对抗赛校队选拔','学科竞赛'),
+            ('中国大学生方程式汽车大赛（FSC）','2026-04-08','汽车实验室','赛车设计与制造','学科竞赛'),
+            ('全国大学生工程训练综合能力竞赛','2026-06-15','工训中心','工训赛校内选拔','学科竞赛'),
+            ('"互联网+"大学生创新创业大赛','2026-05-15','创业孵化中心','创新创业项目路演','创新创业'),
+            ('"挑战杯"课外学术科技作品竞赛','2026-04-20','大学生活动中心','学术科技作品竞赛','创新创业'),
+            ('大学生节能减排社会实践与科技竞赛','2026-07-10','节能减排研究所','低碳环保设计','学科竞赛'),
+            ('全国大学生先进成图技术大赛','2026-05-05','工程图学实验室','CAD 建模竞赛','学科竞赛'),
+            ('3D 打印创新设计大赛','2026-06-01','增材制造实验室','3D 打印方案设计','学科竞赛'),
+            ('迎新晚会','2026-09-20','大剧场','迎接新生','文体'),
+            ('党史学习月','2026-06-01','党建活动室','党史教育','党建'),
+            ('心理健康周','2026-10-10','心理咨询中心','心理疏导','心理'),
+            ('志愿服务日','2026-12-05','社区','敬老院服务','志愿'),
+            ('宿舍文化节','2026-05-10','东区广场','宿舍装饰评比','文体'),
+            ('毕业生就业双选会','2026-11-08','体育馆','校招双选','就业'),
         ]
         activities = []
         for title, adate, loc, desc, atype in activity_defs:
@@ -516,7 +516,7 @@ def seed_large_dataset():
             mj = db.query(Major).get(cls.major_id)
             gr = db.query(Grade).get(mj.grade_id)
             year = year_prefix[gr.grade_name]
-            if year <= 2023 and random.random() < 0.7:
+            if year <= 2025 and random.random() < 0.7:
                 it = random.choice(['考研','就业','考公','留学','创业','待定'])
                 status = {'考研':'备考中','就业':random.choice(['求职中','已签约','实习中']),'考公':'备考中','留学':'申请中','创业':'启动中','待定':'规划中'}[it]
                 db.add(EmploymentRecord(
@@ -524,7 +524,7 @@ def seed_large_dataset():
                     target_industry=random.choice(['汽车制造','机械装备','轨道交通','航空航天','能源电力','智能制造','公务员','事业单位']),
                     target_position=random.choice(['机械工程师','结构工程师','工艺工程师','车辆研发','机器人算法工程师','CAE 仿真工程师','研究生','公务员']),
                     internship_company=random.choice(['','某汽车主机厂','某机械装备公司','某轨道交通企业','某航空制造企业']),
-                    status=status, offer_date='2024-05-15' if status=='已签约' else '',
+                    status=status, offer_date='2026-05-15' if status=='已签约' else '',
                     salary_range=random.choice(['','8-12K','12-18K','15-25K','20-30K']),
                     notes='',
                 ))
@@ -534,24 +534,24 @@ def seed_large_dataset():
         # 资助
         stats['hardship']=0; stats['grants']=0; stats['loans']=0; stats['scholarships']=0; stats['workstudy']=0; stats['honors']=0
         for stu in random.sample(all_students, k=int(len(all_students)*0.15)):
-            db.add(StudentHardship(student_id=stu.id, hardship_level=random.choice(['特别困难','困难','一般困难']), academic_year='2024-2025', evidence='贫困证明', notes=''))
+            db.add(StudentHardship(student_id=stu.id, hardship_level=random.choice(['特别困难','困难','一般困难']), academic_year='2025-2026', evidence='贫困证明', notes=''))
             stats['hardship'] += 1
             if random.random() < 0.7:
-                db.add(StudentGrant(student_id=stu.id, grant_type=random.choice(['国家助学金','校级助学金','企业资助']), amount=random.choice([3000,4000,5000,6000]), academic_year='2024-2025', notes=''))
+                db.add(StudentGrant(student_id=stu.id, grant_type=random.choice(['国家助学金','校级助学金','企业资助']), amount=random.choice([3000,4000,5000,6000]), academic_year='2025-2026', notes=''))
                 stats['grants'] += 1
             if random.random() < 0.5:
-                db.add(StudentLoan(student_id=stu.id, loan_type=random.choice(['生源地信用助学贷款','校园地助学贷款']), amount=random.choice([8000,12000]), duration='2024-2025', status='还款中', notes=''))
+                db.add(StudentLoan(student_id=stu.id, loan_type=random.choice(['生源地信用助学贷款','校园地助学贷款']), amount=random.choice([8000,12000]), duration='2025-2026', status='还款中', notes=''))
                 stats['loans'] += 1
         for stu in random.sample(all_students, k=int(len(all_students)*0.25)):
-            db.add(StudentScholarship(student_id=stu.id, scholarship_type=random.choice(['国家奖学金','国家励志奖学金','校一等奖学金','校二等奖学金','校三等奖学金']), amount=random.choice([8000,5000,3000,2000,1000]), academic_year='2024-2025', notes=''))
+            db.add(StudentScholarship(student_id=stu.id, scholarship_type=random.choice(['国家奖学金','国家励志奖学金','校一等奖学金','校二等奖学金','校三等奖学金']), amount=random.choice([8000,5000,3000,2000,1000]), academic_year='2025-2026', notes=''))
             stats['scholarships'] += 1
         for stu in random.sample(all_students, k=int(len(all_students)*0.1)):
-            db.add(StudentWorkStudy(student_id=stu.id, position=random.choice(['图书馆助管','实验室助理','食堂值日','教学秘书']), hours=random.choice([6,8,10,12]), compensation=random.choice([300,400,500,600]), academic_year='2024-2025', notes=''))
+            db.add(StudentWorkStudy(student_id=stu.id, position=random.choice(['图书馆助管','实验室助理','食堂值日','教学秘书']), hours=random.choice([6,8,10,12]), compensation=random.choice([300,400,500,600]), academic_year='2025-2026', notes=''))
             stats['workstudy'] += 1
         # 综合荣誉（30% 学生）
         for stu in random.sample(all_students, k=int(len(all_students)*0.3)):
             for _ in range(random.randint(1,2)):
-                db.add(StudentHonor(student_id=stu.id, honor_name=random.choice(['三好学生','优秀学生干部','校园之星','优秀共青团员','优秀志愿者']), academic_year='2024-2025', level=random.choice(['院级','校级','省级']), notes=''))
+                db.add(StudentHonor(student_id=stu.id, honor_name=random.choice(['三好学生','优秀学生干部','校园之星','优秀共青团员','优秀志愿者']), academic_year='2025-2026', level=random.choice(['院级','校级','省级']), notes=''))
                 stats['honors'] += 1
         # 学科竞赛获奖（额外 25% 学生，机械学院场景）
         competition_awards = [
@@ -575,7 +575,7 @@ def seed_large_dataset():
             for _ in range(random.randint(1,2)):
                 lvl, rank = random.choice(award_levels)
                 comp = random.choice(competition_awards)
-                db.add(StudentHonor(student_id=stu.id, honor_name=f'{comp} {rank}', academic_year='2024-2025', level=lvl, notes='学科竞赛'))
+                db.add(StudentHonor(student_id=stu.id, honor_name=f'{comp} {rank}', academic_year='2025-2026', level=lvl, notes='学科竞赛'))
                 stats['honors'] += 1
         db.commit()
 
@@ -605,7 +605,7 @@ def seed_large_dataset():
         # 学籍异动
         stats['status_changes'] = 0
         for stu in random.sample(all_students, k=int(len(all_students)*0.03)):
-            db.add(StudentStatusChange(student_id=stu.id, change_type=random.choice(['休学','复学','转专业','参军']), start_date='2024-03-01', end_date='2024-09-01', reason='个人原因', original_info='原班级', target_info='新班级', attachment='', notes=''))
+            db.add(StudentStatusChange(student_id=stu.id, change_type=random.choice(['休学','复学','转专业','参军']), start_date='2026-03-01', end_date='2025-09-01', reason='个人原因', original_info='原班级', target_info='新班级', attachment='', notes=''))
             stats['status_changes'] += 1
         db.commit()
 
@@ -646,7 +646,7 @@ def seed_large_dataset():
         # 知识库/FAQ/模板
         if db.query(KnowledgeDoc).count() < 3:
             db.add_all([
-                KnowledgeDoc(title='学生手册（2024版）', doc_type='markdown', content='# 学生手册\n\n## 第一章 总则\n本手册适用于全体在校学生。'),
+                KnowledgeDoc(title='学生手册（2026版）', doc_type='markdown', content='# 学生手册\n\n## 第一章 总则\n本手册适用于全体在校学生。'),
                 KnowledgeDoc(title='奖学金评定办法', doc_type='markdown', content='# 奖学金评定办法\n按学习成绩和综合表现评定。'),
                 KnowledgeDoc(title='学生行为规范', doc_type='markdown', content='# 学生行为规范\n遵守校规校纪。'),
             ])
@@ -665,10 +665,10 @@ def seed_large_dataset():
 
         # Project
         if db.query(Project).count() < 1:
-            proj = Project(name='2024 毕业生就业帮扶专项', start_date='2024-03-01', end_date='2024-07-15', status='active', progress=60, description='精准对接就业困难学生')
+            proj = Project(name='2024 毕业生就业帮扶专项', start_date='2026-03-01', end_date='2026-07-15', status='active', progress=60, description='精准对接就业困难学生')
             db.add(proj); db.flush()
-            grad_2022 = [s for s in all_students if year_prefix[db.query(Grade).get(db.query(Major).get(db.query(ClassModel).get(s.class_id).major_id).grade_id).grade_name] == 2022]
-            for stu in random.sample(grad_2022, k=min(20, len(grad_2022))):
+            grad_2024 = [s for s in all_students if year_prefix[db.query(Grade).get(db.query(Major).get(db.query(ClassModel).get(s.class_id).major_id).grade_id).grade_name] == 2024]
+            for stu in random.sample(grad_2024, k=min(20, len(grad_2024))):
                 db.add(ProjectStudent(project_id=proj.id, student_id=stu.id, notes=''))
             db.commit()
 
