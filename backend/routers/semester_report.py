@@ -1,8 +1,10 @@
-"""学期报表 API - V5-h-hotfix10
+"""学期报表 API - V5-h-hotfix11
 全面重构：增加考勤/心理/资助/荣誉/违纪/访谈/宿舍维度
 修复导出500、修复空数据崩溃
 增加semester参数到心理/违纪/荣誉/访谈API + 党员人数 + 访谈覆盖率
 V5-h-hotfix10: 所有统计指标严格按学期筛选 + 对比指标扩展到12项
+V5-h-hotfix11: 修复学期过滤 - 党团/活动/宿舍/就业端点增加semester参数;
+                宿舍端点实际应用学期日期过滤; 对比区增加请假人次和宿舍走访指标
 """
 import io
 import logging
@@ -131,6 +133,8 @@ def semester_summary(semester: str = Query(None), db: Session = Depends(get_db))
         'discipline_count': 0,
         'honor_count': 0,
         'party_member_count': 0,
+        'leave_count': 0,
+        'dormitory_visit_count': 0,
     }
     try:
         result['total_students'] = db.query(Student).count()
@@ -282,6 +286,34 @@ def semester_summary(semester: str = Query(None), db: Session = Depends(get_db))
     except Exception as e:
         logger.warning(f"summary 党员人数异常: {e}")
 
+    # 请假人次（按学期日期范围筛选）
+    try:
+        q = db.query(StudentLeave)
+        if semester and semester != 'all':
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q = q.filter(
+                    StudentLeave.start_date >= start,
+                    StudentLeave.start_date <= end
+                )
+        result['leave_count'] = q.count()
+    except Exception as e:
+        logger.warning(f"summary 请假人次异常: {e}")
+
+    # 宿舍走访次数（按学期日期范围筛选）
+    try:
+        q = db.query(StudentDormVisit)
+        if semester and semester != 'all':
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q = q.filter(
+                    StudentDormVisit.visit_date >= start,
+                    StudentDormVisit.visit_date <= end
+                )
+        result['dormitory_visit_count'] = q.count()
+    except Exception as e:
+        logger.warning(f"summary 宿舍走访异常: {e}")
+
     return result
 
 
@@ -393,8 +425,8 @@ def semester_academics(semester: str = Query(None), db: Session = Depends(get_db
 # 3. 党团发展
 # ============================================================
 @router.get('/party-development')
-def party_development(db: Session = Depends(get_db)):
-    """党团发展进度"""
+def party_development(semester: str = Query(None), db: Session = Depends(get_db)):
+    """党团发展进度（支持学期筛选）"""
     stage_map = {
         '递交入党申请书': 0,
         '入党积极分子': 0,
@@ -404,15 +436,20 @@ def party_development(db: Session = Depends(get_db)):
     }
     total_new_this_semester = 0
 
+    # 获取学期日期范围
+    sem_start, sem_end = _semester_date_range(semester)
+
     try:
         subq = (
             db.query(
                 PartyProgress.student_id,
                 func.max(PartyProgress.id).label('max_id')
             )
-            .group_by(PartyProgress.student_id)
-            .subquery()
         )
+        # 截止到学期结束日期的累计状态
+        if sem_end:
+            subq = subq.filter(PartyProgress.stage_date <= sem_end)
+        subq = subq.group_by(PartyProgress.student_id).subquery()
         rows = (
             db.query(PartyProgress.stage, func.count(PartyProgress.student_id))
             .join(subq, PartyProgress.id == subq.c.max_id)
@@ -428,16 +465,28 @@ def party_development(db: Session = Depends(get_db)):
         logger.warning(f"party 各阶段异常: {e}")
 
     try:
-        now = datetime.now()
-        if now.month >= 9:
-            sem_start = f"{now.year}-09-01"
+        # 本学期新发展人数：在学期日期范围内有阶段变化记录的人数
+        if sem_start and sem_end:
+            total_new_this_semester = (
+                db.query(func.count(PartyProgress.id))
+                .filter(
+                    PartyProgress.stage_date >= sem_start,
+                    PartyProgress.stage_date <= sem_end
+                )
+                .scalar() or 0
+            )
         else:
-            sem_start = f"{now.year}-03-01"
-        total_new_this_semester = (
-            db.query(func.count(PartyProgress.id))
-            .filter(PartyProgress.stage_date >= sem_start)
-            .scalar() or 0
-        )
+            # 无学期参数时，回退到当前学期的粗略计算
+            now = datetime.now()
+            if now.month >= 9:
+                fallback_start = f"{now.year}-09-01"
+            else:
+                fallback_start = f"{now.year}-02-01"
+            total_new_this_semester = (
+                db.query(func.count(PartyProgress.id))
+                .filter(PartyProgress.stage_date >= fallback_start)
+                .scalar() or 0
+            )
     except Exception as e:
         logger.warning(f"party 新发展异常: {e}")
 
@@ -451,8 +500,8 @@ def party_development(db: Session = Depends(get_db)):
 # 4. 就业跟踪
 # ============================================================
 @router.get('/employment')
-def employment_stats(db: Session = Depends(get_db)):
-    """就业状态分布与就业率"""
+def employment_stats(semester: str = Query(None), db: Session = Depends(get_db)):
+    """就业状态分布与就业率（支持学期筛选）"""
     status_map = {
         '已签约': 0,
         '考研': 0,
@@ -462,12 +511,22 @@ def employment_stats(db: Session = Depends(get_db)):
     }
     total = 0
 
+    # 构建学期日期范围过滤
+    emp_filters = []
+    if semester and semester != 'all':
+        start, end = _semester_date_range(semester)
+        if start and end:
+            emp_filters.append(EmploymentRecord.offer_date >= start)
+            emp_filters.append(EmploymentRecord.offer_date <= end)
+
     try:
-        rows = (
+        q = (
             db.query(EmploymentRecord.status, func.count(EmploymentRecord.id))
             .group_by(EmploymentRecord.status)
-            .all()
         )
+        if emp_filters:
+            q = q.filter(*emp_filters)
+        rows = q.all()
         total = sum(cnt for _, cnt in rows)
         for status, cnt in rows:
             s = (status or '').strip()
@@ -496,24 +555,38 @@ def employment_stats(db: Session = Depends(get_db)):
 # 5. 学生活动
 # ============================================================
 @router.get('/activities')
-def activity_stats(db: Session = Depends(get_db)):
-    """活动统计"""
+def activity_stats(semester: str = Query(None), db: Session = Depends(get_db)):
+    """活动统计（支持学期筛选）"""
     total_activities = 0
     total_participants = 0
     activity_ranking = []
 
+    # 构建学期日期范围过滤
+    act_filters = []
+    if semester and semester != 'all':
+        start, end = _semester_date_range(semester)
+        if start and end:
+            act_filters.append(Activity.activity_date >= start)
+            act_filters.append(Activity.activity_date <= end)
+
     try:
-        total_activities = db.query(Activity).count()
+        q = db.query(Activity)
+        if act_filters:
+            q = q.filter(*act_filters)
+        total_activities = q.count()
     except Exception as e:
         logger.warning(f"activities 总数异常: {e}")
 
     try:
-        total_participants = db.query(ActivitySignup).count()
+        q = db.query(ActivitySignup).join(Activity)
+        if act_filters:
+            q = q.filter(*act_filters)
+        total_participants = q.count()
     except Exception as e:
         logger.warning(f"activities 人次异常: {e}")
 
     try:
-        rows = (
+        q = (
             db.query(
                 Activity.title,
                 Activity.activity_type,
@@ -523,8 +596,10 @@ def activity_stats(db: Session = Depends(get_db)):
             .group_by(Activity.id, Activity.title, Activity.activity_type)
             .order_by(func.count(ActivitySignup.id).desc())
             .limit(10)
-            .all()
         )
+        if act_filters:
+            q = q.filter(*act_filters)
+        rows = q.all()
         activity_ranking = [
             {
                 'title': r[0],
@@ -937,37 +1012,58 @@ def dormitory_summary(semester: str = Query(None), db: Session = Depends(get_db)
         'leave_total': 0,
     }
 
+    # 构建学期日期范围过滤
+    dorm_visit_filters = []
+    dorm_chat_filters = []
+    leave_filters = []
+    if semester and semester != 'all':
+        start, end = _semester_date_range(semester)
+        if start and end:
+            dorm_visit_filters.extend([StudentDormVisit.visit_date >= start, StudentDormVisit.visit_date <= end])
+            dorm_chat_filters.extend([StudentDormChat.chat_date >= start, StudentDormChat.chat_date <= end])
+            leave_filters.extend([StudentLeave.start_date >= start, StudentLeave.start_date <= end])
+
     # 宿舍走访次数
     try:
-        result['visit_count'] = db.query(StudentDormVisit).count()
+        q = db.query(StudentDormVisit)
+        if dorm_visit_filters:
+            q = q.filter(*dorm_visit_filters)
+        result['visit_count'] = q.count()
     except Exception as e:
         logger.warning(f"dormitory 走访异常: {e}")
 
     # 寝谈记录数
     try:
-        result['chat_count'] = db.query(StudentDormChat).count()
+        q = db.query(StudentDormChat)
+        if dorm_chat_filters:
+            q = q.filter(*dorm_chat_filters)
+        result['chat_count'] = q.count()
     except Exception as e:
         logger.warning(f"dormitory 寝谈异常: {e}")
 
     # 请假统计
     try:
         # 按类型
-        rows = (
+        q = (
             db.query(StudentLeave.leave_type, func.count(StudentLeave.id))
             .group_by(StudentLeave.leave_type)
-            .all()
         )
+        if leave_filters:
+            q = q.filter(*leave_filters)
+        rows = q.all()
         result['leave_by_type'] = {(t or '未知'): cnt for t, cnt in rows}
     except Exception as e:
         logger.warning(f"dormitory 请假按类型异常: {e}")
 
     try:
         # 按审批状态
-        rows = (
+        q = (
             db.query(StudentLeave.approval_status, func.count(StudentLeave.id))
             .group_by(StudentLeave.approval_status)
-            .all()
         )
+        if leave_filters:
+            q = q.filter(*leave_filters)
+        rows = q.all()
         status_labels = {'pending': '待审批', 'approved': '已批准', 'rejected': '已驳回'}
         result['leave_by_status'] = {
             status_labels.get(s, s or '未知'): cnt for s, cnt in rows
@@ -976,7 +1072,10 @@ def dormitory_summary(semester: str = Query(None), db: Session = Depends(get_db)
         logger.warning(f"dormitory 请假按状态异常: {e}")
 
     try:
-        result['leave_total'] = db.query(StudentLeave).count()
+        q = db.query(StudentLeave)
+        if leave_filters:
+            q = q.filter(*leave_filters)
+        result['leave_total'] = q.count()
     except Exception as e:
         logger.warning(f"dormitory 请假总数异常: {e}")
 
@@ -1688,6 +1787,7 @@ def semester_compare(semester: str = Query(None), db: Session = Depends(get_db))
         'attendance_exception_count', 'psychology_attention_count',
         'financial_aid_count', 'discipline_count', 'honor_count',
         'interview_count', 'interview_coverage',
+        'leave_count', 'dormitory_visit_count',
     ]
 
     for metric in metrics:
@@ -1848,6 +1948,22 @@ def _get_semester_metric(db: Session, semester: str, metric: str):
                 StudentInterview.interview_date <= end
             ).distinct().count()
             return covered / total_students * 100
+        elif metric == 'leave_count':
+            start, end = _semester_date_range(semester)
+            if not start or not end:
+                return None
+            return db.query(StudentLeave).filter(
+                StudentLeave.start_date >= start,
+                StudentLeave.start_date <= end
+            ).count()
+        elif metric == 'dormitory_visit_count':
+            start, end = _semester_date_range(semester)
+            if not start or not end:
+                return None
+            return db.query(StudentDormVisit).filter(
+                StudentDormVisit.visit_date >= start,
+                StudentDormVisit.visit_date <= end
+            ).count()
     except Exception as e:
         logger.warning(f"获取指标 {metric} 异常: {e}")
     return None
