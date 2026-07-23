@@ -217,6 +217,7 @@ from routers.knowledge_ai import router as knowledge_ai_router
 from routers.comprehensive_assessment import router as comprehensive_router
 from routers.interview import router as interview_router
 from routers.attendance import router as attendance_router
+from routers.financial_aid import router as financial_aid_router
 
 app.include_router(students_router)
 app.include_router(tags_router)
@@ -240,6 +241,7 @@ app.include_router(semester_report_router)
 app.include_router(comprehensive_router)
 app.include_router(interview_router)
 app.include_router(attendance_router)
+app.include_router(financial_aid_router)
 app.include_router(student_tag_router)
 
 

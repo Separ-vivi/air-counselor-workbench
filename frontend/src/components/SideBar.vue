@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">V5-h-hotfix10</div>
+        <div class="brand-ver">V6</div>
       </div>
     </div>
 
@@ -44,6 +44,7 @@
         <el-menu-item index="/module/activities"><el-icon><TrophyBase /></el-icon><span>学生活动</span></el-menu-item>
         <el-menu-item index="/module/meetings"><el-icon><ChatDotSquare /></el-icon><span>班会记录</span></el-menu-item>
         <el-menu-item index="/module/employment"><el-icon><Suitcase /></el-icon><span>就业跟踪</span></el-menu-item>
+        <el-menu-item index="/module/financial-aid"><el-icon><Coin /></el-icon><span>奖助贷</span></el-menu-item>
       </el-sub-menu>
 
       <!-- 第4组 效率与组织 -->

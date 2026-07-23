@@ -24,6 +24,7 @@ const routes = [
   { path: '/module/cadres',     name: 'mCadres',     component: () => import('@/views/modules/CadresModule.vue'),     meta: { title: '干部管理' } },
   { path: '/module/activities', name: 'mActivities', component: () => import('@/views/modules/ActivitiesModule.vue'), meta: { title: '活动管理' } },
   { path: '/module/employment', name: 'mEmployment', component: () => import('@/views/modules/EmploymentModule.vue'), meta: { title: '就业管理' } },
+  { path: '/module/financial-aid', name: 'mFinAid',  component: () => import('@/views/modules/FinancialAidModule.vue'), meta: { title: '奖助贷' } },
   { path: '/module/meetings',   name: 'mMeetings',   component: () => import('@/views/modules/MeetingsModule.vue'),   meta: { title: '班会管理' } },
   { path: '/module/teachers',   name: 'mTeachers',   component: () => import('@/views/modules/TeachersModule.vue'),   meta: { title: '班主任' } },
 
@@ -52,7 +53,7 @@ const router = createRouter({
 })
 
 router.afterEach((to) => {
-  document.title = `${to.meta?.title || '辅导员工作平台'} · V5-h-hotfix10`
+  document.title = `${to.meta?.title || '辅导员工作平台'} · V6`
 })
 
 export default router
