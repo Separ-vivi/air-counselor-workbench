@@ -312,7 +312,14 @@ const getMetricLabel = (key) => {
     avg_score: '平均成绩',
     fail_rate: '挂科率',
     warning_count: '预警人数',
-    activity_participants: '活动参与'
+    activity_participants: '活动参与',
+    attendance_exception_count: '考勤异常次数',
+    psychology_attention_count: '心理关注人数',
+    financial_aid_count: '资助人次',
+    discipline_count: '违纪人数',
+    honor_count: '荣誉人次',
+    interview_count: '访谈次数',
+    interview_coverage: '访谈覆盖率',
   }
   return labels[key] || key
 }
@@ -321,6 +328,7 @@ const formatMetric = (key, value) => {
   if (value === null || value === undefined) return '-'
   if (key === 'avg_score') return value.toFixed(2) + ' 分'
   if (key === 'fail_rate') return value.toFixed(2) + '%'
+  if (key === 'interview_coverage') return value.toFixed(1) + '%'
   return value
 }
 
@@ -328,6 +336,7 @@ const formatDiff = (key, diff) => {
   if (diff === null || diff === undefined) return '-'
   if (key === 'avg_score') return (diff > 0 ? '+' : '') + diff.toFixed(2) + ' 分'
   if (key === 'fail_rate') return (diff > 0 ? '+' : '') + diff.toFixed(2) + '%'
+  if (key === 'interview_coverage') return (diff > 0 ? '+' : '') + diff.toFixed(1) + '%'
   return (diff > 0 ? '+' : '') + diff
 }
 

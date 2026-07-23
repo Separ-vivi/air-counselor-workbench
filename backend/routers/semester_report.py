@@ -1,7 +1,8 @@
-"""学期报表 API - V5-h-hotfix8
+"""学期报表 API - V5-h-hotfix10
 全面重构：增加考勤/心理/资助/荣誉/违纪/访谈/宿舍维度
 修复导出500、修复空数据崩溃
 增加semester参数到心理/违纪/荣誉/访谈API + 党员人数 + 访谈覆盖率
+V5-h-hotfix10: 所有统计指标严格按学期筛选 + 对比指标扩展到12项
 """
 import io
 import logging
@@ -198,11 +199,18 @@ def semester_summary(semester: str = Query(None), db: Session = Depends(get_db))
     except Exception as e:
         logger.warning(f"summary 考勤异常异常: {e}")
 
-    # 心理关注人数（非普通等级）
+    # 心理关注人数（非普通等级，按学期日期范围筛选）
     try:
         q = db.query(PsychologyRecord.student_id).filter(
             PsychologyRecord.attention_level.in_(['一级关注', '二级关注', '三级关注'])
         )
+        if semester and semester != 'all':
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q = q.filter(
+                    PsychologyRecord.record_date >= start,
+                    PsychologyRecord.record_date <= end
+                )
         result['psychology_attention_count'] = q.distinct().count()
     except Exception as e:
         logger.warning(f"summary 心理关注异常: {e}")
@@ -225,16 +233,26 @@ def semester_summary(semester: str = Query(None), db: Session = Depends(get_db))
     except Exception as e:
         logger.warning(f"summary 资助人次异常: {e}")
 
-    # 违纪人数
+    # 违纪人数（按学期日期范围筛选）
     try:
         q = db.query(StudentDiscipline.student_id).distinct()
+        if semester and semester != 'all':
+            start, end = _semester_date_range(semester)
+            if start and end:
+                q = q.filter(
+                    StudentDiscipline.discipline_date >= start,
+                    StudentDiscipline.discipline_date <= end
+                )
         result['discipline_count'] = q.count()
     except Exception as e:
         logger.warning(f"summary 违纪人数异常: {e}")
 
-    # 荣誉总人次
+    # 荣誉总人次（按学年筛选）
     try:
         q = db.query(StudentHonor)
+        honor_year = _semester_to_academic_year(semester)
+        if honor_year:
+            q = q.filter(StudentHonor.academic_year == honor_year)
         result['honor_count'] = q.count()
     except Exception as e:
         logger.warning(f"summary 荣誉人次异常: {e}")
@@ -1650,7 +1668,12 @@ def semester_compare(semester: str = Query(None), db: Session = Depends(get_db))
         'comparison': {}
     }
 
-    metrics = ['avg_score', 'fail_rate', 'warning_count', 'activity_participants']
+    metrics = [
+        'avg_score', 'fail_rate', 'warning_count', 'activity_participants',
+        'attendance_exception_count', 'psychology_attention_count',
+        'financial_aid_count', 'discipline_count', 'honor_count',
+        'interview_count', 'interview_coverage',
+    ]
 
     for metric in metrics:
         curr_val = _get_semester_metric(db, semester, metric)
@@ -1697,9 +1720,77 @@ def _get_semester_metric(db: Session, semester: str, metric: str):
                 WarningRecord.semester == semester
             ).count()
         elif metric == 'activity_participants':
+            # 按学期日期范围筛选活动
+            start, end = _semester_date_range(semester)
+            if not start or not end:
+                return None
             return db.query(func.count(ActivitySignup.id)).join(Activity).filter(
-                Activity.activity_date >= semester.split('-')[0] + '-09-01'
+                Activity.activity_date >= start,
+                Activity.activity_date <= end
             ).scalar() or 0
+        elif metric == 'attendance_exception_count':
+            start, end = _semester_date_range(semester)
+            if not start or not end:
+                return None
+            return db.query(StudentAttendanceException).filter(
+                StudentAttendanceException.exception_date >= start,
+                StudentAttendanceException.exception_date <= end
+            ).count()
+        elif metric == 'psychology_attention_count':
+            start, end = _semester_date_range(semester)
+            if not start or not end:
+                return None
+            return db.query(PsychologyRecord.student_id).filter(
+                PsychologyRecord.attention_level.in_(['一级关注', '二级关注', '三级关注']),
+                PsychologyRecord.record_date >= start,
+                PsychologyRecord.record_date <= end
+            ).distinct().count()
+        elif metric == 'financial_aid_count':
+            aid_year = _semester_to_academic_year(semester)
+            if not aid_year:
+                return None
+            cnt = 0
+            cnt += db.query(StudentHardship).filter(StudentHardship.academic_year == aid_year).count()
+            cnt += db.query(StudentGrant).filter(StudentGrant.academic_year == aid_year).count()
+            cnt += db.query(StudentScholarship).filter(StudentScholarship.academic_year == aid_year).count()
+            cnt += db.query(StudentLoan).count()  # 贷款无学年字段
+            cnt += db.query(StudentWorkStudy).filter(StudentWorkStudy.academic_year == aid_year).count()
+            return cnt
+        elif metric == 'discipline_count':
+            start, end = _semester_date_range(semester)
+            if not start or not end:
+                return None
+            return db.query(StudentDiscipline.student_id).filter(
+                StudentDiscipline.discipline_date >= start,
+                StudentDiscipline.discipline_date <= end
+            ).distinct().count()
+        elif metric == 'honor_count':
+            honor_year = _semester_to_academic_year(semester)
+            if not honor_year:
+                return None
+            return db.query(StudentHonor).filter(
+                StudentHonor.academic_year == honor_year
+            ).count()
+        elif metric == 'interview_count':
+            start, end = _semester_date_range(semester)
+            if not start or not end:
+                return None
+            return db.query(StudentInterview).filter(
+                StudentInterview.interview_date >= start,
+                StudentInterview.interview_date <= end
+            ).count()
+        elif metric == 'interview_coverage':
+            start, end = _semester_date_range(semester)
+            if not start or not end:
+                return None
+            total_students = db.query(Student).count()
+            if total_students == 0:
+                return None
+            covered = db.query(StudentInterview.student_id).filter(
+                StudentInterview.interview_date >= start,
+                StudentInterview.interview_date <= end
+            ).distinct().count()
+            return covered / total_students * 100
     except Exception as e:
         logger.warning(f"获取指标 {metric} 异常: {e}")
     return None
