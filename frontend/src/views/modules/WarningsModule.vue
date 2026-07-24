@@ -175,9 +175,9 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="重修" prop="is_makeup" width="70" align="center">
+        <el-table-column label="重修" width="70" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.is_makeup" type="warning" size="small">重修</el-tag>
+            <el-tag v-if="row.is_makeup === true || row.is_makeup === 1 || row.is_makeup === '1'" type="warning" size="small">重修</el-tag>
           </template>
         </el-table-column>
       </el-table>

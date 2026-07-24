@@ -96,9 +96,9 @@
               </template>
             </el-table-column>
             <el-table-column label="成绩等级" prop="grade_level" width="110" sortable />
-            <el-table-column label="重修" prop="is_makeup" width="80" align="center" sortable>
+            <el-table-column label="重修" width="80" align="center" sortable>
               <template #default="{ row }">
-                <el-tag v-if="row.is_makeup" type="warning" size="small">重修</el-tag>
+                <el-tag v-if="row.is_makeup === true || row.is_makeup === 1 || row.is_makeup === '1'" type="warning" size="small">重修</el-tag>
               </template>
             </el-table-column>
           </el-table>
@@ -341,9 +341,9 @@
         </el-table-column>
         <el-table-column label="成绩等级" prop="grade_level" width="100" sortable />
         <el-table-column label="绩点" prop="gpa" width="80" align="center" sortable />
-        <el-table-column label="重修" prop="is_makeup" width="70" align="center">
+        <el-table-column label="重修" width="70" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.is_makeup" type="warning" size="small">重修</el-tag>
+            <el-tag v-if="row.is_makeup === true || row.is_makeup === 1 || row.is_makeup === '1'" type="warning" size="small">重修</el-tag>
           </template>
         </el-table-column>
       </el-table>

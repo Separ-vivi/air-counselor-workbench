@@ -56,15 +56,15 @@
         </div>
         <div class="summary-card-sm">
           <div class="card-title-sm">心理关注</div>
-          <div class="card-value-sm" style="color:#9B59B6">{{ summaryData?.psychology_attention_count || 0 }}</div>
+          <div class="card-value-sm" style="color:#5B92E5">{{ summaryData?.psychology_attention_count || 0 }}</div>
         </div>
         <div class="summary-card-sm">
           <div class="card-title-sm">资助总人次</div>
-          <div class="card-value-sm" style="color:#5B92E5">{{ summaryData?.financial_aid_count || 0 }}</div>
+          <div class="card-value-sm" style="color:#7BCFCB">{{ summaryData?.financial_aid_count || 0 }}</div>
         </div>
         <div class="summary-card-sm">
           <div class="card-title-sm">荣誉人次</div>
-          <div class="card-value-sm" style="color:#F39C12">{{ summaryData?.honor_count || 0 }}</div>
+          <div class="card-value-sm" style="color:#8FA9E5">{{ summaryData?.honor_count || 0 }}</div>
         </div>
         <div class="summary-card-sm">
           <div class="card-title-sm">违纪人数</div>
@@ -72,7 +72,7 @@
         </div>
         <div class="summary-card-sm">
           <div class="card-title-sm">累计党员</div>
-          <div class="card-value-sm" style="color:#C0392B">{{ summaryData?.party_member_count || 0 }}</div>
+          <div class="card-value-sm" style="color:#4FC3B8">{{ summaryData?.party_member_count || 0 }}</div>
         </div>
       </div>
 
@@ -121,26 +121,17 @@
         </div>
       </div>
 
-      <!-- 7. 心理关怀（合并：关注等级分布 + 咨询统计） -->
+      <!-- 7. 心理关怀 + 访谈统计（并排） -->
       <div class="charts-row">
-        <div class="chart-card" style="grid-column: 1 / -1">
-          <h3>心理关怀</h3>
-          <div class="psychology-layout">
-            <div class="psychology-chart-side">
-              <div v-if="psychologyData?.by_attention_level && Object.keys(psychologyData.by_attention_level).length" ref="psychologyChart" class="chart-container"></div>
-              <div v-else class="chart-empty">暂无数据</div>
-            </div>
-            <div class="psychology-stats-side">
-              <div class="psychology-stat-item">
-                <div class="psychology-stat-label">总咨询次数</div>
-                <div class="psychology-stat-value" style="color:#5B92E5">{{ psychologyData?.total_counseling_count || 0 }}</div>
-              </div>
-              <div class="psychology-stat-item">
-                <div class="psychology-stat-label">需跟进人数</div>
-                <div class="psychology-stat-value" style="color:#E74C3C">{{ psychologyData?.need_follow_up || 0 }}</div>
-              </div>
-            </div>
-          </div>
+        <div class="chart-card">
+          <h3>心理关怀 <span style="font-size:12px;color:#7F8C8D;font-weight:400;margin-left:8px;">咨询{{ psychologyData?.total_counseling_count || 0 }}次 | 需跟进{{ psychologyData?.need_follow_up || 0 }}人</span></h3>
+          <div v-if="psychologyData?.by_attention_level && Object.keys(psychologyData.by_attention_level).length" ref="psychologyChart" class="chart-container"></div>
+          <div v-else class="chart-empty">暂无数据</div>
+        </div>
+        <div class="chart-card">
+          <h3>访谈统计 <span style="font-size:12px;color:#7F8C8D;font-weight:400;margin-left:8px;">覆盖率 {{ interviewsData?.coverage_rate || 0 }}% | {{ interviewsData?.covered_student_count || 0 }}/{{ interviewsData?.total_student_count || 0 }}人</span></h3>
+          <div v-if="interviewsData?.by_type && Object.keys(interviewsData.by_type).length" ref="interviewChart" class="chart-container"></div>
+          <div v-else class="chart-empty">暂无数据</div>
         </div>
       </div>
 
@@ -197,15 +188,6 @@
               <span class="compact-label">暂无数据</span><span class="compact-value">-</span>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- 9. 访谈统计 -->
-      <div class="charts-row">
-        <div class="chart-card">
-          <h3>访谈统计 <span style="font-size:12px;color:#7F8C8D;font-weight:400;margin-left:8px;">覆盖率 {{ interviewsData?.coverage_rate || 0 }}% | {{ interviewsData?.covered_student_count || 0 }}/{{ interviewsData?.total_student_count || 0 }}人</span></h3>
-          <div v-if="interviewsData?.by_type && Object.keys(interviewsData.by_type).length" ref="interviewChart" class="chart-container"></div>
-          <div v-else class="chart-empty">暂无数据</div>
         </div>
       </div>
     </template>
@@ -401,7 +383,12 @@ const renderClassAvgChart = () => {
     series: [{
       type: 'bar',
       data: data.map(d => d.avg_score),
-      itemStyle: { color: '#5B92E5' },
+      itemStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: '#7BCFCB' },
+          { offset: 1, color: '#5B92E5' }
+        ])
+      },
       barMaxWidth: 40
     }]
   })
@@ -415,12 +402,14 @@ const renderWarningChart = () => {
   const colorMap = { red: '#E74C3C', yellow: '#F39C12', normal: '#2ECC71' }
   chart.setOption({
     tooltip: { trigger: 'item' },
-    legend: { bottom: 0 },
+    legend: { bottom: 0, textStyle: { fontSize: 11 } },
     series: [{
       type: 'pie',
       radius: ['40%', '70%'],
-      avoidLabelOverlap: false,
-      label: { show: true, formatter: '{b}: {c}人' },
+      center: ['50%', '45%'],
+      avoidLabelOverlap: true,
+      label: { show: true, fontSize: 11, formatter: '{b}: {c}人' },
+      labelLine: { length: 10, length2: 8 },
       data: data.map(d => ({
         name: d.level_label,
         value: d.count,
@@ -435,15 +424,17 @@ const renderAttendanceTypeChart = () => {
   if (!attendanceTypeChart.value || !Object.keys(data).length) return
   const chart = createChart(attendanceTypeChart.value)
   if (!chart) return
-  const colorMap = { '迟到': '#F39C12', '早退': '#E6A23C', '旷课': '#E74C3C' }
+  const colorMap = { '迟到': '#5B92E5', '早退': '#7BCFCB', '旷课': '#E74C3C' }
   chart.setOption({
     tooltip: { trigger: 'item' },
-    legend: { bottom: 0 },
+    legend: { bottom: 0, textStyle: { fontSize: 11 } },
     series: [{
       type: 'pie',
       radius: ['40%', '70%'],
-      avoidLabelOverlap: false,
-      label: { show: true, formatter: '{b}: {c}次' },
+      center: ['50%', '45%'],
+      avoidLabelOverlap: true,
+      label: { show: true, fontSize: 11, formatter: '{b}: {c}次' },
+      labelLine: { length: 10, length2: 8 },
       data: Object.entries(data).map(([name, value]) => ({
         name,
         value,
@@ -469,7 +460,7 @@ const renderAttendanceClassChart = () => {
     series: [{
       type: 'bar',
       data: data.map(d => d.count),
-      itemStyle: { color: '#E6A23C' },
+      itemStyle: { color: '#5B92E5' },
       barMaxWidth: 40
     }]
   })
@@ -480,15 +471,17 @@ const renderPsychologyChart = () => {
   if (!psychologyChart.value || !Object.keys(data).length) return
   const chart = createChart(psychologyChart.value)
   if (!chart) return
-  const colorMap = { '一级关注': '#E74C3C', '二级关注': '#F39C12', '三级关注': '#3498DB', '普通': '#2ECC71' }
+  const colorMap = { '一级关注': '#E74C3C', '二级关注': '#F39C12', '三级关注': '#5B92E5', '普通': '#7BCFCB' }
   chart.setOption({
     tooltip: { trigger: 'item' },
-    legend: { bottom: 0 },
+    legend: { bottom: 0, textStyle: { fontSize: 11 } },
     series: [{
       type: 'pie',
       radius: ['40%', '70%'],
-      avoidLabelOverlap: false,
-      label: { show: true, formatter: '{b}: {c}人' },
+      center: ['50%', '45%'],
+      avoidLabelOverlap: true,
+      label: { show: true, fontSize: 11, formatter: '{b}: {c}人' },
+      labelLine: { length: 10, length2: 8 },
       data: Object.entries(data).map(([name, value]) => ({
         name,
         value,
@@ -503,15 +496,17 @@ const renderInterviewChart = () => {
   if (!interviewChart.value || !Object.keys(data).length) return
   const chart = createChart(interviewChart.value)
   if (!chart) return
-  const colors = ['#5B92E5', '#7BCFCB', '#F39C12', '#E74C3C', '#9B59B6', '#2ECC71']
+  const colors = ['#5B92E5', '#7BCFCB', '#4FC3B8', '#8FA9E5', '#E74C3C', '#F39C12']
   chart.setOption({
     tooltip: { trigger: 'item' },
-    legend: { bottom: 0 },
+    legend: { bottom: 0, textStyle: { fontSize: 11 } },
     series: [{
       type: 'pie',
       radius: ['40%', '70%'],
-      avoidLabelOverlap: false,
-      label: { show: true, formatter: '{b}: {c}次' },
+      center: ['50%', '45%'],
+      avoidLabelOverlap: true,
+      label: { show: true, fontSize: 11, formatter: '{b}: {c}次' },
+      labelLine: { length: 10, length2: 8 },
       data: Object.entries(data).map(([name, value], i) => ({
         name,
         value,
@@ -576,10 +571,10 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
-/* 紧凑总览卡片 grid - 每行4个，共3行12个 */
+/* 紧凑总览卡片 grid - 每行6个，共2行12个 */
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -687,49 +682,6 @@ onBeforeUnmount(() => {
   justify-content: center;
   color: #C0C4CC;
   font-size: 14px;
-}
-
-/* 心理关怀合并布局 */
-.psychology-layout {
-  display: flex;
-  align-items: stretch;
-  gap: 24px;
-  min-height: 200px;
-}
-
-.psychology-chart-side {
-  flex: 1;
-  min-width: 0;
-}
-
-.psychology-chart-side .chart-container,
-.psychology-chart-side .chart-empty {
-  height: 200px;
-}
-
-.psychology-stats-side {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 28px;
-  padding: 0 16px;
-  min-width: 160px;
-  border-left: 1px solid #ECF1F7;
-}
-
-.psychology-stat-item {
-  text-align: center;
-}
-
-.psychology-stat-label {
-  font-size: 12px;
-  color: #7F8C8D;
-  margin-bottom: 6px;
-}
-
-.psychology-stat-value {
-  font-size: 28px;
-  font-weight: 700;
 }
 
 /* 综合数据紧凑卡片 */
