@@ -37,8 +37,9 @@
 
     <el-row :gutter="16" style="margin-bottom: 16px">
       <el-col :span="6" v-for="stat in statCards" :key="stat.label">
-        <el-card shadow="hover" class="stat-card" :body-style="{ padding: '20px' }">
-          <div class="stat-icon" :style="{ background: stat.bg, color: stat.color }"><el-icon :size="26"><component :is="stat.icon" /></el-icon></div>
+        <el-card shadow="hover" class="stat-card" :body-style="{ padding: '20px' }"
+          :style="{ '--stat-accent': stat.color, '--stat-color': stat.color }">
+          <div class="stat-icon" :style="{ background: stat.bg, color: stat.color }"><el-icon :size="28"><component :is="stat.icon" /></el-icon></div>
           <div class="stat-body">
             <div class="stat-label">{{ stat.label }}</div>
             <div class="stat-value">{{ stat.value }}</div>
@@ -151,7 +152,7 @@
       </template>
       <div class="shortcuts">
         <div class="sc-item" v-for="s in shortcuts" :key="s.to" @click="$router.push(s.to)">
-          <div class="sc-icon" :style="{ background: s.bg, color: s.color }"><el-icon :size="22"><component :is="s.icon" /></el-icon></div>
+          <div class="sc-icon" :style="{ background: s.bg, color: s.color }"><el-icon :size="24"><component :is="s.icon" /></el-icon></div>
           <div class="sc-label">{{ s.label }}</div>
         </div>
       </div>
@@ -776,44 +777,65 @@ onMounted(async () => {
   flex-direction: column;
 }
 
+/* v6.4: 统计卡片升级 — 底部彩色边条 + 呼吸感 */
 .stat-card {
-  border-radius: 12px;
+  border-radius: 16px;
   border: none;
+  position: relative;
+  overflow: hidden;
 }
+.stat-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 12%;
+  right: 12%;
+  height: 4px;
+  border-radius: 4px 4px 0 0;
+  background: var(--stat-accent, #5B92E5);
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.stat-card:hover::after { opacity: 1; }
 .stat-card :deep(.el-card__body) {
-  /* v4-hotfix1: air 要数字文字全居中，不要左对齐 */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
   gap: 8px;
-  padding: 18px 12px !important;
+  padding: 20px 12px 24px !important;
 }
 .stat-icon {
-  /* v4-hotfix11: el-icon SVG 版, 尺寸由 :size 控制, color 走 stat.color 主题色 */
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform .2s ease;
+  transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s;
+  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.12);
 }
-.stat-card:hover .stat-icon { transform: scale(1.05); }
+.stat-card:hover .stat-icon {
+  transform: scale(1.08);
+  box-shadow: 0 4px 14px rgba(91, 146, 229, 0.20);
+}
 .stat-body { text-align: center; width: 100%; }
 .stat-body .stat-label {
   color: #7B8B9C;
   font-size: 13px;
   text-align: center;
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 .stat-body .stat-value {
-  color: #1E3A56;
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 800;
   margin-top: 4px;
   text-align: center;
   letter-spacing: 0.5px;
+  font-family: -apple-system, 'SF Pro Display', 'PingFang SC', sans-serif;
+  color: var(--stat-color, #1E3A56);
 }
 .card-header {
   display: flex;
@@ -834,20 +856,24 @@ onMounted(async () => {
 }
 .sc-item:hover { background: rgba(91, 146, 229, 0.06); }
 .sc-icon {
-  /* v4-hotfix11: el-icon SVG, 主题色底 */
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 8px;
-  transition: transform .2s ease;
+  transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s;
+  box-shadow: 0 2px 6px rgba(91, 146, 229, 0.10);
 }
-.sc-item:hover .sc-icon { transform: scale(1.06); }
+.sc-item:hover .sc-icon {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(91, 146, 229, 0.18);
+}
 .sc-label {
   font-size: 13px;
   color: #303133;
+  font-weight: 500;
 }
 .prod-row { display: flex; gap: 12px; align-items: stretch; }
 .prod-item { cursor: pointer; transition: background 0.2s, transform 0.1s; }
@@ -892,25 +918,25 @@ onMounted(async () => {
 .dash-drawer .dp-name { font-size: 14px; font-weight: 600; color: #2E4257; }
 .dash-drawer .dp-prog { font-size: 13px; color: #5B92E5; font-weight: 600; }
 .dash-drawer .dp-meta { font-size: 12px; color: #8DA0B5; margin-top: 6px; }
-/* v4-hotfix5: ⑩ 效率中心与全站清新蓝白统一，去除冷灰+纯黑 */
+/* v6.4: 效率中心升级 — 更鲜明的色彩区分 + 呼吸感 */
 .prod-item {
   flex: 1;
   text-align: center;
-  padding: 20px 8px;
-  border-radius: 14px;
+  padding: 22px 8px;
+  border-radius: 16px;
   background: linear-gradient(180deg, #FFFFFF 0%, #F3F8FE 100%);
-  border: 1px solid rgba(91, 146, 229, 0.10);
-  transition: transform .2s ease, box-shadow .2s ease;
+  border: 1px solid rgba(91, 146, 229, 0.08);
+  transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s;
 }
 .prod-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(91, 146, 229, 0.10);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 22px rgba(91, 146, 229, 0.14);
 }
-.prod-num { font-size: 32px; font-weight: 700; color: #2E5A7F; letter-spacing: 0.5px; }
+.prod-num { font-size: 36px; font-weight: 800; color: #2E5A7F; letter-spacing: 0.5px; font-family: -apple-system, 'SF Pro Display', 'PingFang SC', sans-serif; }
 .prod-num.warning { color: #5B92E5; }
-.prod-num.danger { color: #4FC3B8; }
+.prod-num.danger  { color: #4FC3B8; }
 .prod-num.success { color: #8FA9E5; }
-.prod-label { color: rgba(91, 146, 229, 0.70); font-size: 12px; margin-top: 6px; letter-spacing: 0.3px; font-weight: 500; }
+.prod-label { color: rgba(91, 146, 229, 0.65); font-size: 12px; margin-top: 6px; letter-spacing: 0.3px; font-weight: 500; }
 .cd-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .cd-card {
   border-left: 4px solid #4A7A8C;
