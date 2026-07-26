@@ -10,7 +10,7 @@
     <el-card shadow="hover" class="section-card llm-card">
       <template #header>
         <div class="card-header">
-          <span>🤖 AI 配置（知识库问答）</span>
+          <span>AI 配置（知识库问答）</span>
           <el-tag v-if="llmSaved" type="success" size="small" round>已保存</el-tag>
         </div>
       </template>
@@ -46,8 +46,8 @@
           </el-col>
         </el-row>
         <el-form-item>
-          <el-button type="primary" @click="onSaveLlm" :loading="llmSaving">💾 保存配置</el-button>
-          <el-button @click="onTestLlm" :loading="llmTesting" :disabled="!llmSaved">🔌 测试连通</el-button>
+          <el-button type="primary" @click="onSaveLlm" :loading="llmSaving">保存配置</el-button>
+          <el-button @click="onTestLlm" :loading="llmTesting" :disabled="!llmSaved">测试连通</el-button>
           <el-button link type="info" @click="llmShowHelp = true">怎么用？</el-button>
         </el-form-item>
         <el-form-item v-if="llmTestResult">
@@ -62,7 +62,7 @@
       </el-form>
       <el-divider />
       <div class="llm-hint">
-        💡 目前支持任何兼容 OpenAI 协议的接口：DeepSeek / OpenAI / 本地 Ollama / 中转站
+        目前支持任何兼容 OpenAI 协议的接口：DeepSeek / OpenAI / 本地 Ollama / 中转站
         <br>DeepSeek 注册地址：<a href="https://platform.deepseek.com" target="_blank" style="color:#5B92E5">https://platform.deepseek.com</a>
         ；最低充值 ¥10，约可支持几千次问答
       </div>
@@ -72,7 +72,7 @@
     <el-card shadow="hover" class="section-card">
       <template #header>
         <div class="card-header">
-          <span>🩺 数据库健康检查</span>
+          <span>数据库健康检查</span>
           <el-tag v-if="health?.ok" type="success" size="small">正常</el-tag>
           <el-tag v-else-if="health" type="danger" size="small">异常</el-tag>
         </div>
@@ -116,14 +116,14 @@
     <el-card shadow="hover" class="section-card">
       <template #header>
         <div class="card-header">
-          <span>🚀 一键操作</span>
+          <span>一键操作</span>
           <el-tag type="danger" size="small">高风险</el-tag>
         </div>
       </template>
       <el-row :gutter="16">
         <el-col :span="8">
           <el-card shadow="never" class="op-card">
-            <div class="op-title">🌱 生成 300+ 全域测试数据</div>
+            <div class="op-title">生成 300+ 全域测试数据</div>
             <div class="op-desc">
               一键生成 48 班 × 336+ 学生，覆盖所有 20+ 侧边栏功能。用于新环境快速测试。
               <br><b style="color:#e6a23c">已有数据不会被删除，会追加。</b>
@@ -133,7 +133,7 @@
         </el-col>
         <el-col :span="8">
           <el-card shadow="never" class="op-card">
-            <div class="op-title">🧹 清空业务数据</div>
+            <div class="op-title">清空业务数据</div>
             <div class="op-desc">
               清空所有业务数据（学生/成绩/预警/活动/心理/家校/记事/校历 + 年级/专业/班级）。仅保留 系统设置。
               <br><b style="color:#f56c6c">此操作不可逆，请先备份。</b>
@@ -143,7 +143,7 @@
         </el-col>
         <el-col :span="8">
           <el-card shadow="never" class="op-card">
-            <div class="op-title">💥 一键重建数据库</div>
+            <div class="op-title">一键重建数据库</div>
             <div class="op-desc">
               删除所有表并重建为【空数据库】，不灌演示数据。如需 300+ 演示学生，请另点"生成测试数据"。
               <br><b style="color:#f56c6c">此操作不可恢复！</b>
@@ -158,14 +158,14 @@
     <el-card shadow="hover" class="section-card">
       <template #header>
         <div class="card-header">
-          <span>💾 数据管理</span>
+          <span>数据管理</span>
           <el-tag type="info" size="small">V5-d</el-tag>
         </div>
       </template>
       <el-row :gutter="16">
         <el-col :span="8">
           <el-card shadow="never" class="op-card">
-            <div class="op-title">📥 备份数据</div>
+            <div class="op-title">备份数据</div>
             <div class="op-desc">
               下载完整数据备份（zip 格式），包含数据库及附件，可离线保存。
             </div>
@@ -176,7 +176,7 @@
         </el-col>
         <el-col :span="8">
           <el-card shadow="never" class="op-card">
-            <div class="op-title">📤 恢复数据</div>
+            <div class="op-title">恢复数据</div>
             <div class="op-desc">
               上传之前的 .zip 备份文件恢复数据。
               <br><b style="color:#f56c6c">⚠️ 恢复将覆盖当前所有数据！</b>
@@ -193,7 +193,7 @@
         </el-col>
         <el-col :span="8">
           <el-card shadow="never" class="op-card">
-            <div class="op-title">📋 备份历史</div>
+            <div class="op-title">备份历史</div>
             <div class="op-desc">
               已有的备份文件列表，可直接下载。
             </div>

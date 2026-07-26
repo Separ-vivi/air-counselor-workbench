@@ -2,7 +2,7 @@
   <div>
     <div class="panel-head">
       <div>
-        <span class="title">📅 全维度时间线</span>
+        <span class="title">全维度时间线</span>
         <span class="text-muted count">&nbsp;共 {{ items.length }} 条</span>
       </div>
       <div>
@@ -13,9 +13,9 @@
       </div>
     </div>
 
-    <div v-if="loading" class="empty-hint"><div class="icon">⏳</div><div>加载中…</div></div>
+    <div v-if="loading" class="empty-hint"><div class="icon">...</div><div>加载中…</div></div>
     <div v-else-if="!filteredItems.length" class="empty-hint">
-      <div class="icon">📅</div>
+      <div class="icon">☰</div>
       <div>暂无时间线记录</div>
       <div class="text-muted" style="font-size:12px;margin-top:4px">
         新增学业/党团/心理/家庭等记录后，会自动汇集到这里

@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="panel-head">
-      <div><span class="title">🎯 本班党团发展进度</span></div>
+      <div><span class="title">本班党团发展进度</span></div>
       <el-button size="small" @click="load"><el-icon><Refresh /></el-icon> 刷新</el-button>
     </div>
 
@@ -18,7 +18,7 @@
 
     <!-- 全班总体进度条（横向 stepper 汇总视图，展示各阶段人数占比） -->
     <el-card shadow="never" class="overall-card" v-if="rows.length">
-      <template #header><span style="font-weight:600">📈 班级党团发展总体分布</span></template>
+      <template #header><span style="font-weight:600">班级党团发展总体分布</span></template>
       <el-steps :active="activeIdx" finish-status="success" align-center>
         <el-step v-for="(s, idx) in stages" :key="s.key"
                  :title="s.label"
@@ -33,7 +33,7 @@
         <template #default="{ row }">
           <div class="expand-block">
             <div style="margin-bottom:8px; font-weight:600; color:#4A7A8C">
-              🌱 {{ row.name }} 的党团发展轨迹
+              {{ row.name }} 的党团发展轨迹
             </div>
             <el-steps v-if="row.history && row.history.length"
                       :active="row.history.length - 1"
@@ -81,7 +81,7 @@
       <el-table-column prop="notes" label="备注" min-width="150" show-overflow-tooltip sortable />
     </el-table>
     <div v-if="rows.length" class="tip">
-      💡 点击左侧箭头展开可查看该学生完整发展轨迹（stepper）
+      点击左侧箭头展开可查看该学生完整发展轨迹（stepper）
     </div>
   </div>
 </template>

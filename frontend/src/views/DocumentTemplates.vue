@@ -3,7 +3,7 @@
     <div class="page-header">
       <h2>文档模板</h2>
       <div class="header-actions">
-        <el-button :icon="Document" @click="drawerVisible = true">📎 已生成文档</el-button>
+        <el-button :icon="Document" @click="drawerVisible = true">已生成文档</el-button>
         <el-button type="primary" :icon="Plus" @click="onCreate">新建模板</el-button>
       </div>
     </div>
@@ -29,10 +29,10 @@
         <div class="tpl-name">{{ t.name }}</div>
         <div class="tpl-preview">{{ t.content }}</div>
         <div class="tpl-actions">
-          <el-button size="small" plain type="primary" @click="onPreview(t)">👁️ 预览</el-button>
-          <el-button size="small" type="success" @click="onGenerate(t)">✨ 生成文书</el-button>
-          <el-button size="small" type="warning" plain @click="onEditTpl(t)">✏️ 编辑</el-button>
-          <el-button size="small" type="danger" plain @click="onDeleteTpl(t)">🗑️ 删除</el-button>
+          <el-button size="small" plain type="primary" @click="onPreview(t)">预览</el-button>
+          <el-button size="small" type="success" @click="onGenerate(t)">生成文书</el-button>
+          <el-button size="small" type="warning" plain @click="onEditTpl(t)">编辑</el-button>
+          <el-button size="small" type="danger" plain @click="onDeleteTpl(t)">删除</el-button>
         </div>
       </div>
     </div>
@@ -111,7 +111,7 @@
     </el-dialog>
 
     <!-- 已生成文档抽屉 -->
-    <el-drawer v-model="drawerVisible" title="📎 已生成文档" size="560px">
+    <el-drawer v-model="drawerVisible" title="已生成文档" size="560px">
       <div v-loading="docLoading">
         <el-empty v-if="documents.length === 0" description="还没有生成过文书" />
         <div v-for="d in documents" :key="d.id" class="doc-item">
@@ -122,8 +122,8 @@
           <div class="doc-time">{{ formatDate(d.created_at) }}</div>
           <div class="doc-preview">{{ d.content }}</div>
           <div class="doc-actions">
-            <el-button link type="primary" @click="onViewDoc(d)">📖 查看全文</el-button>
-            <el-button link type="danger" @click="onDeleteDoc(d)">🗑️ 删除</el-button>
+            <el-button link type="primary" @click="onViewDoc(d)">查看全文</el-button>
+            <el-button link type="danger" @click="onDeleteDoc(d)">删除</el-button>
           </div>
         </div>
       </div>

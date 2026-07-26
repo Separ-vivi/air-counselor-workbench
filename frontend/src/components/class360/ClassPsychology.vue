@@ -100,13 +100,13 @@
                         {{ item.attention_level || '-' }}
                       </el-tag>
                       <span v-if="item.counseling_count" class="psy-meta">咨询 {{ item.counseling_count }} 次</span>
-                      <span v-if="item.location" class="psy-meta">📍 {{ item.location }}</span>
+                      <span v-if="item.location" class="psy-meta">{{ item.location }}</span>
                     </div>
                     <div v-if="item.topic" class="psy-topic"><strong>主题：</strong>{{ item.topic }}</div>
                     <div v-if="item.summary" class="psy-summary">{{ item.summary }}</div>
                     <div v-if="item.notes && item.notes !== item.summary" class="psy-summary">{{ item.notes }}</div>
                     <div v-if="item.next_follow_date || item.next_follow_up" class="psy-meta psy-follow">
-                      🕒 下次跟进：{{ item.next_follow_date || item.next_follow_up }}
+                      下次跟进：{{ item.next_follow_date || item.next_follow_up }}
                     </div>
                   </div>
                 </el-timeline-item>

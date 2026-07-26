@@ -2,34 +2,34 @@
   <div>
     <!-- 班主任 + 班干部联系方式 -->
     <el-card v-if="contacts" shadow="never" class="contact-card">
-      <div class="contact-title">📞 班主任 &amp; 班干部联系方式</div>
+      <div class="contact-title">班主任 &amp; 班干部联系方式</div>
       <div class="contact-row">
         <span class="contact-item" v-if="contacts.class_teacher?.name">
           <el-tag type="success" size="small" effect="dark">班主任</el-tag>
           <b>{{ contacts.class_teacher.name }}</b>
-          <span v-if="contacts.class_teacher.phone"> · 📱 {{ contacts.class_teacher.phone }}</span>
+          <span v-if="contacts.class_teacher.phone"> · {{ contacts.class_teacher.phone }}</span>
         </span>
         <span class="contact-item" v-if="contacts.monitor?.name">
           <el-tag type="primary" size="small" effect="dark">班长</el-tag>
           <b>{{ contacts.monitor.name }}</b>
-          <span v-if="contacts.monitor.phone"> · 📱 {{ contacts.monitor.phone }}</span>
+          <span v-if="contacts.monitor.phone"> · {{ contacts.monitor.phone }}</span>
         </span>
         <span class="contact-item" v-if="contacts.league_secretary?.name">
           <el-tag type="warning" size="small" effect="dark">团支书</el-tag>
           <b>{{ contacts.league_secretary.name }}</b>
-          <span v-if="contacts.league_secretary.phone"> · 📱 {{ contacts.league_secretary.phone }}</span>
+          <span v-if="contacts.league_secretary.phone"> · {{ contacts.league_secretary.phone }}</span>
         </span>
         <span class="contact-item" v-for="c in otherCadres" :key="c.student_id + c.position">
           <el-tag type="info" size="small" effect="plain">{{ c.position }}</el-tag>
           <b>{{ c.name }}</b>
-          <span v-if="c.phone"> · 📱 {{ c.phone }}</span>
+          <span v-if="c.phone"> · {{ c.phone }}</span>
         </span>
         <span v-if="!hasContacts" class="contact-empty">暂无班干部信息（请到"三级架构"里为班级配置班主任、班长、团支书）</span>
       </div>
     </el-card>
 
     <div class="panel-head">
-      <div><span class="title">📋 班级花名册</span><span class="text-muted count">&nbsp;共 {{ rows.length }} 人</span></div>
+      <div><span class="title">班级花名册</span><span class="text-muted count">&nbsp;共 {{ rows.length }} 人</span></div>
       <div>
         <el-input v-model="kw" size="small" placeholder="按姓名/学号/电话过滤..." clearable style="width:220px">
           <template #prefix><el-icon><Search /></el-icon></template>
@@ -112,17 +112,17 @@ function warnLabel(s) {
 // 班干部职务 → 图标 / tag 颜色
 function cadreIconOf(pos) {
   if (!pos) return ''
-  if (pos.includes('班长')) return '👑'
-  if (pos.includes('团支书') || pos.includes('团支部')) return '🎗️'
-  if (pos.includes('学习')) return '📘'
-  if (pos.includes('生活')) return '🏠'
-  if (pos.includes('文艺')) return '🎨'
-  if (pos.includes('体育')) return '🏃'
-  if (pos.includes('宣传')) return '📢'
-  if (pos.includes('心理')) return '💗'
-  if (pos.includes('组织')) return '🧩'
-  if (pos.includes('纪律')) return '⚖️'
-  return '⭐'
+  if (pos.includes('班长')) return '*'  
+  if (pos.includes('团支书') || pos.includes('团支部')) return '>'  
+  if (pos.includes('学习')) return '#'  
+  if (pos.includes('生活')) return '~'  
+  if (pos.includes('文艺')) return '%'  
+  if (pos.includes('体育')) return '+'  
+  if (pos.includes('宣传')) return '='  
+  if (pos.includes('心理')) return '-'  
+  if (pos.includes('组织')) return '&'  
+  if (pos.includes('纪律')) return '|'  
+  return '*'  
 }
 function cadreTagType(pos) {
   if (!pos) return 'info'
@@ -141,7 +141,7 @@ function cadreIcon(row) {
     const hit = list.find(p => p.includes(key))
     if (hit) return cadreIconOf(hit)
   }
-  return '⭐'
+  return '*'  
 }
 
 const contacts = ref(null)

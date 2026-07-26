@@ -83,7 +83,7 @@
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center">
               <span>
-                <template v-if="currentActivity">🎯 {{ currentActivity.activity_name }} · 报名/参与</template>
+                <template v-if="currentActivity">{{ currentActivity.activity_name }} · 报名/参与</template>
                 <template v-else>请选择左侧活动查看报名情况</template>
               </span>
               <el-button v-if="currentActivity" type="primary" size="small" :icon="Plus" @click="openSignup">添加报名</el-button>

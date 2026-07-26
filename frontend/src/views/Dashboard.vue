@@ -2,7 +2,7 @@
   <div class="dashboard">
     <div class="hero-card">
       <div class="hero-left">
-        <div class="hero-greeting">{{ greeting }}，老师 👋</div>
+        <div class="hero-greeting">{{ greeting }}，老师</div>
         <div class="hero-date">
           <span class="hero-date-main">{{ dateStr }}</span>
           <span class="hero-date-week">{{ weekdayStr }}</span>
@@ -128,7 +128,7 @@
             <div class="prod-item" @click="openTodoDrawer">
               <div class="prod-num warning">
                 {{ prodStats.todo_active }}
-                <span v-if="prodStats.todo_overdue > 0" class="prod-overdue">⚠{{ prodStats.todo_overdue }}</span>
+                <span v-if="prodStats.todo_overdue > 0" class="prod-overdue">{{ prodStats.todo_overdue }}</span>
               </div>
               <div class="prod-label">待办中</div>
             </div>
@@ -166,7 +166,7 @@
         </template>
         <template v-else>
           <div v-if="todoGroups.overdue.length" class="dg-block">
-            <div class="dg-title overdue">⚠ 已过期 · {{ todoGroups.overdue.length }}</div>
+            <div class="dg-title overdue">已过期 · {{ todoGroups.overdue.length }}</div>
             <div v-for="t in todoGroups.overdue" :key="t.id" class="dg-item">
               <el-checkbox :model-value="false" @change="handleTodoToggle(t)" />
               <div class="dg-body">
@@ -219,7 +219,7 @@
         </template>
         <template v-else>
           <div v-if="urgentGroups.today.length" class="dg-block">
-            <div class="dg-title today">🔥 今天 · {{ urgentGroups.today.length }}</div>
+            <div class="dg-title today">今天 · {{ urgentGroups.today.length }}</div>
             <div v-for="t in urgentGroups.today" :key="t.id" class="dg-item">
               <el-checkbox :model-value="false" @change="handleTodoToggle(t)" />
               <div class="dg-body">

@@ -50,13 +50,13 @@
         </template>
 
         <div v-else-if="keyword && !loading" class="gs-empty">
-          <div class="gs-empty-icon">🔍</div>
+          <div class="gs-empty-icon">!</div>
           <div>没有找到匹配的结果</div>
           <div class="gs-empty-hint">试试其他关键词，或检查拼写</div>
         </div>
 
         <div v-else class="gs-empty">
-          <div class="gs-empty-icon">💡</div>
+          <div class="gs-empty-icon">/</div>
           <div>输入关键词开始搜索</div>
           <div class="gs-empty-hint">支持搜索：学生 · 班级 · FAQ · 模板</div>
         </div>
@@ -90,10 +90,10 @@ let debounceTimer = null
 
 // 分类配置
 const categoryConfig = {
-  students:  { label: '学生', icon: '🎓', route: (item) => `/students/${item.id}` },
-  classes:   { label: '班级', icon: '🏫', route: (item) => `/classes/${item.id}` },
-  faqs:      { label: 'FAQ',  icon: '❓', route: () => '/faqs' },
-  templates: { label: '模板', icon: '📄', route: () => '/templates' },
+  students:  { label: '学生', icon: '', route: (item) => `/students/${item.id}` },
+  classes:   { label: '班级', icon: '', route: (item) => `/classes/${item.id}` },
+  faqs:      { label: 'FAQ',  icon: '', route: () => '/faqs' },
+  templates: { label: '模板', icon: '', route: () => '/templates' },
 }
 
 // 将结果按类别分组

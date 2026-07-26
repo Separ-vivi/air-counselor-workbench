@@ -46,11 +46,11 @@
         </template>
         <div class="faq-answer">{{ f.answer }}</div>
         <div class="faq-actions">
-          <el-button link type="primary" @click="onEdit(f)">✏️ 编辑</el-button>
+          <el-button link type="primary" @click="onEdit(f)">编辑</el-button>
           <el-button link :type="f.is_published ? 'warning' : 'primary'" @click="onTogglePublish(f)">
-            {{ f.is_published ? '⬇️ 撤回草稿' : '⬆️ 发布' }}
+            {{ f.is_published ? '撤回草稿' : '发布' }}
           </el-button>
-          <el-button link type="danger" @click="onDelete(f)">🗑️ 删除</el-button>
+          <el-button link type="danger" @click="onDelete(f)">删除</el-button>
         </div>
       </el-collapse-item>
     </el-collapse>

@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="panel-head">
-      <div><span class="title">📈 本班学业统计</span><span class="text-muted count">&nbsp;共 {{ rows.length }} 条成绩</span></div>
+      <div><span class="title">本班学业统计</span><span class="text-muted count">&nbsp;共 {{ rows.length }} 条成绩</span></div>
       <el-button size="small" @click="load"><el-icon><Refresh /></el-icon> 刷新</el-button>
     </div>
 

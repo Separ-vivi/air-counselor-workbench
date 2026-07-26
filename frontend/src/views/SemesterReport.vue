@@ -18,7 +18,7 @@
 
     <!-- 2. 空数据提示 -->
     <div v-if="!hasData" class="empty-state">
-      <div class="empty-icon">📊</div>
+      <div class="empty-icon" style="font-size:28px;color:#5B92E5">#</div>
       <div class="empty-text">暂无数据</div>
       <div class="empty-hint">请先在「学生管理」或「成绩管理」中导入数据</div>
     </div>

@@ -49,7 +49,7 @@
       >
         <div class="note-topbar">
           <span class="cat-dot" :class="`cat-${n.category}`">
-            {{ n.category === 'todo' ? '☑️' : n.category === 'idea' ? '💡' : '📄' }}
+            
           </span>
           <span class="cat-label">{{ catLabel(n.category) }}</span>
           <el-tag v-if="n.status === 'archived'" size="small" type="info" effect="light" round style="margin-left:6px">已归档</el-tag>
@@ -78,13 +78,13 @@
         </template>
 
         <div class="note-meta">
-          <el-tag v-if="n.category === 'todo' && n.priority === 2" type="danger" size="small" effect="light" round>🔥 高优先</el-tag>
+          <el-tag v-if="n.category === 'todo' && n.priority === 2" type="danger" size="small" effect="light" round>高优先</el-tag>
           <el-tag v-else-if="n.category === 'todo' && n.priority === 1" type="warning" size="small" effect="light" round>中优先</el-tag>
           <el-tag v-if="n.category === 'todo' && n.due_date" size="small" effect="plain" round :type="dueTagType(n.due_date, n.status)">
             <el-icon><Calendar /></el-icon>&nbsp;{{ formatDue(n.due_date) }}
           </el-tag>
           <el-tag v-if="n.remind_at" size="small" effect="plain" round type="warning">
-            🔔 {{ formatRemind(n.remind_at) }}
+            {{ formatRemind(n.remind_at) }}
           </el-tag>
           <span v-if="n.tags" class="tag-list">#{{ n.tags }}</span>
         </div>
@@ -126,9 +126,9 @@
         </el-form-item>
         <el-form-item label="类型">
           <el-radio-group v-model="form.category">
-            <el-radio-button label="todo">☑️ 待办</el-radio-button>
-            <el-radio-button label="memo">📄 备忘</el-radio-button>
-            <el-radio-button label="idea">💡 想法</el-radio-button>
+            <el-radio-button label="todo">待办</el-radio-button>
+            <el-radio-button label="memo">备忘</el-radio-button>
+            <el-radio-button label="idea">想法</el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="内容">

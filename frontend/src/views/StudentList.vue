@@ -5,9 +5,9 @@
       <div class="header-actions">
         <el-button :type="showAllIdCards ? 'warning' : 'default'" @click="showAllIdCards = !showAllIdCards"
           :title="showAllIdCards ? '当前显示明文，点击切换为脱敏' : '当前脱敏，点击显示明文（含身份证号）'">
-          {{ showAllIdCards ? '🔓 明文' : '🔒 脱敏' }}
+          {{ showAllIdCards ? '明文' : '脱敏' }}
         </el-button>
-        <el-button @click="tagManageDialog = true; loadAllTags()">🏷️ 管理标签</el-button>
+        <el-button @click="tagManageDialog = true; loadAllTags()">管理标签</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreate">新增学生</el-button>
         <el-button :icon="Upload" @click="$router.push('/smart-import')">批量导入</el-button>
         <el-button type="success" :icon="Download" :disabled="!selected.length" @click="exportSelected">导出选中（{{ selected.length }}）</el-button>

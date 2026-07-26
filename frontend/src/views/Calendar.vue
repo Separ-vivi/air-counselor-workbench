@@ -14,13 +14,13 @@
 
     <!-- 图例（v3h-hotfix1: 颜色对齐后端 event.color） -->
     <div class="legend-row">
-      <span class="lg-tag lg-blue">📚 校历倒计时</span>
-      <span class="lg-tag lg-orange">☑️ 待办截止</span>
-      <span class="lg-tag lg-yellow">🔔 记事提醒</span>
-      <span class="lg-tag lg-purple">🎯 项目节点</span>
-      <span class="lg-tag lg-pink">📌 活动</span>
-      <span class="lg-tag lg-green">🏫 班会</span>
-      <span class="lg-tag lg-cyan">👨‍👩‍👧 家校沟通</span>
+      <span class="lg-tag lg-blue">校历倒计时</span>
+      <span class="lg-tag lg-orange">待办截止</span>
+      <span class="lg-tag lg-yellow">记事提醒</span>
+      <span class="lg-tag lg-purple">项目节点</span>
+      <span class="lg-tag lg-pink">活动</span>
+      <span class="lg-tag lg-green">班会</span>
+      <span class="lg-tag lg-cyan">家校沟通</span>
     </div>
 
     <!-- 倒计时 chip 区（保留） -->
@@ -50,7 +50,7 @@
       </div>
     </div>
 
-    <el-divider>📆 {{ viewMode === 'month' ? '月视图' : '周视图' }}</el-divider>
+    <el-divider>{{ viewMode === 'month' ? '月视图' : '周视图' }}</el-divider>
 
     <!-- 月视图：el-calendar -->
     <div v-if="viewMode === 'month'" class="calendar-wrap" v-loading="loadingEvents">
@@ -66,7 +66,7 @@
                 :style="{ background: evBg(ev) }"
                 :title="ev.title"
               >
-                <span class="dot-icon">{{ evIcon(ev.type) }}</span>
+                <span class="dot-icon"></span>
                 {{ (ev.title || '').slice(0, 6) }}
               </span>
               <span v-if="(eventsByDay[data.day] || []).length > 3" class="more-hint">
@@ -110,7 +110,7 @@
               :style="{ borderLeftColor: evBg(ev) }"
               @click.stop="onEventClick(ev, d.dateKey)"
             >
-              <span class="wev-icon">{{ evIcon(ev.type) }}</span>
+              <span class="wev-icon"></span>
               <span class="wev-title">{{ ev.title }}</span>
             </div>
           </div>
@@ -127,7 +127,7 @@
       <el-empty v-if="dayEvents.length === 0" description="当日无安排" />
       <div v-for="ev in dayEvents" :key="`${ev.type}-${ev.id}`" class="day-item">
         <div class="day-item-header">
-          <span class="ev-badge" :style="{ background: evBg(ev) }">{{ evIcon(ev.type) }} {{ typeLabel(ev.type) }}</span>
+          <span class="ev-badge" :style="{ background: evBg(ev) }">{{ typeLabel(ev.type) }}</span>
           <span class="day-item-title">{{ ev.title }}</span>
         </div>
         <div v-if="ev.description" class="day-item-desc">{{ ev.description }}</div>
@@ -287,17 +287,14 @@ const dayEvents = computed(() => {
 
 function evBg(ev) {
   const map = {
-    blue: '#4A7A8C', orange: '#E58B3E', yellow: '#D9A441',
-    pink: '#C9635B', green: '#2E7D6B', cyan: '#3F8FA5',
-    purple: '#7A6BAF', red: '#C0392B',
+    blue: '#5B92E5', orange: '#7BCFCB', yellow: '#4FC3B8',
+    pink: '#8FA9E5', green: '#4FC3B8', cyan: '#5B92E5',
+    purple: '#8FA9E5', red: '#5B92E5',
   }
   return map[ev.color] || map.blue
 }
 function evIcon(t) {
-  return ({
-    countdown: '📚', todo: '☑️', memo: '🔔',
-    project: '🎯', activity: '📌', meeting: '🏫', family: '👨‍👩‍👧',
-  })[t] || '·'
+  return ''
 }
 function typeLabel(t) {
   return ({
@@ -413,36 +410,36 @@ onMounted(() => { loadCd(); loadEvents() })
   font-size: 12px;
 }
 .lg-tag { padding: 2px 8px; border-radius: 4px; color: #fff; font-size: 12px; }
-.lg-blue   { background: #4A7A8C; }
-.lg-orange { background: #E58B3E; }
-.lg-yellow { background: #D9A441; }
-.lg-pink   { background: #C9635B; }
-.lg-green  { background: #2E7D6B; }
-.lg-cyan   { background: #3F8FA5; }
-.lg-purple { background: #7A6BAF; }
+.lg-blue   { background: #5B92E5; }
+.lg-orange { background: #7BCFCB; }
+.lg-yellow { background: #4FC3B8; }
+.lg-pink   { background: #8FA9E5; }
+.lg-green  { background: #4FC3B8; }
+.lg-cyan   { background: #5B92E5; }
+.lg-purple { background: #8FA9E5; }
 
 .cd-section { margin-bottom: 12px; min-height: 80px; }
 .cd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
 .cd-card {
-  padding: 12px 14px; border-radius: 12px; border: 1px solid transparent;
-  box-shadow: 0 2px 8px rgba(74,122,140,.06);
+  padding: 12px 14px; border-radius: 16px; border: 1px solid transparent;
+  box-shadow: 0 2px 8px rgba(91,146,229,.05);
   display: flex; flex-direction: column; gap: 4px; position: relative;
   transition: transform .12s;
 }
 .cd-card:hover { transform: translateY(-2px); }
-.cd-card.color-blue   { background: #DBEAF3; }
-.cd-card.color-pink   { background: #FADBDB; }
-.cd-card.color-green  { background: #DCF0DE; }
-.cd-card.color-yellow { background: #FDF3C9; }
-.cd-card.color-purple { background: #E6D9F0; }
-.cd-card.color-orange { background: #FCE4CA; }
+.cd-card.color-blue   { background: rgba(91,146,229,0.12); }
+.cd-card.color-pink   { background: rgba(143,169,229,0.12); }
+.cd-card.color-green  { background: rgba(79,195,184,0.12); }
+.cd-card.color-yellow { background: rgba(91,146,229,0.08); }
+.cd-card.color-purple { background: rgba(143,169,229,0.10); }
+.cd-card.color-orange { background: rgba(79,195,184,0.10); }
 .cd-card.urgent { border-color: #F56C6C; }
 .cd-card.soon   { border-color: #E6A23C; }
 
 .cd-title { font-weight: 600; font-size: 14px; color: #3A3A3A; display: flex; align-items: center; gap: 4px; }
 .cd-title .pin { color: #E58B3E; }
 .cd-days { display: flex; align-items: baseline; gap: 4px; margin-top: 2px; }
-.cd-days .num { font-size: 28px; font-weight: 700; color: #4A7A8C; line-height: 1; }
+.cd-days .num { font-size: 28px; font-weight: 700; color: #5B92E5; line-height: 1; }
 .cd-days .unit { font-size: 12px; color: #7B7B7B; }
 .cd-meta { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #7B7B7B; }
 .cd-actions { position: absolute; right: 8px; top: 8px; }
@@ -467,8 +464,8 @@ onMounted(() => { loadCd(); loadEvents() })
   min-height: 220px; background: #fff; border: 1px solid #E1E7EE;
   border-radius: 10px; padding: 8px; cursor: pointer; transition: box-shadow .12s;
 }
-.week-day:hover { box-shadow: 0 2px 12px rgba(74,122,140,.12); }
-.week-day.today { border-color: #4A7A8C; box-shadow: 0 0 0 2px rgba(74,122,140,.15); }
+.week-day:hover { box-shadow: 0 2px 12px rgba(91,146,229,.12); }
+.week-day.today { border-color: #5B92E5; box-shadow: 0 0 0 2px rgba(91,146,229,.15); }
 .week-day.weekend { background: #F7F9FC; }
 .week-day-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 6px; border-bottom: 1px dashed #eee; margin-bottom: 6px; }
 .wd-name { font-weight: 600; color: #3A3A3A; }
@@ -476,7 +473,7 @@ onMounted(() => { loadCd(); loadEvents() })
 .week-day-body { display: flex; flex-direction: column; gap: 4px; }
 .week-empty { text-align: center; color: #C0C4CC; font-size: 12px; padding: 10px 0; }
 .week-ev {
-  padding: 4px 6px; border-left: 3px solid #4A7A8C; background: #F5F9FC;
+  padding: 4px 6px; border-left: 3px solid #5B92E5; background: #F5F9FC;
   border-radius: 4px; font-size: 12px; color: #3A3A3A;
   display: flex; gap: 4px; align-items: center; cursor: pointer;
 }

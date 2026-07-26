@@ -101,7 +101,7 @@
         <div v-for="p in col.items" :key="p.id" class="kb-card" @click="onOpen(p)">
           <div class="kb-name">{{ p.name }}</div>
           <el-progress :percentage="p.progress" :stroke-width="6" />
-          <div class="kb-meta">👥 {{ p.student_count }} · {{ p.end_date || '未定' }}</div>
+          <div class="kb-meta">{{ p.student_count }} · {{ p.end_date || '未定' }}</div>
         </div>
       </div>
     </div>
@@ -155,7 +155,7 @@
 
         <div class="member-section">
           <div class="section-title">
-            👥 参与学生 ({{ detail.members?.length || 0 }})
+            参与学生 ({{ detail.members?.length || 0 }})
             <el-button size="small" type="primary" :icon="Plus" @click="onAddMember">添加</el-button>
           </div>
           <el-empty v-if="!detail.members || detail.members.length === 0" description="暂无成员" :image-size="80" />

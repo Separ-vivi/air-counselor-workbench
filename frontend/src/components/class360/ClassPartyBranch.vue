@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="panel-head">
-      <div><span class="title">🚩 党团支部（{{ data?.class_name || '' }}）</span></div>
+      <div><span class="title">党团支部（{{ data?.class_name || '' }}）</span></div>
       <el-button size="small" @click="load"><el-icon><Refresh /></el-icon> 刷新</el-button>
     </div>
 

@@ -8,35 +8,35 @@
       <span class="inline-title">班级 360</span>
     </div>
     <div v-if="loadingHeader" class="empty-hint">
-      <div class="icon">⏳</div>
+      <div class="icon">...</div>
       <div>加载班级数据中…</div>
     </div>
 
     <template v-else-if="classInfo">
       <!-- 顶部 sticky 卡 -->
       <div class="student-header-card">
-        <div class="avatar">🏫</div>
+        <div class="avatar" style="font-size:24px;color:#5B92E5">班</div>
         <div class="info">
           <div class="name">{{ classInfo.class_name || classInfo.name || '班级 #' + cid }}</div>
           <div class="meta">
-            <span>📚 <b>{{ classInfo.major_name || '—' }}</b></span>
-            <span>📅 {{ classInfo.grade_name || '—' }}</span>
-            <span>👥 总人数 {{ classInfo.student_count ?? students.length ?? '—' }}</span>
+            <span><b>{{ classInfo.major_name || '—' }}</b></span>
+            <span>{{ classInfo.grade_name || '—' }}</span>
+            <span>总人数 {{ classInfo.student_count ?? students.length ?? '—' }}</span>
             <br>
-            <span>🧑‍🏫 班主任：{{ classInfo.class_teacher || '未指定' }}</span>
-            <span>👑 班长：{{ classInfo.monitor || '未指定' }}</span>
-            <span>🎗️ 团支书：{{ classInfo.league_secretary || '未指定' }}</span>
+            <span>班主任：{{ classInfo.class_teacher || '未指定' }}</span>
+            <span>班长：{{ classInfo.monitor || '未指定' }}</span>
+            <span>团支书：{{ classInfo.league_secretary || '未指定' }}</span>
           </div>
           <div class="status-lights">
             <el-button size="small" type="primary" :loading="exporting" @click="onExport" style="margin-right: 8px">
-              📥 导出班级 360
+              导出班级 360
             </el-button>
-            <span class="status-chip">📊 挂科率 {{ fmtPct(summary?.fail_rate) }}</span>
-            <span class="status-chip red">🚦 红灯 {{ summary?.warning_red_count ?? 0 }}</span>
-            <span class="status-chip yellow">🚦 黄灯 {{ summary?.warning_yellow_count ?? 0 }}</span>
-            <span class="status-chip">🎯 党员 {{ summary?.party_member_count ?? 0 }}</span>
-            <span class="status-chip">💰 困难生 {{ summary?.hardship_count ?? 0 }}</span>
-            <span class="status-chip">💼 已签约 {{ summary?.employed_count ?? 0 }}</span>
+            <span class="status-chip">挂科率 {{ fmtPct(summary?.fail_rate) }}</span>
+            <span class="status-chip red">红灯 {{ summary?.warning_red_count ?? 0 }}</span>
+            <span class="status-chip yellow">黄灯 {{ summary?.warning_yellow_count ?? 0 }}</span>
+            <span class="status-chip">党员 {{ summary?.party_member_count ?? 0 }}</span>
+            <span class="status-chip">困难生 {{ summary?.hardship_count ?? 0 }}</span>
+            <span class="status-chip">已签约 {{ summary?.employed_count ?? 0 }}</span>
           </div>
           <div v-if="summaryErr" style="margin-top:8px">
             <el-alert
@@ -80,7 +80,7 @@
     </template>
 
     <div v-else class="empty-hint">
-      <div class="icon">😢</div><div>班级不存在或已被删除</div>
+      <div class="icon" style="color:#909399">!</div><div>班级不存在或已被删除</div>
     </div>
   </div>
 </template>
@@ -151,16 +151,16 @@ function switchTab(key) {
 }
 
 const tabs = [
-  { key: 'summary',    label: '概览',       icon: '📊', comp: ClassSummary },
-  { key: 'students',   label: '班级花名册', icon: '📋', comp: ClassStudents },
-  { key: 'grades',     label: '学业统计',   icon: '📈', comp: ClassGrades },
-  { key: 'party',      label: '党团进度',   icon: '🎯', comp: ClassParty },
-  { key: 'psychology', label: '心理关注',   icon: '💚', comp: ClassPsychology },
-  { key: 'funding',    label: '资助分布',   icon: '💰', comp: ClassFunding },
-  { key: 'activities', label: '活动参与',   icon: '🎨', comp: ClassActivities },
-  { key: 'featured',   label: '特色活动',   icon: '🌟', comp: ClassFeaturedActivities },
-  { key: 'branch',     label: '党团支部',   icon: '🚩', comp: ClassPartyBranch },
-  { key: 'daily',      label: '班级大事记', icon: '📅', comp: ClassDaily }
+  { key: 'summary',    label: '概览',       icon: '', comp: ClassSummary },
+  { key: 'students',   label: '班级花名册', icon: '', comp: ClassStudents },
+  { key: 'grades',     label: '学业统计',   icon: '', comp: ClassGrades },
+  { key: 'party',      label: '党团进度',   icon: '', comp: ClassParty },
+  { key: 'psychology', label: '心理关注',   icon: '', comp: ClassPsychology },
+  { key: 'funding',    label: '资助分布',   icon: '', comp: ClassFunding },
+  { key: 'activities', label: '活动参与',   icon: '', comp: ClassActivities },
+  { key: 'featured',   label: '特色活动',   icon: '', comp: ClassFeaturedActivities },
+  { key: 'branch',     label: '党团支部',   icon: '', comp: ClassPartyBranch },
+  { key: 'daily',      label: '班级大事记', icon: '', comp: ClassDaily }
 ]
 const currentTabComponent = computed(() => tabs.find(t => t.key === activeTab.value)?.comp)
 

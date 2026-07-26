@@ -8,7 +8,7 @@
       <span class="inline-title">学生 360</span>
     </div>
     <div v-if="loading" class="empty-hint">
-      <div class="icon">⏳</div>
+      <div class="icon">...</div>
       <div>加载学生 360 数据中…</div>
     </div>
 
@@ -24,50 +24,49 @@
               <el-icon><Edit /></el-icon>&nbsp;编辑基础信息
             </el-button>
             <el-button type="primary" size="small" @click="onOpenPdf" style="margin-left:10px">
-              📄 导出 PDF
+              导出 PDF
             </el-button>
           </div>
           <div class="meta">
-            <span>🎓 <b>{{ student.student_no }}</b></span>
-            <span>🏫
-              <router-link v-if="student.class_id" :to="`/classes/${student.class_id}`">
+            <span><b>{{ student.student_no }}</b></span>
+            <span><router-link v-if="student.class_id" :to="`/classes/${student.class_id}`">
                 {{ student.class_name || '—' }}
               </router-link>
               <template v-else>{{ student.class_name || '—' }}</template>
             </span>
-            <span>📚 {{ student.major_name || '—' }}</span>
-            <span>📅 {{ student.grade_name || '—' }}</span>
+            <span>{{ student.major_name || '—' }}</span>
+            <span>{{ student.grade_name || '—' }}</span>
             <br>
-            <span>🎖️ {{ student.political_status || '—' }}</span>
-            <span>📱 {{ student.phone || '—' }}</span>
-            <span>👨‍👩‍👧 家长电话 {{ student.parent_phone || '—' }}</span>
-            <span>📍 生源地 {{ student.birth_source || '—' }}</span>
+            <span>{{ student.political_status || '—' }}</span>
+            <span>{{ student.phone || '—' }}</span>
+            <span>家长电话 {{ student.parent_phone || '—' }}</span>
+            <span>生源地 {{ student.birth_source || '—' }}</span>
             <br>
-            <span>🪪 身份证 <b>{{ showRealIdCard ? (student.id_card || '—') : maskedIdCard }}</b>
+            <span>身份证 <b>{{ showRealIdCard ? (student.id_card || '—') : maskedIdCard }}</b>
               <el-button v-if="student.id_card" link type="primary" size="small" @click="showRealIdCard = !showRealIdCard" style="margin-left:4px">
-                {{ showRealIdCard ? '🙈 隐藏' : '👁 查看' }}
+                {{ showRealIdCard ? '隐藏' : '查看' }}
               </el-button>
             </span>
-            <span v-if="student.is_off_campus">🏠 <el-tag size="small" type="warning">外宿</el-tag> {{ student.off_campus_address || '—' }}</span>
-            <span v-else>🛏️ 宿舍 {{ student.campus || '—' }}·{{ student.dorm_building || '—' }}·{{ student.dorm_room || '—' }}</span>
+            <span v-if="student.is_off_campus"><el-tag size="small" type="warning">外宿</el-tag> {{ student.off_campus_address || '—' }}</span>
+            <span v-else>宿舍 {{ student.campus || '—' }}·{{ student.dorm_building || '—' }}·{{ student.dorm_room || '—' }}</span>
           </div>
           <div class="status-lights">
             <span class="status-chip" :class="warningClass">
               <span class="status-dot" :class="warningClass" /> 学业预警 · {{ warningLabel }}
             </span>
-            <span class="status-chip">🎯 党团 · {{ summary?.stats?.party_stage || '群众' }}</span>
+            <span class="status-chip">党团 · {{ summary?.stats?.party_stage || '群众' }}</span>
             <span class="status-chip" :class="summary?.psych_status === 'attention' ? 'yellow' : 'green'">
-              💚 心理 · {{ summary?.psych_status === 'attention' ? '需关注' : '正常' }}
+              心理 · {{ summary?.psych_status === 'attention' ? '需关注' : '正常' }}
             </span>
-            <span class="status-chip">💼 就业 · {{ summary?.stats?.employment_status || '未登记' }}</span>
+            <span class="status-chip">就业 · {{ summary?.stats?.employment_status || '未登记' }}</span>
             <span class="status-chip" :class="hardshipClass">
-              💰 资助 · {{ summary?.stats?.hardship_level || '无' }}
+              资助 · {{ summary?.stats?.hardship_level || '无' }}
             </span>
-            <span class="status-chip">🏨 宿舍 · 在校</span>
+            <span class="status-chip">宿舍 · 在校</span>
           </div>
           <!-- V5-d: 学生标签 -->
           <div class="student-tags-row" v-if="studentTags.length">
-            <span class="tags-label">🏷️</span>
+            <span class="tags-label"></span>
             <span v-for="t in studentTags" :key="t.id"
               class="tag-pill-s360"
               :style="{ background: t.color + '22', color: t.color, borderColor: t.color + '44' }">
@@ -77,7 +76,7 @@
             <el-button link type="primary" size="small" @click="openTagEdit">编辑</el-button>
           </div>
           <div class="student-tags-row" v-else>
-            <span class="tags-label">🏷️</span>
+            <span class="tags-label"></span>
             <span style="color:#B0BAC8;font-size:12px;">暂无标签</span>
             <el-button link type="primary" size="small" @click="openTagEdit">添加</el-button>
           </div>
@@ -113,7 +112,7 @@
     </template>
 
     <div v-else class="empty-hint">
-      <div class="icon">😢</div>
+      <div class="icon" style="color:#909399">!</div>
       <div>学生不存在或已被删除</div>
     </div>
 
@@ -366,18 +365,18 @@ function onDoPrint() {
 }
 
 const tabs = [
-  { key: 'basic',      label: '基础信息 · 学籍异动', icon: '📋', comp: TabBasic },
-  { key: 'grades',     label: '学业情况',           icon: '📊', comp: TabGrades },
-  { key: 'party',      label: '党团发展',           icon: '🎯', comp: TabParty },
-  { key: 'psychology', label: '心理档案',           icon: '💚', comp: TabPsychology },
-  { key: 'family',     label: '家庭联络',           icon: '🏠', comp: TabFamily },
-  { key: 'cadres',     label: '学生工作',           icon: '👥', comp: TabCadres },
-  { key: 'activities', label: '活动参与',           icon: '🎨', comp: TabActivities },
-  { key: 'employment', label: '就业信息',           icon: '💼', comp: TabEmployment },
-  { key: 'funding',    label: '资助与荣誉',         icon: '💰', comp: TabFundingHonor },
-  { key: 'daily',      label: '日常管理',           icon: '🏨', comp: TabDaily },
-  { key: 'projects',   label: '专项工作',           icon: '📎', comp: TabProjects },
-  { key: 'timeline',   label: '时间线',             icon: '📅', comp: TabTimeline }
+  { key: 'basic',      label: '基础信息 · 学籍异动', icon: '', comp: TabBasic },
+  { key: 'grades',     label: '学业情况',           icon: '', comp: TabGrades },
+  { key: 'party',      label: '党团发展',           icon: '', comp: TabParty },
+  { key: 'psychology', label: '心理档案',           icon: '', comp: TabPsychology },
+  { key: 'family',     label: '家庭联络',           icon: '', comp: TabFamily },
+  { key: 'cadres',     label: '学生工作',           icon: '', comp: TabCadres },
+  { key: 'activities', label: '活动参与',           icon: '', comp: TabActivities },
+  { key: 'employment', label: '就业信息',           icon: '', comp: TabEmployment },
+  { key: 'funding',    label: '资助与荣誉',         icon: '', comp: TabFundingHonor },
+  { key: 'daily',      label: '日常管理',           icon: '', comp: TabDaily },
+  { key: 'projects',   label: '专项工作',           icon: '', comp: TabProjects },
+  { key: 'timeline',   label: '时间线',             icon: '', comp: TabTimeline }
 ]
 
 const currentTabComponent = computed(() => tabs.find(t => t.key === activeTab.value)?.comp)

@@ -44,7 +44,7 @@
             <el-card shadow="never">
               <template #header>
                 <div style="display: flex; justify-content: space-between; align-items: center">
-                  <span>📊 各班学生人数</span>
+                  <span>各班学生人数</span>
                   <span style="font-size:12px;color:#909399">共 {{ filteredClasses.length }} 个班级</span>
                 </div>
               </template>
@@ -55,7 +55,7 @@
             <el-card shadow="never">
               <template #header>
                 <div style="display: flex; justify-content: space-between; align-items: center">
-                  <span>📈 各班平均成绩</span>
+                  <span>各班平均成绩</span>
                   <span style="font-size:12px;color:#909399">按全部课程均分</span>
                 </div>
               </template>
@@ -68,7 +68,7 @@
           <el-col v-for="c in filteredClasses" :key="c.id" :span="8" style="margin-bottom: 16px">
             <el-card shadow="hover" class="class-card" @click.stop="goClass(c.id)">
               <div class="cc-top">
-                <div class="cc-name">🏫 {{ c.name }}</div>
+                <div class="cc-name">{{ c.name }}</div>
                 <el-tag size="small" type="info">{{ c.grade_name }}</el-tag>
               </div>
               <div class="cc-major">{{ c.major_name }}</div>

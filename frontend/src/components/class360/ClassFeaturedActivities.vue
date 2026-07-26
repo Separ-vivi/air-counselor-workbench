@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="panel-head">
-      <div><span class="title">🎨 特色活动</span><span class="count text-muted"> · 共 {{ rows.length }} 个</span></div>
+      <div><span class="title">特色活动</span><span class="count text-muted"> · 共 {{ rows.length }} 个</span></div>
       <el-button size="small" @click="load"><el-icon><Refresh /></el-icon> 刷新</el-button>
     </div>
 

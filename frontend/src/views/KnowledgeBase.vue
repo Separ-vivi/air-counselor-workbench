@@ -18,7 +18,7 @@
           <!-- ============ 左栏：文档库 ============ -->
           <div class="col-docs">
             <div class="col-head">
-              <span class="col-title">📚 文档库</span>
+              <span class="col-title">文档库</span>
               <el-button size="small" type="primary" :icon="Upload" @click="triggerUpload">上传</el-button>
             </div>
             <div v-if="docs.length === 0 && !docsLoading" class="col-empty">
@@ -52,13 +52,13 @@
           <!-- ============ 中栏：AI 对话 ============ -->
           <div class="col-chat">
             <div class="col-head">
-              <span class="col-title">💬 AI 助手</span>
+              <span class="col-title">AI 助手</span>
               <el-button size="small" text @click="chatList = []">清空</el-button>
             </div>
 
             <div v-loading="chatLoading" class="chat-area">
               <div v-if="chatList.length === 0" class="chat-empty">
-                <div class="empty-icon">💡</div>
+                <div class="empty-icon" style="font-size:28px;color:#5B92E5">?</div>
                 <div>试试提问：</div>
                 <div class="empty-suggest" v-for="q in suggestions" :key="q" @click="onAsk(q)">"{{ q }}"</div>
               </div>
@@ -67,7 +67,7 @@
                 <div class="msg-body">
                   <div class="msg-text">{{ m.content }}</div>
                   <div v-if="m.sources?.length" class="msg-sources">
-                    <div class="src-label">📎 引用来源：</div>
+                    <div class="src-label">引用来源：</div>
                     <div v-for="(s, si) in m.sources" :key="si" class="src-item" @click="jumpToChunk(s)">
                       · {{ s.doc_title }} <span class="src-snippet">…{{ s.snippet?.slice(0, 60) }}…</span>
                     </div>
@@ -98,7 +98,7 @@
           <!-- ============ 右栏：来源预览 ============ -->
           <div class="col-chunks">
             <div class="col-head">
-              <span class="col-title">📎 来源预览</span>
+              <span class="col-title">来源预览</span>
               <span v-if="chunks.length" class="chunk-count">{{ chunks.length }} 块</span>
             </div>
             <div v-if="!selectedDoc && !highlightChunk" class="col-empty">
@@ -145,7 +145,7 @@
               <el-button type="primary" @click="showLlmTip = false; $router.push('/system')">去配置</el-button>
             </div>
             <div class="tip-warn">
-              💡 没配 AI 也能正常使用文档上传/查看/分块，只是「问答」会提示未配置
+              没配 AI 也能正常使用文档上传/查看/分块，只是「问答」会提示未配置
             </div>
           </div>
         </el-dialog>
@@ -198,11 +198,11 @@
             </template>
             <div class="faq-answer">{{ f.answer }}</div>
             <div class="faq-actions">
-              <el-button link type="primary" @click="onFaqEdit(f)">✏️ 编辑</el-button>
+              <el-button link type="primary" @click="onFaqEdit(f)">编辑</el-button>
               <el-button link :type="f.is_published ? 'warning' : 'primary'" @click="onFaqTogglePublish(f)">
-                {{ f.is_published ? '⬇️ 撤回草稿' : '⬆️ 发布' }}
+                {{ f.is_published ? '撤回草稿' : '发布' }}
               </el-button>
-              <el-button link type="danger" @click="onFaqDelete(f)">🗑️ 删除</el-button>
+              <el-button link type="danger" @click="onFaqDelete(f)">删除</el-button>
             </div>
           </el-collapse-item>
         </el-collapse>

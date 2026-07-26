@@ -13,7 +13,7 @@
 
     <el-alert type="info" :closable="false" style="margin-bottom:16px">
       <template #title>
-        <span style="margin-right:12px">📎 需要模板？</span>
+        <span style="margin-right:12px">需要模板？</span>
         <el-button size="small" type="primary" plain @click="downloadTemplate('students')">花名册模板</el-button>
         <el-button size="small" type="primary" plain @click="downloadTemplate('family')">家庭档案模板</el-button>
         <el-button size="small" type="primary" plain @click="downloadTemplate('grades_wide')">成绩单模板(宽表·推荐)</el-button>
@@ -88,7 +88,7 @@
                 <div class="el-upload__tip">支持 .xlsx / .xls / .csv；宽表(每列一门课)和长表都能识别</div>
               </template>
             </el-upload>
-            <el-button v-if="file" size="small" style="margin-top:8px" @click="clearFileBtn">🗑 清除已上传文件</el-button>
+            <el-button v-if="file" size="small" style="margin-top:8px" @click="clearFileBtn">清除已上传文件</el-button>
           </el-form-item>
           <el-form-item>
             <el-button type="primary" :loading="detecting" :disabled="!file || !dataType" @click="doDetect">下一步 · 智能识别</el-button>
@@ -205,20 +205,20 @@ const confirming = ref(false)
 // ===== 按侧栏分组组织的导入类型 =====
 // 学生与班级
 const studentClassTypes = [
-  { key: 'students',      label: '学生信息',       icon: '📋' },
-  { key: 'family',        label: '家庭档案',       icon: '👨‍👩‍👧' },
+  { key: 'students',      label: '学生信息',       icon: '' },
+  { key: 'family',        label: '家庭档案',       icon: '' },
 ]
 // 业务模块
 const businessTypes = [
-  { key: 'grades',        label: '成绩管理',       icon: '📊' },
-  { key: 'comprehensive', label: '综测成绩',       icon: '🏆' },
-  { key: 'scholarship',   label: '荣誉/奖学金',    icon: '🏅' },
-  { key: 'hardship',      label: '困难认定',       icon: '💰' },
-  { key: 'cadre',         label: '干部记录',       icon: '🎖️' },
-  { key: 'activity',      label: '学生活动',       icon: '🎪' },
-  { key: 'employment',    label: '就业跟踪',       icon: '💼' },
-  { key: 'party',         label: '党团发展',       icon: '🚩' },
-  { key: 'interview',     label: '学生访谈',       icon: '💬' },
+  { key: 'grades',        label: '成绩管理',       icon: '' },
+  { key: 'comprehensive', label: '综测成绩',       icon: '' },
+  { key: 'scholarship',   label: '荣誉/奖学金',    icon: '' },
+  { key: 'hardship',      label: '困难认定',       icon: '' },
+  { key: 'cadre',         label: '干部记录',       icon: '' },
+  { key: 'activity',      label: '学生活动',       icon: '' },
+  { key: 'employment',    label: '就业跟踪',       icon: '' },
+  { key: 'party',         label: '党团发展',       icon: '' },
+  { key: 'interview',     label: '学生访谈',       icon: '' },
 ]
 // 合并全部（兼容旧逻辑）
 const dataTypes = [
