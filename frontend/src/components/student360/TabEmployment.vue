@@ -1,108 +1,68 @@
 <template>
-  <div class="tab-summary">
-    <div class="summary-header">
-      <h3>💼 就业信息概览</h3>
-      <el-button type="primary" @click="$router.push('/module/employment')">
-        查看详情 <el-icon><ArrowRight /></el-icon>
-      </el-button>
-    </div>
-    <el-row :gutter="16">
-      <el-col :span="8" v-for="(stat, idx) in stats" :key="stat.label">
-        <div class="summary-card">
-          <div class="stat-value" :style="{ color: colors[idx % colors.length] }">{{ stat.value }}</div>
-          <div class="stat-label">{{ stat.label }}</div>
-        </div>
-      </el-col>
-    </el-row>
-    <div v-if="loading" class="empty-text">加载中...</div>
-  </div>
+  <CrudPanel
+    title="就业信息 / 求职进度"
+    :columns="columns"
+    :fields="fields"
+    :rows="rows"
+    :loading="loading"
+    :default-form="{ status: '未启动' }"
+    :on-reload="load"
+    :on-create="handleCreate"
+    :on-update="handleUpdate"
+    :on-delete="handleDelete"
+  />
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
-import { ArrowRight } from '@element-plus/icons-vue'
+import { ref, onMounted, watch } from 'vue'
+import CrudPanel from '@/components/CrudPanel.vue'
 import { s360 } from '@/api/student360.js'
 
 const props = defineProps({ sid: { type: Number, required: true } })
-const loading = ref(false)
 const rows = ref([])
-const colors = ['#5B92E5', '#4FC3B8', '#8FA9E5']
+const loading = ref(false)
 
-const stats = computed(() => {
-  const list = rows.value || []
-  if (!list.length) return [
-    { label: '就业状态', value: '—' },
-    { label: '意向单位', value: '—' },
-    { label: '记录数', value: '—' }
-  ]
-  const latest = list[0] || {}
-  const status = latest.employment_status || latest.status || '未填写'
-  const company = latest.company_name || latest.intention || '暂无'
-  return [
-    { label: '就业状态', value: status },
-    { label: '意向单位', value: company.length > 10 ? company.slice(0, 10) + '...' : company },
-    { label: '记录数', value: list.length }
-  ]
-})
+const columns = [
+  { prop: 'intention_type', label: '意向类型', width: 100 },
+  { prop: 'target_industry', label: '意向行业', minWidth: 120 },
+  { prop: 'target_position', label: '意向岗位', minWidth: 140 },
+  { prop: 'internship_company', label: '实习/入职单位', minWidth: 160 },
+  { prop: 'status', label: '状态', width: 100, type: 'tag',
+    tagType: (r) =>
+      r.status === '签约' ? 'success' :
+      r.status === '意向' ? 'warning' :
+      r.status === '求职中' ? 'primary' : '' },
+  { prop: 'offer_date', label: 'Offer 日期', width: 110 },
+  { prop: 'salary_range', label: '薪资范围', minWidth: 120 },
+  { prop: 'notes', label: '备注', minWidth: 140 }
+]
+const fields = [
+  {
+    prop: 'intention_type', label: '意向类型', type: 'select',
+    options: ['就业', '升学', '考研', '出国', '考公', '参军', '灵活就业', '待定']
+  },
+  { prop: 'target_industry', label: '意向行业' },
+  { prop: 'target_position', label: '意向岗位' },
+  { prop: 'internship_company', label: '实习单位' },
+  {
+    prop: 'status', label: '状态', type: 'select',
+    options: ['未启动', '求职中', '意向', '签约', '入职', '违约']
+  },
+  { prop: 'offer_date', label: 'Offer 日期', type: 'date' },
+  { prop: 'salary_range', label: '薪资范围', placeholder: '例：8k-12k' },
+  { prop: 'notes', label: '备注', type: 'textarea' }
+]
 
 async function load() {
   loading.value = true
   try {
     rows.value = await s360.employment.list(props.sid) || []
-  } catch { rows.value = [] }
-  finally { loading.value = false }
+  } finally { loading.value = false }
 }
+async function handleCreate(p) { await s360.employment.create(props.sid, p) }
+async function handleUpdate(id, p) { await s360.employment.update(props.sid, id, p) }
+async function handleDelete(id) { await s360.employment.remove(props.sid, id) }
 
 watch(() => props.sid, load, { immediate: false })
 onMounted(load)
 </script>
-
-<style scoped>
-
-.tab-summary { padding: 8px 0; }
-.summary-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(91,146,229,0.15);
-}
-.summary-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #2C3E50;
-}
-.summary-card {
-  background: rgba(91,146,229,0.04);
-  border: 1px solid rgba(91,146,229,0.12);
-  border-radius: 16px;
-  padding: 20px 16px;
-  text-align: center;
-  transition: all 0.25s ease;
-  margin-bottom: 12px;
-}
-.summary-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(91,146,229,0.12);
-  border-color: rgba(91,146,229,0.25);
-}
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #5B92E5;
-  line-height: 1.2;
-}
-.stat-label {
-  font-size: 13px;
-  color: #6B7B8D;
-  margin-top: 6px;
-}
-.empty-text {
-  color: #909399;
-  font-size: 13px;
-  text-align: center;
-  padding: 20px 0;
-}
-</style>

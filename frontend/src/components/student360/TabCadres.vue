@@ -1,108 +1,52 @@
 <template>
-  <div class="tab-summary">
-    <div class="summary-header">
-      <h3>👥 学生工作概览</h3>
-      <el-button type="primary" @click="$router.push('/module/cadres')">
-        查看详情 <el-icon><ArrowRight /></el-icon>
-      </el-button>
-    </div>
-    <el-row :gutter="16">
-      <el-col :span="8" v-for="(stat, idx) in stats" :key="stat.label">
-        <div class="summary-card">
-          <div class="stat-value" :style="{ color: colors[idx % colors.length] }">{{ stat.value }}</div>
-          <div class="stat-label">{{ stat.label }}</div>
-        </div>
-      </el-col>
-    </el-row>
-    <div v-if="loading" class="empty-text">加载中...</div>
-  </div>
+  <CrudPanel
+    title="学生工作 / 干部任职"
+    :columns="columns"
+    :fields="fields"
+    :rows="rows"
+    :loading="loading"
+    :rules="rules"
+    :on-reload="load"
+    :on-create="handleCreate"
+    :on-update="handleUpdate"
+    :on-delete="handleDelete"
+  />
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
-import { ArrowRight } from '@element-plus/icons-vue'
+import { ref, onMounted, watch } from 'vue'
+import CrudPanel from '@/components/CrudPanel.vue'
 import { s360 } from '@/api/student360.js'
 
 const props = defineProps({ sid: { type: Number, required: true } })
-const loading = ref(false)
 const rows = ref([])
-const colors = ['#5B92E5', '#4FC3B8', '#8FA9E5']
+const loading = ref(false)
 
-const stats = computed(() => {
-  const list = rows.value || []
-  if (!list.length) return [
-    { label: '担任职务', value: '—' },
-    { label: '任期', value: '—' },
-    { label: '记录数', value: '—' }
-  ]
-  const latest = list[0] || {}
-  const position = latest.position || latest.role || '—'
-  const term = latest.start_date ? (latest.start_date + ' ~ ' + (latest.end_date || '至今')) : '—'
-  return [
-    { label: '担任职务', value: position },
-    { label: '任期', value: term.length > 16 ? term.slice(0, 16) + '...' : term },
-    { label: '任职记录', value: list.length }
-  ]
-})
+const columns = [
+  { prop: 'position', label: '职务', minWidth: 140 },
+  { prop: 'term', label: '任期', minWidth: 140 },
+  { prop: 'notes', label: '备注', minWidth: 200 }
+]
+const fields = [
+  {
+    prop: 'position', label: '职务',
+    placeholder: '例：班长 / 团支书 / 学生会主席 / 社团社长'
+  },
+  { prop: 'term', label: '任期', placeholder: '例：2025.09 - 2026.06' },
+  { prop: 'notes', label: '备注', type: 'textarea' }
+]
+const rules = { position: [{ required: true, message: '职务必填', trigger: 'blur' }] }
 
 async function load() {
   loading.value = true
   try {
     rows.value = await s360.cadres.list(props.sid) || []
-  } catch { rows.value = [] }
-  finally { loading.value = false }
+  } finally { loading.value = false }
 }
+async function handleCreate(p) { await s360.cadres.create(props.sid, p) }
+async function handleUpdate(id, p) { await s360.cadres.update(props.sid, id, p) }
+async function handleDelete(id) { await s360.cadres.remove(props.sid, id) }
 
 watch(() => props.sid, load, { immediate: false })
 onMounted(load)
 </script>
-
-<style scoped>
-
-.tab-summary { padding: 8px 0; }
-.summary-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(91,146,229,0.15);
-}
-.summary-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #2C3E50;
-}
-.summary-card {
-  background: rgba(91,146,229,0.04);
-  border: 1px solid rgba(91,146,229,0.12);
-  border-radius: 16px;
-  padding: 20px 16px;
-  text-align: center;
-  transition: all 0.25s ease;
-  margin-bottom: 12px;
-}
-.summary-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(91,146,229,0.12);
-  border-color: rgba(91,146,229,0.25);
-}
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #5B92E5;
-  line-height: 1.2;
-}
-.stat-label {
-  font-size: 13px;
-  color: #6B7B8D;
-  margin-top: 6px;
-}
-.empty-text {
-  color: #909399;
-  font-size: 13px;
-  text-align: center;
-  padding: 20px 0;
-}
-</style>

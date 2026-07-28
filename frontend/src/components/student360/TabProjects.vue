@@ -1,111 +1,85 @@
 <template>
-  <div class="tab-summary">
-    <div class="summary-header">
-      <h3>📎 专项工作概览</h3>
-      <el-button type="primary" plain disabled>
-        暂无独立页面
-      </el-button>
+  <div>
+    <div class="tip macaron-card" style="padding:12px 16px;">
+      <el-icon><InfoFilled /></el-icon>&nbsp;
+      本表关联的是"学生参与专项工作项目的进度"。项目本身需要在工作台"项目追踪"页新建（V3-B 阶段），此处仅登记该生在具体项目中的进度、材料状态。
     </div>
-    <el-row :gutter="16">
-      <el-col :span="8" v-for="(stat, idx) in stats" :key="stat.label">
-        <div class="summary-card">
-          <div class="stat-value" :style="{ color: colors[idx % colors.length] }">{{ stat.value }}</div>
-          <div class="stat-label">{{ stat.label }}</div>
-        </div>
-      </el-col>
-    </el-row>
-    <div v-if="loading" class="empty-text">加载中...</div>
+    <CrudPanel
+      title="专项工作参与记录"
+      :columns="columns"
+      :fields="fields"
+      :rows="rows"
+      :loading="loading"
+      :rules="rules"
+      :default-form="{ progress: 0, material_status: '待提交' }"
+      :on-reload="load"
+      :on-create="handleCreate"
+      :on-update="handleUpdate"
+      :on-delete="handleDelete"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
-import { ArrowRight } from '@element-plus/icons-vue'
+import { ref, onMounted, watch } from 'vue'
+import CrudPanel from '@/components/CrudPanel.vue'
 import { s360 } from '@/api/student360.js'
 
 const props = defineProps({ sid: { type: Number, required: true } })
-const loading = ref(false)
 const rows = ref([])
-const colors = ['#5B92E5', '#4FC3B8', '#8FA9E5']
+const loading = ref(false)
 
-const stats = computed(() => {
-  const list = rows.value || []
-  if (!list.length) return [
-    { label: '参与项目数', value: '—' },
-    { label: '平均进度', value: '—' },
-    { label: '最近项目', value: '—' }
-  ]
-  const total = list.length
-  const progresses = list.map(r => Number(r.progress)).filter(v => !isNaN(v))
-  const avgProgress = progresses.length
-    ? Math.round(progresses.reduce((a, b) => a + b, 0) / progresses.length) + '%'
-    : '—'
-  const latest = list[0]?.project_name || '—'
-  return [
-    { label: '参与项目数', value: total },
-    { label: '平均进度', value: avgProgress },
-    { label: '最近项目', value: latest.length > 12 ? latest.slice(0, 12) + '...' : latest }
-  ]
-})
+const columns = [
+  { prop: 'project_name', label: '项目名称', minWidth: 200 },
+  { prop: 'progress', label: '进度(%)', width: 100,
+    formatter: (v) => v == null ? '—' : (v + '%') },
+  { prop: 'material_status', label: '材料状态', width: 130, type: 'tag',
+    formatter: (v) => ({ pending: '待提交', submitted: '已提交', approved: '审核通过', rejected: '未通过' })[v] || v || '—',
+    tagType: (r) => {
+      const v = r.material_status
+      if (v === '审核通过' || v === 'approved') return 'success'
+      if (v === '已提交' || v === 'submitted') return 'primary'
+      if (v === '待催缴') return 'warning'
+      if (v === '未通过' || v === 'rejected') return 'danger'
+      return ''
+    } },
+  { prop: 'notes', label: '备注', minWidth: 200 }
+]
+const fields = [
+  {
+    prop: 'project_id', label: '关联项目 ID',
+    type: 'number', min: 1, step: 1,
+    placeholder: '项目追踪功能上线后可下拉选择；当前先手动填写项目 ID'
+  },
+  { prop: 'progress', label: '进度（%）', type: 'number', min: 0, max: 100, step: 5 },
+  {
+    prop: 'material_status', label: '材料状态', type: 'select',
+    options: ['待提交', '已提交', '审核通过', '待催缴', '未通过']
+  },
+  { prop: 'notes', label: '备注', type: 'textarea' }
+]
+const rules = { project_id: [{ required: true, message: '项目 ID 必填', trigger: 'blur' }] }
 
 async function load() {
   loading.value = true
   try {
     rows.value = await s360.projects.list(props.sid) || []
-  } catch { rows.value = [] }
-  finally { loading.value = false }
+  } finally { loading.value = false }
 }
+async function handleCreate(p) { await s360.projects.create(props.sid, p) }
+async function handleUpdate(id, p) { await s360.projects.update(props.sid, id, p) }
+async function handleDelete(id) { await s360.projects.remove(props.sid, id) }
 
 watch(() => props.sid, load, { immediate: false })
 onMounted(load)
 </script>
 
 <style scoped>
-
-.tab-summary { padding: 8px 0; }
-.summary-header {
+.tip {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(91,146,229,0.15);
-}
-.summary-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #2C3E50;
-}
-.summary-card {
-  background: rgba(91,146,229,0.04);
-  border: 1px solid rgba(91,146,229,0.12);
-  border-radius: 16px;
-  padding: 20px 16px;
-  text-align: center;
-  transition: all 0.25s ease;
-  margin-bottom: 12px;
-}
-.summary-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(91,146,229,0.12);
-  border-color: rgba(91,146,229,0.25);
-}
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #5B92E5;
-  line-height: 1.2;
-}
-.stat-label {
+  gap: 6px;
   font-size: 13px;
-  color: #6B7B8D;
-  margin-top: 6px;
-}
-.empty-text {
-  color: #909399;
-  font-size: 13px;
-  text-align: center;
-  padding: 20px 0;
+  color: var(--color-text-secondary);
 }
 </style>
