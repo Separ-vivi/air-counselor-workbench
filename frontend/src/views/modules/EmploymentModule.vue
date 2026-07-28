@@ -272,7 +272,7 @@ onMounted(reload)
 .module-page { padding: 4px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
-.stat-card { border-radius: 12px; text-align: center; }
-.stat-label { color: #909399; font-size: 13px; margin-bottom: 6px; }
+.stat-card { border-radius: var(--radius-md); text-align: center; }
+.stat-label { color: var(--text-muted); font-size: 13px; margin-bottom: 6px; }
 .stat-value { font-size: 22px; font-weight: 600; }
 </style>

@@ -577,20 +577,20 @@ const handleChartResize = () => {
 <style scoped>
 .interview-page { padding: 20px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-header h2 { margin: 0; color: #2C3E50; }
+.page-header h2 { margin: 0; color: var(--text-primary); }
 .page-actions { display: flex; align-items: center; }
 .stats-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 20px; }
-.stat-card { background: #fff; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08); }
+.stat-card { background: #fff; border-radius: var(--radius-md); padding: 20px; text-align: center; box-shadow: var(--shadow-sm); }
 .stat-label { font-size: 13px; color: #7F8C8D; margin-bottom: 8px; }
-.stat-value { font-size: 28px; font-weight: 700; color: #2C3E50; }
+.stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
 .stat-value.pending { color: #E6A23C; }
 .stat-value.done { color: #67C23A; }
 .stat-value.follow { color: #F56C6C; }
-.stat-value.coverage { color: #5B92E5; }
+.stat-value.coverage { color: var(--color-primary); }
 .stat-sub { font-size: 11px; color: #7F8C8D; margin-top: 4px; }
-.table-container { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08); }
+.table-container { background: #fff; border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm); }
 .charts-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
-.chart-card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08); }
-.chart-title { font-size: 14px; font-weight: 600; color: #2C3E50; margin-bottom: 8px; }
+.chart-card { background: #fff; border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow-sm); }
+.chart-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
 .chart-body { width: 100%; height: 260px; }
 </style>

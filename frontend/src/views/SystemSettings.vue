@@ -63,7 +63,7 @@
       <el-divider />
       <div class="llm-hint">
         目前支持任何兼容 OpenAI 协议的接口：DeepSeek / OpenAI / 本地 Ollama / 中转站
-        <br>DeepSeek 注册地址：<a href="https://platform.deepseek.com" target="_blank" style="color:#5B92E5">https://platform.deepseek.com</a>
+        <br>DeepSeek 注册地址：<a href="https://platform.deepseek.com" target="_blank" style="color: var(--color-primary)">https://platform.deepseek.com</a>
         ；最低充值 ¥10，约可支持几千次问答
       </div>
     </el-card>
@@ -105,7 +105,7 @@
         <div v-else>
           <el-alert type="success" show-icon :closable="false" title="所有表结构与 model 一致" />
         </div>
-        <div v-if="health.db_path" style="color:#909399; font-size:12px; margin-top:8px">
+        <div v-if="health.db_path" style="color: var(--text-muted); font-size:12px; margin-top:8px">
           数据库路径：{{ health.db_path }}
         </div>
       </div>
@@ -226,7 +226,7 @@
       </div>
       <div v-else-if="historyLoaded" class="backup-history-empty">
         <el-divider content-position="left">备份历史</el-divider>
-        <div style="text-align:center;color:#909399;padding:12px;font-size:13px;">暂无备份文件</div>
+        <div style="text-align:center;color: var(--text-muted);padding:12px;font-size:13px;">暂无备份文件</div>
       </div>
     </el-card>
   </div>
@@ -506,21 +506,21 @@ onMounted(() => { loadHealth(); loadLlm(); loadBackupHistory() })
   margin-bottom: 16px;
 }
 .page-header h2 { margin: 0; color: #303133; font-size: 22px; }
-.section-card { margin-bottom: 16px; border-radius: 12px; }
+.section-card { margin-bottom: 16px; border-radius: var(--radius-md); }
 .card-header { display: flex; align-items: center; gap: 8px; font-weight: 600; }
 .op-card {
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: #fdfaf3;
   height: 100%;
 }
 .op-title { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
-.op-desc { color: #606266; font-size: 13px; line-height: 1.6; margin-bottom: 12px; min-height: 60px; }
+.op-desc { color: var(--text-secondary); font-size: 13px; line-height: 1.6; margin-bottom: 12px; min-height: 60px; }
 .llm-card {
   border: 1px solid #D6E4F5;
   background: linear-gradient(135deg, #F6F9FD, #fff);
 }
 .llm-hint {
-  font-size: 12px; color: #606266; line-height: 1.7;
+  font-size: 12px; color: var(--text-secondary); line-height: 1.7;
   background: #F5F7FA; padding: 10px 14px; border-radius: 6px;
 }
 .llm-hint a { text-decoration: none; }

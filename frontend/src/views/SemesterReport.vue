@@ -18,7 +18,7 @@
 
     <!-- 2. 空数据提示 -->
     <div v-if="!hasData" class="empty-state">
-      <div class="empty-icon" style="font-size:28px;color:#5B92E5">#</div>
+      <div class="empty-icon" style="font-size:28px;color: var(--color-primary)">#</div>
       <div class="empty-text">暂无数据</div>
       <div class="empty-hint">请先在「学生管理」或「成绩管理」中导入数据</div>
     </div>
@@ -56,15 +56,15 @@
         </div>
         <div class="summary-card-sm">
           <div class="card-title-sm">心理关注</div>
-          <div class="card-value-sm" style="color:#5B92E5">{{ summaryData?.psychology_attention_count || 0 }}</div>
+          <div class="card-value-sm" style="color: var(--color-primary)">{{ summaryData?.psychology_attention_count || 0 }}</div>
         </div>
         <div class="summary-card-sm">
           <div class="card-title-sm">资助总人次</div>
-          <div class="card-value-sm" style="color:#7BCFCB">{{ summaryData?.financial_aid_count || 0 }}</div>
+          <div class="card-value-sm" style="color: var(--color-mint)">{{ summaryData?.financial_aid_count || 0 }}</div>
         </div>
         <div class="summary-card-sm">
           <div class="card-title-sm">荣誉人次</div>
-          <div class="card-value-sm" style="color:#8FA9E5">{{ summaryData?.honor_count || 0 }}</div>
+          <div class="card-value-sm" style="color: var(--color-accent)">{{ summaryData?.honor_count || 0 }}</div>
         </div>
         <div class="summary-card-sm">
           <div class="card-title-sm">违纪人数</div>
@@ -72,7 +72,7 @@
         </div>
         <div class="summary-card-sm">
           <div class="card-title-sm">累计党员</div>
-          <div class="card-value-sm" style="color:#4FC3B8">{{ summaryData?.party_member_count || 0 }}</div>
+          <div class="card-value-sm" style="color: var(--color-secondary)">{{ summaryData?.party_member_count || 0 }}</div>
         </div>
       </div>
 
@@ -563,7 +563,7 @@ onBeforeUnmount(() => {
 
 .page-header h2 {
   margin: 0;
-  color: #2C3E50;
+  color: var(--text-primary);
 }
 
 .page-actions {
@@ -581,10 +581,10 @@ onBeforeUnmount(() => {
 
 .summary-card-sm {
   background: #fff;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 10px 12px;
   text-align: center;
-  box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
+  box-shadow: 0 1px 4px var(--shadow-sm);
 }
 
 .card-title-sm {
@@ -596,7 +596,7 @@ onBeforeUnmount(() => {
 .card-value-sm {
   font-size: 20px;
   font-weight: 700;
-  color: #2C3E50;
+  color: var(--text-primary);
 }
 
 .card-value-sm.warning { color: #E74C3C; }
@@ -605,16 +605,16 @@ onBeforeUnmount(() => {
 /* 对比区域 */
 .comparison-section {
   background: #fff;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 14px 18px;
   margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .comparison-section h3 {
   margin: 0 0 10px 0;
   font-size: 14px;
-  color: #5B92E5;
+  color: var(--color-primary);
 }
 
 .comparison-cards {
@@ -624,8 +624,8 @@ onBeforeUnmount(() => {
 }
 
 .comparison-card {
-  background: linear-gradient(135deg, #ECF1F7 0%, #F5F8FC 100%);
-  border-radius: 8px;
+  background: linear-gradient(135deg, var(--bg-page) 0%, #F5F8FC 100%);
+  border-radius: var(--radius-sm);
   padding: 10px 14px;
   min-width: 130px;
 }
@@ -639,7 +639,7 @@ onBeforeUnmount(() => {
 .metric-current {
   font-size: 18px;
   font-weight: 600;
-  color: #2C3E50;
+  color: var(--text-primary);
 }
 
 .metric-change {
@@ -660,15 +660,15 @@ onBeforeUnmount(() => {
 
 .chart-card {
   background: #fff;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
-  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .chart-card h3 {
   margin: 0 0 12px 0;
   font-size: 14px;
-  color: #2C3E50;
+  color: var(--text-primary);
 }
 
 .chart-container {
@@ -688,7 +688,7 @@ onBeforeUnmount(() => {
 .section-title {
   font-size: 14px;
   font-weight: 600;
-  color: #2C3E50;
+  color: var(--text-primary);
   margin: 16px 0 10px 0;
 }
 
@@ -701,18 +701,18 @@ onBeforeUnmount(() => {
 
 .compact-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 10px 12px;
-  box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
+  box-shadow: 0 1px 4px var(--shadow-sm);
 }
 
 .compact-card-title {
   font-size: 13px;
   font-weight: 600;
-  color: #5B92E5;
+  color: var(--color-primary);
   margin-bottom: 6px;
   padding-bottom: 4px;
-  border-bottom: 1px solid #ECF1F7;
+  border-bottom: 1px solid var(--bg-page);
 }
 
 .compact-card-body {
@@ -736,7 +736,7 @@ onBeforeUnmount(() => {
 .compact-value {
   font-size: 13px;
   font-weight: 600;
-  color: #2C3E50;
+  color: var(--text-primary);
 }
 
 /* 空状态 */
@@ -747,8 +747,8 @@ onBeforeUnmount(() => {
   justify-content: center;
   padding: 80px 20px;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .empty-icon {
@@ -759,7 +759,7 @@ onBeforeUnmount(() => {
 .empty-text {
   font-size: 18px;
   font-weight: 600;
-  color: #2C3E50;
+  color: var(--text-primary);
   margin-bottom: 8px;
 }
 

@@ -300,7 +300,7 @@
           <el-table-column label="劳育" prop="labor_score" width="80" align="center" sortable />
           <el-table-column label="综合测评" width="120" align="center" sortable sort-by="total_computed">
             <template #default="{ row }">
-              <span style="color: #5B92E5; font-weight: 700; font-size: 15px">
+              <span style="color: var(--color-primary); font-weight: 700; font-size: 15px">
                 {{ computeTotal(row)?.toFixed(1) ?? '-' }}
               </span>
             </template>
@@ -584,11 +584,11 @@ watch(tab, (v) => { if (v === 'assessment' && !assessData.value.length) loadAsse
 .module-page { padding: 4px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
-.stat-card { border-radius: 12px; text-align: center; }
-.stat-label { color: #909399; font-size: 13px; margin-bottom: 8px; }
+.stat-card { border-radius: var(--radius-md); text-align: center; }
+.stat-label { color: var(--text-muted); font-size: 13px; margin-bottom: 8px; }
 .stat-value { font-size: 26px; font-weight: 600; }
-.detail-stats { display:flex; gap:32px; margin-top:16px; padding:12px 16px; background:#FAFBFC; border-radius:8px; }
+.detail-stats { display:flex; gap:32px; margin-top:16px; padding:12px 16px; background:#FAFBFC; border-radius: var(--radius-sm); }
 .ds-item { display:flex; align-items:baseline; gap:8px; }
-.ds-label { color:#909399; font-size:13px; }
+.ds-label { color:var(--text-muted); font-size:13px; }
 .ds-value { font-size:20px; font-weight:600; }
 </style>

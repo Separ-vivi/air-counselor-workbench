@@ -82,7 +82,7 @@
 .sidebar-root {
   width: 220px;
   height: 100vh;
-  background: linear-gradient(180deg, #5B92E5 0%, #7BCFCB 100%);
+  background: linear-gradient(180deg, var(--bg-sidebar-from) 0%, var(--bg-sidebar-to) 100%);
   color: #FFFFFF;
   border-right: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow: 2px 0 16px rgba(50, 100, 160, 0.24);
@@ -149,7 +149,7 @@
   color: #FFFFFF !important;
   border-radius: 10px !important;
   margin: 3px 10px !important;
-  transition: all .2s ease;
+  transition: all var(--transition-normal);
   font-weight: 500;
 }
 :deep(.el-menu-item:hover),

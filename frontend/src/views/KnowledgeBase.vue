@@ -58,7 +58,7 @@
 
             <div v-loading="chatLoading" class="chat-area">
               <div v-if="chatList.length === 0" class="chat-empty">
-                <div class="empty-icon" style="font-size:28px;color:#5B92E5">?</div>
+                <div class="empty-icon" style="font-size:28px;color: var(--color-primary)">?</div>
                 <div>试试提问：</div>
                 <div class="empty-suggest" v-for="q in suggestions" :key="q" @click="onAsk(q)">"{{ q }}"</div>
               </div>
@@ -544,7 +544,7 @@ onMounted(() => {
 }
 .col-title { font-weight: 600; color: #303133; font-size: 14px; }
 .col-empty {
-  padding: 40px 20px; text-align: center; color: #909399; font-size: 13px; line-height: 1.8;
+  padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px; line-height: 1.8;
 }
 .col-empty .hint { font-size: 12px; color: #C0C4CC; }
 
@@ -552,38 +552,38 @@ onMounted(() => {
 .doc-list { flex: 1; overflow-y: auto; padding: 8px; }
 .doc-item {
   padding: 10px; margin-bottom: 6px;
-  border-radius: 8px; cursor: pointer;
+  border-radius: var(--radius-sm); cursor: pointer;
   border: 1px solid transparent;
   transition: all .18s;
 }
 .doc-item:hover { background: #F6F9FD; border-color: #E4E7ED; }
 .doc-item.active {
   background: linear-gradient(135deg, #EEF4FD, #E8F7F3);
-  border-color: #5B92E5;
+  border-color: var(--color-primary);
 }
 .doc-row1 { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.doc-row1 .el-icon { color: #5B92E5; }
+.doc-row1 .el-icon { color: var(--color-primary); }
 .doc-title { font-weight: 500; font-size: 13px; color: #303133;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .doc-row2 { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
-.doc-chunks { font-size: 11px; color: #909399; }
+.doc-chunks { font-size: 11px; color: var(--text-muted); }
 .doc-row3 { display: flex; justify-content: space-between; align-items: center; }
 .doc-time { font-size: 11px; color: #C0C4CC; }
 
 /* 中：对话 */
 .chat-area { flex: 1; overflow-y: auto; padding: 14px; background: #FAFBFC; }
 .chat-empty {
-  text-align: center; padding: 40px 20px; color: #909399;
+  text-align: center; padding: 40px 20px; color: var(--text-muted);
 }
 .empty-icon { font-size: 40px; margin-bottom: 10px; }
 .empty-suggest {
   margin-top: 8px; padding: 8px 12px;
-  background: #fff; border: 1px solid #E4E7ED; border-radius: 8px;
+  background: #fff; border: 1px solid #E4E7ED; border-radius: var(--radius-sm);
   cursor: pointer; font-size: 13px;
   transition: all .18s;
 }
 .empty-suggest:hover {
-  border-color: #5B92E5; color: #5B92E5; background: #EEF4FD;
+  border-color: var(--color-primary); color: var(--color-primary); background: #EEF4FD;
 }
 .chat-msg {
   display: flex; gap: 10px; margin-bottom: 14px;
@@ -593,9 +593,9 @@ onMounted(() => {
   flex-shrink: 0; width: 32px; height: 32px;
   border-radius: 50%; display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 600; color: #fff;
-  background: linear-gradient(135deg, #5B92E5, #7BCFCB);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-mint));
 }
-.chat-msg.user .msg-role { background: linear-gradient(135deg, #8FA9E5, #4FC3B8); }
+.chat-msg.user .msg-role { background: linear-gradient(135deg, var(--color-accent), var(--color-secondary)); }
 .msg-body {
   max-width: 75%;
   padding: 10px 14px;
@@ -603,7 +603,7 @@ onMounted(() => {
   font-size: 14px; line-height: 1.7;
 }
 .chat-msg.user .msg-body {
-  background: linear-gradient(135deg, #5B92E5, #4FC3B8);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
   color: #fff;
 }
 .chat-msg.assistant .msg-body {
@@ -616,15 +616,15 @@ onMounted(() => {
   margin-top: 8px; padding-top: 8px; border-top: 1px dashed #E4E7ED;
   font-size: 12px;
 }
-.src-label { color: #909399; margin-bottom: 4px; }
+.src-label { color: var(--text-muted); margin-bottom: 4px; }
 .src-item {
   padding: 4px 8px; margin: 3px 0;
   background: #F6F9FD; border-radius: 4px;
-  cursor: pointer; color: #5B92E5;
+  cursor: pointer; color: var(--color-primary);
 }
 .src-item:hover { background: #EEF4FD; }
-.src-snippet { color: #909399; margin-left: 4px; }
-.typing-dots { color: #909399; font-style: italic; }
+.src-snippet { color: var(--text-muted); margin-left: 4px; }
+.typing-dots { color: var(--text-muted); font-style: italic; }
 .chat-input {
   padding: 10px; border-top: 1px solid #EBEEF5;
   display: flex; gap: 8px; align-items: flex-end;
@@ -634,13 +634,13 @@ onMounted(() => {
 
 /* 右：分块 */
 .chunk-list { flex: 1; overflow-y: auto; padding: 10px; background: #FAFBFC; }
-.chunk-count { font-size: 12px; color: #909399; }
-.chunk-hint { padding: 0 10px 8px; font-size: 12px; color: #909399; }
+.chunk-count { font-size: 12px; color: var(--text-muted); }
+.chunk-hint { padding: 0 10px 8px; font-size: 12px; color: var(--text-muted); }
 .chunk-item {
-  background: #fff; border: 1px solid #E4E7ED; border-radius: 8px;
+  background: #fff; border: 1px solid #E4E7ED; border-radius: var(--radius-sm);
   padding: 10px; margin-bottom: 8px; cursor: pointer; transition: border-color .18s;
 }
-.chunk-item:hover { border-color: #5B92E5; }
+.chunk-item:hover { border-color: var(--color-primary); }
 .chunk-item.highlight {
   border-color: #E6A23C; background: #FDF6EC; cursor: default;
 }
@@ -666,7 +666,7 @@ onMounted(() => {
 /* LLM 提示 */
 .llm-tip { line-height: 1.9; font-size: 14px; }
 .tip-field {
-  padding-left: 12px; color: #606266; font-size: 13px;
+  padding-left: 12px; color: var(--text-secondary); font-size: 13px;
 }
 .tip-field code {
   background: #F5F7FA; padding: 2px 6px; border-radius: 3px;
@@ -680,13 +680,13 @@ onMounted(() => {
 /* FAQ 样式 */
 .hint-bar {
   background: #EEF3F5; color: #5C7A87; padding: 8px 14px;
-  border-radius: 8px; font-size: 13px; margin-bottom: 16px;
+  border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px;
 }
 .faq-collapse { background: #fff; border-radius: 10px; padding: 4px 16px; }
 .faq-title-row { display: flex; gap: 8px; align-items: center; flex: 1; }
 .faq-q { font-weight: 500; color: #303133; }
 .faq-answer {
-  white-space: pre-wrap; line-height: 1.75; color: #606266;
+  white-space: pre-wrap; line-height: 1.75; color: var(--text-secondary);
   background: #FAFBFC; border-radius: 6px; padding: 12px; margin-bottom: 12px;
 }
 .faq-actions { display: flex; gap: 8px; padding-top: 4px; }

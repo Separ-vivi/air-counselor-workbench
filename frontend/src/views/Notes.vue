@@ -450,7 +450,7 @@ function formatTime(t) {
 .note-card {
   position: relative;
   padding: 14px 16px 12px;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(14px) saturate(160%);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
@@ -467,7 +467,7 @@ function formatTime(t) {
   position: absolute; left: 0; top: 0; bottom: 0;
   width: 4px;
   background: #C7CEEA;
-  border-radius: 16px 0 0 16px;
+  border-radius: var(--radius-lg) 0 0 16px;
 }
 .note-card.color-yellow::before { background: #F5D45C; }
 .note-card.color-pink::before   { background: #F58BAA; }
@@ -480,7 +480,7 @@ function formatTime(t) {
   box-shadow: 0 10px 24px rgba(60, 80, 120, 0.14);
 }
 .note-card.done { opacity: .60; }
-.note-card.done .note-title { text-decoration: line-through; color: #909399; }
+.note-card.done .note-title { text-decoration: line-through; color: var(--text-muted); }
 .note-card.pinned { box-shadow: 0 4px 16px rgba(230, 162, 60, 0.20); }
 .note-card.pinned::after {
   content: ''; position: absolute; right: 10px; top: 10px;

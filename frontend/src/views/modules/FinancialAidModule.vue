@@ -97,7 +97,7 @@
             <el-table-column label="明细" prop="detail" min-width="140" show-overflow-tooltip />
             <el-table-column label="金额" prop="amount" width="110" align="right">
               <template #default="{ row }">
-                <span v-if="row.amount > 0" style="color:#5B92E5;font-weight:600">¥{{ row.amount.toLocaleString() }}</span>
+                <span v-if="row.amount > 0" style="color: var(--color-primary);font-weight:600">¥{{ row.amount.toLocaleString() }}</span>
                 <span v-else>-</span>
               </template>
             </el-table-column>
@@ -402,11 +402,11 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.financial-aid-page { padding: 20px; background: #ECF1F7; min-height: 100vh; }
+.financial-aid-page { padding: 20px; background: var(--bg-page); min-height: 100vh; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-header h2 { margin: 0; color: #2C3E50; font-size: 20px; }
+.page-header h2 { margin: 0; color: var(--text-primary); font-size: 20px; }
 .coverage-badge {
-  background: linear-gradient(135deg, #5B92E5, #7BCFCB);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-mint));
   color: #fff; padding: 6px 16px; border-radius: 20px;
   font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
 }
@@ -414,9 +414,9 @@ onBeforeUnmount(() => {
 /* 统计卡片 */
 .stats-cards { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 16px; }
 .stat-card {
-  background: #fff; border-radius: 12px; padding: 16px 18px;
+  background: #fff; border-radius: var(--radius-md); padding: 16px 18px;
   display: flex; align-items: center; gap: 12px;
-  box-shadow: 0 2px 8px rgba(91,146,229,0.08);
+  box-shadow: var(--shadow-sm);
   transition: transform .2s;
 }
 .stat-card:hover { transform: translateY(-2px); }
@@ -427,13 +427,13 @@ onBeforeUnmount(() => {
 }
 .stat-info { flex: 1; min-width: 0; }
 .stat-label { font-size: 12px; color: #7F8C8D; margin-bottom: 2px; }
-.stat-value { font-size: 24px; font-weight: 700; color: #2C3E50; }
+.stat-value { font-size: 24px; font-weight: 700; color: var(--text-primary); }
 
 /* 图表区域 */
 .charts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
-.chart-card { border-radius: 12px; }
-.chart-card :deep(.el-card__header) { padding: 12px 18px; border-bottom: 1px solid #ECF1F7; }
-.chart-title { font-size: 14px; font-weight: 600; color: #2C3E50; }
+.chart-card { border-radius: var(--radius-md); }
+.chart-card :deep(.el-card__header) { padding: 12px 18px; border-bottom: 1px solid var(--bg-page); }
+.chart-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .chart-box { height: 220px; }
 
 /* 底部布局 */
@@ -441,7 +441,7 @@ onBeforeUnmount(() => {
 .table-panel { flex: 1; min-width: 0; }
 .top-panel { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
 
-.table-card { border-radius: 12px; }
+.table-card { border-radius: var(--radius-md); }
 .table-card :deep(.el-card__header) { padding: 12px 18px; }
 .table-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 .filter-form { display: flex; flex-wrap: wrap; gap: 0; }
@@ -449,29 +449,29 @@ onBeforeUnmount(() => {
 .pagination-wrap { margin-top: 14px; display: flex; justify-content: flex-end; }
 
 /* TOP卡片 */
-.top-card { border-radius: 12px; }
-.top-card :deep(.el-card__header) { padding: 12px 18px; border-bottom: 1px solid #ECF1F7; }
+.top-card { border-radius: var(--radius-md); }
+.top-card :deep(.el-card__header) { padding: 12px 18px; border-bottom: 1px solid var(--bg-page); }
 .top-list { display: flex; flex-direction: column; gap: 10px; }
 .top-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 6px 0; border-bottom: 1px solid #ECF1F7;
+  padding: 6px 0; border-bottom: 1px solid var(--bg-page);
 }
 .top-item:last-child { border-bottom: none; }
 .top-rank {
   width: 22px; height: 22px; border-radius: 6px; font-size: 12px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
-  background: #ECF1F7; color: #7F8C8D; flex-shrink: 0;
+  background: var(--bg-page); color: #7F8C8D; flex-shrink: 0;
 }
-.top-rank.rank-hot { background: linear-gradient(135deg, #5B92E5, #7BCFCB); color: #fff; }
+.top-rank.rank-hot { background: linear-gradient(135deg, var(--color-primary), var(--color-mint)); color: #fff; }
 .top-info { flex: 1; min-width: 0; }
-.top-name { font-size: 13px; font-weight: 600; color: #2C3E50; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-name { font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .top-no { font-size: 11px; color: #95A5A6; }
-.top-amount { font-size: 14px; font-weight: 700; color: #5B92E5; white-space: nowrap; }
+.top-amount { font-size: 14px; font-weight: 700; color: var(--color-primary); white-space: nowrap; }
 
 /* 总金额卡片 */
-.total-card { border-radius: 12px; text-align: center; padding: 8px 0; }
+.total-card { border-radius: var(--radius-md); text-align: center; padding: 8px 0; }
 .total-label { font-size: 13px; color: #7F8C8D; margin-bottom: 6px; }
-.total-value { font-size: 28px; font-weight: 800; background: linear-gradient(135deg, #5B92E5, #7BCFCB); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.total-value { font-size: 28px; font-weight: 800; background: linear-gradient(135deg, var(--color-primary), var(--color-mint)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
 /* 响应式 */
 @media (max-width: 1200px) {

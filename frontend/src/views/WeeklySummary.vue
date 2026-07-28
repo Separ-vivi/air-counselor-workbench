@@ -270,14 +270,14 @@ onMounted(load)
 }
 .ws-list {
   border: 1px solid var(--color-card-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 8px;
   overflow-y: auto;
   background: #fff;
 }
 .ws-item {
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   border: 1px solid transparent;
   margin-bottom: 6px;
@@ -290,7 +290,7 @@ onMounted(load)
 
 .ws-detail {
   border: 1px solid var(--color-card-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: #fff;
   padding: 20px;
   overflow-y: auto;
@@ -302,7 +302,7 @@ onMounted(load)
 .detail-content pre {
   background: var(--color-page-bg);
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   white-space: pre-wrap;
   word-break: break-word;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;

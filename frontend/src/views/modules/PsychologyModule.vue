@@ -630,15 +630,15 @@ onBeforeUnmount(() => {
 /* 图表区域样式 */
 .chart-row { margin-bottom: 12px; }
 .chart-card {
-  background: #ECF1F7;
-  border-radius: 12px;
+  background: var(--bg-page);
+  border-radius: var(--radius-md);
   padding: 12px;
   margin-bottom: 12px;
-  box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
+  box-shadow: 0 1px 4px var(--shadow-sm);
   transition: box-shadow 0.2s;
 }
 .chart-card:hover {
-  box-shadow: 0 4px 12px rgba(91, 146, 229, 0.15);
+  box-shadow: var(--shadow-hover);
 }
 .chart-title {
   font-size: 14px;
@@ -647,8 +647,8 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
   padding-left: 4px;
 }
-.stat-card { border-radius: 12px; text-align: center; }
-.stat-card .stat-label { color: #909399; font-size: 13px; margin-bottom: 8px; }
+.stat-card { border-radius: var(--radius-md); text-align: center; }
+.stat-card .stat-label { color: var(--text-muted); font-size: 13px; margin-bottom: 8px; }
 .stat-card .stat-value { font-size: 24px; font-weight: 600; }
 .chart-container {
   width: 100%;

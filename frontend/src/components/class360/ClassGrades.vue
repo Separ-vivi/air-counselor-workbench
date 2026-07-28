@@ -1,99 +1,112 @@
 <template>
-  <div>
-    <div class="panel-head">
-      <div><span class="title">本班学业统计</span><span class="text-muted count">&nbsp;共 {{ rows.length }} 条成绩</span></div>
-      <el-button size="small" @click="load"><el-icon><Refresh /></el-icon> 刷新</el-button>
+  <div class="tab-summary">
+    <div class="summary-header">
+      <h3>📈 学业统计概览</h3>
+      <el-button type="primary" @click="$router.push('/module/grades')">
+        查看详情 <el-icon><ArrowRight /></el-icon>
+      </el-button>
     </div>
-
-    <el-row v-if="stats" :gutter="12" class="mb-16">
-      <el-col :span="6">
-        <div class="mini-stat"><div class="label">平均分</div><div class="value">{{ stats.avg }}</div></div>
-      </el-col>
-      <el-col :span="6">
-        <div class="mini-stat"><div class="label">及格率</div><div class="value">{{ stats.passRate }}%</div></div>
-      </el-col>
-      <el-col :span="6">
-        <div class="mini-stat"><div class="label">优秀率(≥85)</div><div class="value">{{ stats.excellentRate }}%</div></div>
-      </el-col>
-      <el-col :span="6">
-        <div class="mini-stat"><div class="label">挂科条数</div><div class="value red">{{ stats.failCount }}</div></div>
+    <el-row :gutter="16">
+      <el-col :span="8" v-for="(stat, idx) in stats" :key="stat.label">
+        <div class="summary-card">
+          <div class="stat-value" :style="{ color: colors[idx % colors.length] }">{{ stat.value }}</div>
+          <div class="stat-label">{{ stat.label }}</div>
+        </div>
       </el-col>
     </el-row>
-
-    <el-table v-loading="loading" :data="rows" border stripe size="small" height="480" empty-text="暂无本班成绩记录">
-      <el-table-column prop="student_no" label="学号" width="130" sortable />
-      <el-table-column prop="name" label="姓名" width="100" sortable>
-        <template #default="{ row }">
-          <router-link v-if="row.student_id" :to="`/students/${row.student_id}`" class="link">{{ row.name }}</router-link>
-          <span v-else>{{ row.name || '—' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="semester" label="学期" width="120" sortable />
-      <el-table-column prop="course_name" label="课程" min-width="180" sortable />
-      <el-table-column prop="score" label="成绩" width="90" sortable>
-        <template #default="{ row }">
-          <span :class="{ 'text-danger': row.score != null && row.score < 60 }">
-            {{ row.score != null ? Number(row.score).toFixed(1) : '—' }}
-          </span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="gpa" label="绩点" width="80" sortable
-        :formatter="(r) => r.gpa != null ? Number(r.gpa).toFixed(2) : '—'" />
-      <el-table-column prop="credit" label="学分" width="80" sortable />
-      <el-table-column prop="is_repair" label="重修" width="80" sortable
-        :formatter="(r) => r.is_repair ? '是' : ''" />
-    </el-table>
+    <div v-if="loading" class="empty-text">加载中...</div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
+import { ArrowRight } from '@element-plus/icons-vue'
 import { getClassGrades } from '@/api/class360.js'
 
 const props = defineProps({ cid: { type: Number, required: true } })
-const rows = ref([])
 const loading = ref(false)
+const grades = ref([])
+const colors = ['#5B92E5', '#4FC3B8', '#8FA9E5']
 
 const stats = computed(() => {
-  if (!rows.value.length) return null
-  const scored = rows.value.filter(r => r.score != null)
-  if (!scored.length) return null
-  const avg = scored.reduce((s, r) => s + Number(r.score), 0) / scored.length
-  const pass = scored.filter(r => r.score >= 60).length
-  const excel = scored.filter(r => r.score >= 85).length
-  const fail = scored.filter(r => r.score < 60).length
-  return {
-    avg: avg.toFixed(1),
-    passRate: ((pass / scored.length) * 100).toFixed(1),
-    excellentRate: ((excel / scored.length) * 100).toFixed(1),
-    failCount: fail
-  }
+  const list = grades.value || []
+  if (!list.length) return [
+    { label: '平均分', value: '—' },
+    { label: '最高分', value: '—' },
+    { label: '及格率', value: '—' }
+  ]
+  const scores = list.map(g => Number(g.score)).filter(v => !isNaN(v))
+  const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '—'
+  const max = scores.length ? Math.max(...scores).toFixed(1) : '—'
+  const passCount = scores.filter(v => v >= 60).length
+  const passRate = scores.length ? ((passCount / scores.length) * 100).toFixed(1) + '%' : '—'
+  return [
+    { label: '平均分', value: avg },
+    { label: '最高分', value: max },
+    { label: '及格率', value: passRate }
+  ]
 })
 
 async function load() {
   if (!props.cid || Number.isNaN(Number(props.cid))) return
   loading.value = true
   try {
-    rows.value = await getClassGrades(props.cid) || []
-  } finally { loading.value = false }
+    const res = await getClassGrades(props.cid)
+    grades.value = Array.isArray(res) ? res : (res?.items || [])
+  } catch { grades.value = [] }
+  finally { loading.value = false }
 }
+
 watch(() => props.cid, load, { immediate: false })
 onMounted(load)
 </script>
 
 <style scoped>
-.panel-head { display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; }
-.panel-head .title { font-weight: 600; color: var(--color-sidebar-active); font-size: 15px; }
-.panel-head .count { font-size: 12px; }
-.mini-stat {
-  background: var(--color-macaron-blue);
-  border-radius: 12px;
-  padding: 12px;
-  text-align: center;
+
+.tab-summary { padding: 8px 0; }
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(91,146,229,0.15);
 }
-.mini-stat .label { color: var(--color-sidebar-active); font-size: 12px; }
-.mini-stat .value { font-size: 22px; font-weight: 700; color: var(--color-sidebar-active); }
-.mini-stat .value.red { color: #c1443f; }
-.text-danger { color: #c1443f; font-weight: 600; }
-.link { color: var(--color-sidebar); }
+.summary-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2C3E50;
+}
+.summary-card {
+  background: rgba(91,146,229,0.04);
+  border: 1px solid rgba(91,146,229,0.12);
+  border-radius: 16px;
+  padding: 20px 16px;
+  text-align: center;
+  transition: all 0.25s ease;
+  margin-bottom: 12px;
+}
+.summary-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(91,146,229,0.12);
+  border-color: rgba(91,146,229,0.25);
+}
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #5B92E5;
+  line-height: 1.2;
+}
+.stat-label {
+  font-size: 13px;
+  color: #6B7B8D;
+  margin-top: 6px;
+}
+.empty-text {
+  color: #909399;
+  font-size: 13px;
+  text-align: center;
+  padding: 20px 0;
+}
 </style>

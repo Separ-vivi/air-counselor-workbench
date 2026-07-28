@@ -406,31 +406,31 @@ onMounted(() => { loadCd(); loadEvents() })
   display: flex; flex-wrap: wrap; gap: 8px;
   padding: 8px 12px; margin-bottom: 12px;
   background: rgba(255,255,255,0.5);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
 }
 .lg-tag { padding: 2px 8px; border-radius: 4px; color: #fff; font-size: 12px; }
-.lg-blue   { background: #5B92E5; }
-.lg-orange { background: #7BCFCB; }
-.lg-yellow { background: #4FC3B8; }
-.lg-pink   { background: #8FA9E5; }
-.lg-green  { background: #4FC3B8; }
-.lg-cyan   { background: #5B92E5; }
-.lg-purple { background: #8FA9E5; }
+.lg-blue   { background: var(--color-primary); }
+.lg-orange { background: var(--color-mint); }
+.lg-yellow { background: var(--color-secondary); }
+.lg-pink   { background: var(--color-accent); }
+.lg-green  { background: var(--color-secondary); }
+.lg-cyan   { background: var(--color-primary); }
+.lg-purple { background: var(--color-accent); }
 
 .cd-section { margin-bottom: 12px; min-height: 80px; }
 .cd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
 .cd-card {
-  padding: 12px 14px; border-radius: 16px; border: 1px solid transparent;
-  box-shadow: 0 2px 8px rgba(91,146,229,.05);
+  padding: 12px 14px; border-radius: var(--radius-lg); border: 1px solid transparent;
+  box-shadow: var(--shadow-sm);
   display: flex; flex-direction: column; gap: 4px; position: relative;
   transition: transform .12s;
 }
 .cd-card:hover { transform: translateY(-2px); }
-.cd-card.color-blue   { background: rgba(91,146,229,0.12); }
-.cd-card.color-pink   { background: rgba(143,169,229,0.12); }
-.cd-card.color-green  { background: rgba(79,195,184,0.12); }
-.cd-card.color-yellow { background: rgba(91,146,229,0.08); }
+.cd-card.color-blue   { background: var(--color-primary-light); }
+.cd-card.color-pink   { background: var(--color-accent-light); }
+.cd-card.color-green  { background: var(--color-secondary-light); }
+.cd-card.color-yellow { background: var(--shadow-sm); }
 .cd-card.color-purple { background: rgba(143,169,229,0.10); }
 .cd-card.color-orange { background: rgba(79,195,184,0.10); }
 .cd-card.urgent { border-color: #F56C6C; }
@@ -439,7 +439,7 @@ onMounted(() => { loadCd(); loadEvents() })
 .cd-title { font-weight: 600; font-size: 14px; color: #3A3A3A; display: flex; align-items: center; gap: 4px; }
 .cd-title .pin { color: #E58B3E; }
 .cd-days { display: flex; align-items: baseline; gap: 4px; margin-top: 2px; }
-.cd-days .num { font-size: 28px; font-weight: 700; color: #5B92E5; line-height: 1; }
+.cd-days .num { font-size: 28px; font-weight: 700; color: var(--color-primary); line-height: 1; }
 .cd-days .unit { font-size: 12px; color: #7B7B7B; }
 .cd-meta { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #7B7B7B; }
 .cd-actions { position: absolute; right: 8px; top: 8px; }
@@ -456,7 +456,7 @@ onMounted(() => { loadCd(); loadEvents() })
 .dot-icon { margin-right: 2px; font-size: 10px; }
 .more-hint { font-size: 10px; color: #7B7B7B; }
 
-.week-view { background: rgba(255,255,255,0.5); border-radius: 12px; padding: 12px; }
+.week-view { background: rgba(255,255,255,0.5); border-radius: var(--radius-md); padding: 12px; }
 .week-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .week-range { font-weight: 600; color: #3A3A3A; }
 .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
@@ -464,8 +464,8 @@ onMounted(() => { loadCd(); loadEvents() })
   min-height: 220px; background: #fff; border: 1px solid #E1E7EE;
   border-radius: 10px; padding: 8px; cursor: pointer; transition: box-shadow .12s;
 }
-.week-day:hover { box-shadow: 0 2px 12px rgba(91,146,229,.12); }
-.week-day.today { border-color: #5B92E5; box-shadow: 0 0 0 2px rgba(91,146,229,.15); }
+.week-day:hover { box-shadow: var(--shadow-hover); }
+.week-day.today { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--shadow-hover); }
 .week-day.weekend { background: #F7F9FC; }
 .week-day-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 6px; border-bottom: 1px dashed #eee; margin-bottom: 6px; }
 .wd-name { font-weight: 600; color: #3A3A3A; }
@@ -473,7 +473,7 @@ onMounted(() => { loadCd(); loadEvents() })
 .week-day-body { display: flex; flex-direction: column; gap: 4px; }
 .week-empty { text-align: center; color: #C0C4CC; font-size: 12px; padding: 10px 0; }
 .week-ev {
-  padding: 4px 6px; border-left: 3px solid #5B92E5; background: #F5F9FC;
+  padding: 4px 6px; border-left: 3px solid var(--color-primary); background: #F5F9FC;
   border-radius: 4px; font-size: 12px; color: #3A3A3A;
   display: flex; gap: 4px; align-items: center; cursor: pointer;
 }

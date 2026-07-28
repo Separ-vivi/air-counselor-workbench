@@ -85,6 +85,6 @@ function onChange(val) {
 <style scoped>
 :deep(.el-cascader .el-input__wrapper) {
   background: #F5EFE3;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 </style>

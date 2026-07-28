@@ -441,7 +441,7 @@ const reset = () => {
 .inline-back-bar { margin-bottom: 8px; padding: 4px 0; }
 .page-header { margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
-.page-header .sub { color: #909399; margin: 4px 0 0; font-size: 13px; }
+.page-header .sub { color: var(--text-muted); margin: 4px 0 0; font-size: 13px; }
 
 /* 导入类型分组样式 */
 .import-type-groups {
@@ -452,7 +452,7 @@ const reset = () => {
   padding: 12px 16px;
   background: #FAFBFC;
   border: 1px solid #EBEEF5;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 .type-group:last-child {
   margin-bottom: 0;
@@ -460,7 +460,7 @@ const reset = () => {
 .type-group-title {
   font-weight: 600;
   font-size: 13px;
-  color: #606266;
+  color: var(--text-secondary);
   margin-bottom: 10px;
   display: flex;
   align-items: center;

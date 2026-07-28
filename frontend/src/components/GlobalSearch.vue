@@ -242,8 +242,8 @@ onBeforeUnmount(() => mitt.off('global-search:open', open))
   width: 580px;
   max-height: 70vh;
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(50, 80, 120, 0.3), 0 0 0 1px rgba(91, 146, 229, 0.15);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(50, 80, 120, 0.3), 0 0 0 1px var(--shadow-hover);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -265,7 +265,7 @@ onBeforeUnmount(() => mitt.off('global-search:open', open))
 }
 
 .gs-input-icon {
-  color: #5B92E5;
+  color: var(--color-primary);
   font-size: 20px;
   flex-shrink: 0;
 }
@@ -321,7 +321,7 @@ onBeforeUnmount(() => mitt.off('global-search:open', open))
   padding: 8px 8px 4px;
   font-size: 12px;
   font-weight: 600;
-  color: #5B92E5;
+  color: var(--color-primary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -332,7 +332,7 @@ onBeforeUnmount(() => mitt.off('global-search:open', open))
 
 .gs-group-count {
   background: #EBF2FC;
-  color: #5B92E5;
+  color: var(--color-primary);
   border-radius: 10px;
   padding: 0 6px;
   font-size: 11px;
@@ -344,7 +344,7 @@ onBeforeUnmount(() => mitt.off('global-search:open', open))
   display: flex;
   align-items: center;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.12s;
 }

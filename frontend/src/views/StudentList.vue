@@ -589,7 +589,7 @@ onMounted(() => {
 
 .tag-manage-section { padding: 0 4px; }
 .tag-manage-list { max-height: 240px; overflow-y: auto; }
-.tag-manage-empty { color: #909399; text-align: center; padding: 16px; font-size: 13px; }
+.tag-manage-empty { color: var(--text-muted); text-align: center; padding: 16px; font-size: 13px; }
 .tag-manage-item {
   display: flex;
   align-items: center;
@@ -604,7 +604,7 @@ onMounted(() => {
   border-radius: 50%;
   cursor: pointer;
   border: 2px solid transparent;
-  transition: all 0.15s;
+  transition: all var(--transition-fast);
 }
 .color-dot:hover { transform: scale(1.15); }
 .color-dot.selected { border-color: #303133; box-shadow: 0 0 0 2px #fff, 0 0 0 4px currentColor; }
@@ -617,7 +617,7 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.12s;
 }

@@ -419,10 +419,10 @@ onMounted(load)
 .kb-head { font-weight: 600; font-size: 14px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 2px solid #DDE4EA; display: flex; justify-content: space-between; align-items: center; }
 .kb-head-active    { color: #4A7A8C; border-bottom-color: #4A7A8C; }
 .kb-head-completed { color: #67C23A; border-bottom-color: #67C23A; }
-.kb-head-archived  { color: #909399; border-bottom-color: #909399; }
+.kb-head-archived  { color: var(--text-muted); border-bottom-color: var(--text-muted); }
 .kb-count { background: rgba(0,0,0,0.06); padding: 2px 8px; border-radius: 10px; font-size: 12px; }
-.kb-card { background: #fff; border-radius: 8px; padding: 12px; margin-bottom: 10px; cursor: pointer; transition: transform 0.15s; }
+.kb-card { background: #fff; border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px; cursor: pointer; transition: transform var(--transition-fast); }
 .kb-card:hover { transform: translateY(-2px); box-shadow: 0 3px 10px rgba(0,0,0,0.06); }
 .kb-name { font-weight: 500; margin-bottom: 8px; color: #303133; }
-.kb-meta { color: #909399; font-size: 12px; margin-top: 8px; }
+.kb-meta { color: var(--text-muted); font-size: 12px; margin-top: 8px; }
 </style>

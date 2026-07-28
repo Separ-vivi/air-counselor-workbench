@@ -219,13 +219,13 @@ onMounted(load)
 .header-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .hint-bar {
   background: #EEF3F5; color: #5C7A87; padding: 8px 14px;
-  border-radius: 8px; font-size: 13px; margin-bottom: 16px;
+  border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px;
 }
 .faq-collapse { background: #fff; border-radius: 10px; padding: 4px 16px; }
 .faq-title-row { display: flex; gap: 8px; align-items: center; flex: 1; }
 .faq-q { font-weight: 500; color: #303133; }
 .faq-answer {
-  white-space: pre-wrap; line-height: 1.75; color: #606266;
+  white-space: pre-wrap; line-height: 1.75; color: var(--text-secondary);
   background: #FAFBFC; border-radius: 6px; padding: 12px; margin-bottom: 12px;
 }
 .faq-actions { display: flex; gap: 8px; padding-top: 4px; }

@@ -286,7 +286,7 @@ onMounted(() => {
 
 .page-header h2 {
   margin: 0;
-  color: #2C3E50;
+  color: var(--text-primary);
 }
 
 .page-actions {
@@ -303,10 +303,10 @@ onMounted(() => {
 
 .stat-card {
   background: #fff;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 20px;
   text-align: center;
-  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-label {
@@ -318,22 +318,22 @@ onMounted(() => {
 .stat-value {
   font-size: 28px;
   font-weight: 700;
-  color: #2C3E50;
+  color: var(--text-primary);
 }
 
 .stat-value.highlight {
-  color: #5B92E5;
+  color: var(--color-primary);
 }
 
 .table-container {
   background: #fff;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .total-score {
   font-weight: 600;
-  color: #5B92E5;
+  color: var(--color-primary);
 }
 </style>

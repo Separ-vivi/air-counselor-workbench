@@ -525,19 +525,19 @@ onBeforeUnmount(() => {
 .module-page { padding: 4px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
-.stat-card { border-radius: 12px; text-align: center; }
-.stat-label { color: #909399; font-size: 13px; margin-bottom: 8px; }
+.stat-card { border-radius: var(--radius-md); text-align: center; }
+.stat-label { color: var(--text-muted); font-size: 13px; margin-bottom: 8px; }
 .stat-value { font-size: 26px; font-weight: 600; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
 
 /* 图表区域 */
 .chart-row { margin-bottom: 12px; }
 .chart-card {
-  background: #ECF1F7;
-  border-radius: 12px;
+  background: var(--bg-page);
+  border-radius: var(--radius-md);
   padding: 12px;
   margin-bottom: 12px;
-  box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
+  box-shadow: 0 1px 4px var(--shadow-sm);
 }
 .chart-title {
   font-size: 14px;

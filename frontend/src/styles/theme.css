@@ -1,0 +1,40 @@
+:root {
+  /* 主色 - 冰蓝薄荷色系 */
+  --color-primary: #5B92E5;
+  --color-primary-light: rgba(91,146,229,0.12);
+  --color-primary-hover: #4A81D4;
+  --color-secondary: #4FC3B8;
+  --color-secondary-light: rgba(79,195,184,0.12);
+  --color-accent: #8FA9E5;
+  --color-accent-light: rgba(143,169,229,0.12);
+  --color-mint: #7BCFCB;
+  
+  /* 背景 */
+  --bg-page: #ECF1F7;
+  --bg-card: #FFFFFF;
+  --bg-hero-start: #FFFFFF;
+  --bg-hero-end: #E8F1FB;
+  --bg-sidebar-from: #5B92E5;
+  --bg-sidebar-to: #7BCFCB;
+  
+  /* 文字 */
+  --text-primary: #2c3e50;
+  --text-secondary: #606266;
+  --text-muted: #909399;
+  --text-white: #FFFFFF;
+  
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  
+  /* 阴影 */
+  --shadow-sm: 0 2px 8px rgba(91,146,229,0.06);
+  --shadow-md: 0 4px 16px rgba(91,146,229,0.10);
+  --shadow-lg: 0 8px 24px rgba(91,146,229,0.12);
+  --shadow-hover: 0 6px 20px rgba(91,146,229,0.15);
+  
+  /* 过渡 */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+}

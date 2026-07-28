@@ -356,7 +356,7 @@ onMounted(load)
 .header-actions { display: flex; gap: 12px; align-items: center; }
 .hint-bar {
   background: #EEF3F5; color: #5C7A87; padding: 8px 14px;
-  border-radius: 8px; font-size: 13px; margin-bottom: 16px; line-height: 1.8;
+  border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; line-height: 1.8;
 }
 .hint-bar code {
   background: #DCEBF0; padding: 2px 6px; border-radius: 4px;
@@ -374,26 +374,26 @@ onMounted(load)
 .tpl-head { margin-bottom: 8px; }
 .tpl-name { font-weight: 600; font-size: 15px; color: #303133; margin-bottom: 8px; }
 .tpl-preview {
-  color: #909399; font-size: 12px; line-height: 1.6; flex: 1;
+  color: var(--text-muted); font-size: 12px; line-height: 1.6; flex: 1;
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
   background: #FAFBFC; padding: 8px; border-radius: 4px;
 }
 .tpl-actions { display: flex; gap: 8px; margin-top: 10px; }
 .preview-content { white-space: pre-wrap; line-height: 1.75; padding: 12px; background: #FAFBFC; border-radius: 6px; }
 .doc-item {
-  background: #fff; border: 1px solid #EBEEF5; border-radius: 8px;
+  background: #fff; border: 1px solid #EBEEF5; border-radius: var(--radius-sm);
   padding: 12px; margin-bottom: 12px;
 }
 .doc-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .doc-title { font-weight: 600; color: #303133; }
-.doc-time { color: #909399; font-size: 12px; margin-bottom: 6px; }
+.doc-time { color: var(--text-muted); font-size: 12px; margin-bottom: 6px; }
 .doc-preview {
-  color: #606266; font-size: 13px; line-height: 1.6; padding: 6px 0;
+  color: var(--text-secondary); font-size: 13px; line-height: 1.6; padding: 6px 0;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 .doc-actions { display: flex; gap: 8px; padding-top: 6px; }
 .var-hints {
   display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
 }
-.var-hints span { color: #909399; font-size: 12px; margin-right: 4px; }
+.var-hints span { color: var(--text-muted); font-size: 12px; margin-right: 4px; }
 </style>

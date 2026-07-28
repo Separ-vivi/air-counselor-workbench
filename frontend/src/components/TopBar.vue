@@ -132,7 +132,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   background: #EDF1F4;
   border: 1px solid var(--color-card-border);
   padding: 8px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: all .18s;

@@ -507,17 +507,17 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.attendance-page { padding: 20px; background: #ECF1F7; min-height: 100vh; }
+.attendance-page { padding: 20px; background: var(--bg-page); min-height: 100vh; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-header h2 { margin: 0; color: #2C3E50; font-size: 20px; }
+.page-header h2 { margin: 0; color: var(--text-primary); font-size: 20px; }
 .page-actions { display: flex; gap: 8px; }
 
 /* 统计卡片 */
 .stats-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
 .stat-card {
-  background: #fff; border-radius: 12px; padding: 18px 20px;
+  background: #fff; border-radius: var(--radius-md); padding: 18px 20px;
   display: flex; align-items: center; gap: 14px;
-  box-shadow: 0 2px 8px rgba(91,146,229,0.08);
+  box-shadow: var(--shadow-sm);
 }
 .stat-icon {
   width: 44px; height: 44px; border-radius: 10px;
@@ -526,7 +526,7 @@ onBeforeUnmount(() => {
 }
 .stat-info { flex: 1; }
 .stat-label { font-size: 13px; color: #7F8C8D; margin-bottom: 4px; }
-.stat-value { font-size: 26px; font-weight: 700; color: #2C3E50; }
+.stat-value { font-size: 26px; font-weight: 700; color: var(--text-primary); }
 .stat-value.accent-warn { color: #E6A23C; }
 .stat-value.accent-danger { color: #F56C6C; }
 
@@ -536,35 +536,35 @@ onBeforeUnmount(() => {
 .right-panel { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
 
 /* 筛选栏 */
-.filter-card { border-radius: 12px; }
+.filter-card { border-radius: var(--radius-md); }
 .filter-card :deep(.el-card__body) { padding: 14px 20px 0; }
 .filter-form :deep(.el-form-item) { margin-bottom: 14px; }
 
 /* 表格 */
-.table-card { border-radius: 12px; }
+.table-card { border-radius: var(--radius-md); }
 .pagination-wrap { margin-top: 16px; display: flex; justify-content: flex-end; }
 
 /* 右侧面板卡片 */
-.side-card { border-radius: 12px; }
-.side-card-title { font-size: 14px; font-weight: 600; color: #2C3E50; }
+.side-card { border-radius: var(--radius-md); }
+.side-card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 
 /* TOP列表 */
 .top-list { display: flex; flex-direction: column; gap: 10px; }
 .top-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 6px 0; border-bottom: 1px solid #ECF1F7;
+  padding: 6px 0; border-bottom: 1px solid var(--bg-page);
 }
 .top-item:last-child { border-bottom: none; }
 .top-rank {
   width: 22px; height: 22px; border-radius: 6px; font-size: 12px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
-  background: #ECF1F7; color: #7F8C8D; flex-shrink: 0;
+  background: var(--bg-page); color: #7F8C8D; flex-shrink: 0;
 }
-.top-rank.rank-top3 { background: linear-gradient(135deg,#5B92E5,#7BCFCB); color: #fff; }
+.top-rank.rank-top3 { background: linear-gradient(135deg,var(--color-primary),var(--color-mint)); color: #fff; }
 .top-info { flex: 1; min-width: 0; }
-.top-name { font-size: 13px; color: #2C3E50; font-weight: 500; display: block; }
+.top-name { font-size: 13px; color: var(--text-primary); font-weight: 500; display: block; }
 .top-class { font-size: 11px; color: #7F8C8D; display: block; }
-.top-count { font-size: 14px; font-weight: 700; color: #5B92E5; flex-shrink: 0; }
+.top-count { font-size: 14px; font-weight: 700; color: var(--color-primary); flex-shrink: 0; }
 
 /* 饼图 */
 .pie-chart-container { width: 100%; height: 220px; }

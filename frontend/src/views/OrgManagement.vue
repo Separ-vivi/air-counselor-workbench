@@ -388,6 +388,6 @@ onMounted(async () => {
 .org-management { padding: 4px; }
 .page-header { margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
-.page-header .sub { color: #909399; margin: 4px 0 0; font-size: 13px; }
+.page-header .sub { color: var(--text-muted); margin: 4px 0 0; font-size: 13px; }
 .tab-actions { margin-bottom: 12px; display: flex; align-items: center; }
 </style>

@@ -45,7 +45,7 @@
               <template #header>
                 <div style="display: flex; justify-content: space-between; align-items: center">
                   <span>各班学生人数</span>
-                  <span style="font-size:12px;color:#909399">共 {{ filteredClasses.length }} 个班级</span>
+                  <span style="font-size:12px;color: var(--text-muted)">共 {{ filteredClasses.length }} 个班级</span>
                 </div>
               </template>
               <div ref="classBarRef" style="width: 100%; height: 260px"></div>
@@ -56,7 +56,7 @@
               <template #header>
                 <div style="display: flex; justify-content: space-between; align-items: center">
                   <span>各班平均成绩</span>
-                  <span style="font-size:12px;color:#909399">按全部课程均分</span>
+                  <span style="font-size:12px;color: var(--text-muted)">按全部课程均分</span>
                 </div>
               </template>
               <div ref="avgBarRef" style="width: 100%; height: 260px"></div>
@@ -431,9 +431,9 @@ onMounted(() => {
 }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
 .class-card {
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform var(--transition-fast), box-shadow 0.15s;
 }
 .class-card:hover {
   transform: translateY(-2px);
@@ -450,7 +450,7 @@ onMounted(() => {
   color: #303133;
 }
 .cc-major {
-  color: #606266;
+  color: var(--text-secondary);
   font-size: 13px;
   margin: 8px 0;
 }
@@ -466,7 +466,7 @@ onMounted(() => {
   font-weight: 700;
 }
 .cc-unit {
-  color: #909399;
+  color: var(--text-muted);
   margin-left: 6px;
   font-size: 13px;
 }
