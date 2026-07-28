@@ -192,7 +192,6 @@ import { useStudentStore } from '@/stores/student'
 import StudentSelect from '@/components/StudentSelect.vue'
 import { triggerDownload, stampedName } from '@/utils/download'
 import * as echarts from 'echarts'
-import http from '@/api/index.js'
 
 const studentStore = useStudentStore()
 
@@ -350,7 +349,7 @@ const initEmotionTags = (data) => {
 // 加载图表数据
 const loadChartData = async () => {
   try {
-    const res = await http.get('/psychology/chart-data')
+    const res = await psyApi.chartData()
     const data = res?.data || res || {}
     if (data.level_distribution?.length) initLevelDist(data.level_distribution)
     else initLevelDist(levels.map(l => ({ level: l, count: 0 })))

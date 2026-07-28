@@ -200,7 +200,7 @@
 import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as echarts from 'echarts'
-import request from '@/api/index'
+import { interview as interviewApi, students as studentsApi, semesterReport } from '@/api/modules'
 import { useOrgStore } from '@/stores/org'
 import StudentSelect from '@/components/StudentSelect.vue'
 
@@ -328,7 +328,7 @@ const loadData = async () => {
   loading.value = true
   try {
     const params = { page: 1, size: 1000 } // 拉全量做前端过滤
-    const res = await request.get('/interview/', { params })
+    const res = await interviewApi.list(params)
     allData.value = res.items || []
   } catch (error) {
     console.error('加载数据失败:', error)
@@ -340,7 +340,7 @@ const loadData = async () => {
 
 const loadStats = async () => {
   try {
-    const res = await request.get('/interview/statistics')
+    const res = await interviewApi.statistics()
     stats.value = res || {}
   } catch (error) {
     console.error('加载统计失败:', error)
@@ -349,7 +349,7 @@ const loadStats = async () => {
 
 const loadChartData = async () => {
   try {
-    const res = await request.get('/interview/chart-data')
+    const res = await interviewApi.chartData()
     chartData.value = res || { type_distribution: {}, monthly_trend: [], top_students: [] }
     await nextTick()
     initCharts()
@@ -438,7 +438,7 @@ const initCharts = () => {
 
 const loadStudents = async () => {
   try {
-    const res = await request.get('/students/simple')
+    const res = await studentsApi.simple()
     students.value = Array.isArray(res) ? res : (res || [])
   } catch (error) {
     console.error('加载学生列表失败:', error)
@@ -461,7 +461,7 @@ const resetFilters = () => {
 
 const loadSemesters = async () => {
   try {
-    const res = await request.get('/semester-report/semesters')
+    const res = await semesterReport.semesters()
     semesterList.value = Array.isArray(res) ? res : []
   } catch (error) {
     console.error('加载学期列表失败:', error)
@@ -470,7 +470,7 @@ const loadSemesters = async () => {
 
 const loadTotalStudents = async () => {
   try {
-    const res = await request.get('/interview/coverage')
+    const res = await interviewApi.coverage()
     totalStudentCount.value = res?.total_students || 0
   } catch (error) {
     console.error('加载学生总数失败:', error)
@@ -515,10 +515,10 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     if (isEdit.value) {
-      await request.put(`/interview/${editId.value}`, form.value)
+      await interviewApi.update(editId.value, form.value)
       ElMessage.success('更新成功')
     } else {
-      await request.post('/interview/', form.value)
+      await interviewApi.create(form.value)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
@@ -535,7 +535,7 @@ const handleSubmit = async () => {
 const handleDelete = async (row) => {
   try {
     await ElMessageBox.confirm(`确定删除 ${row.student_name} 的访谈记录吗？`, '提示', { type: 'warning' })
-    await request.delete(`/interview/${row.id}`)
+    await interviewApi.remove(row.id)
     ElMessage.success('删除成功')
     loadData()
     loadStats()

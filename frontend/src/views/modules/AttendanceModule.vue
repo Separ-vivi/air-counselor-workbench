@@ -200,7 +200,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as echarts from 'echarts'
-import request from '@/api/index'
+import { attendance as attendanceApi, students as studentsApi } from '@/api/modules'
 import { useOrgStore } from '@/stores/org'
 
 const orgStore = useOrgStore()
@@ -286,7 +286,7 @@ const loadData = async () => {
       params.date_from = filterDateRange.value[0]
       params.date_to = filterDateRange.value[1]
     }
-    const res = await request.get('/attendance/', { params })
+    const res = await attendanceApi.list(params)
     tableData.value = res.items || []
     total.value = res.total || 0
   } catch (e) {
@@ -299,7 +299,7 @@ const loadData = async () => {
 
 const loadStats = async () => {
   try {
-    const res = await request.get('/attendance/stats')
+    const res = await attendanceApi.stats()
     statsData.value = res || {}
   } catch (e) {
     console.error('加载统计失败:', e)
@@ -308,7 +308,7 @@ const loadStats = async () => {
 
 const loadTopStudents = async () => {
   try {
-    const res = await request.get('/attendance/top-students', { params: { limit: 5 } })
+    const res = await attendanceApi.topStudents({ limit: 5 })
     topStudents.value = res || []
   } catch (e) {
     console.error('加载TOP学生失败:', e)
@@ -348,7 +348,7 @@ const searchStudents = async (query) => {
   if (!query || query.length < 1) { studentOptions.value = []; return }
   studentSearchLoading.value = true
   try {
-    const res = await request.get('/students/simple')
+    const res = await studentsApi.simple()
     const all = Array.isArray(res) ? res : []
     const q = query.toLowerCase()
     studentOptions.value = all.filter(s =>
@@ -402,10 +402,10 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     if (isEdit.value) {
-      await request.put(`/attendance/${editId.value}`, form.value)
+      await attendanceApi.update(editId.value, form.value)
       ElMessage.success('更新成功')
     } else {
-      await request.post('/attendance/', form.value)
+      await attendanceApi.create(form.value)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
@@ -423,7 +423,7 @@ const handleSubmit = async () => {
 const handleDelete = async (row) => {
   try {
     await ElMessageBox.confirm(`确定删除 ${row.student_name} 的考勤异常记录吗？`, '提示', { type: 'warning' })
-    await request.delete(`/attendance/${row.id}`)
+    await attendanceApi.remove(row.id)
     ElMessage.success('删除成功')
     loadData()
     loadStats()
@@ -450,7 +450,7 @@ const handleExport = async () => {
       params.date_from = filterDateRange.value[0]
       params.date_to = filterDateRange.value[1]
     }
-    const res = await request.get('/attendance/export', { params, responseType: 'blob' })
+    const res = await attendanceApi.exportExcel(params)
     const url = window.URL.createObjectURL(new Blob([res]))
     const a = document.createElement('a')
     a.href = url

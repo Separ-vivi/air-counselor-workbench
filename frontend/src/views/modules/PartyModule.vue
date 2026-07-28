@@ -158,8 +158,7 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Download } from '@element-plus/icons-vue'
-import { party as partyApi } from '@/api/modules'
-import http from '@/api/index.js'
+import { party as partyApi, org as orgApi } from '@/api/modules'
 import { useStudentStore } from '@/stores/student'
 import StudentSelect from '@/components/StudentSelect.vue'
 import { triggerDownload, stampedName } from '@/utils/download'
@@ -310,7 +309,7 @@ const initMonthlyTrend = (data) => {
 // 加载图表数据
 const loadChartData = async () => {
   try {
-    const res = await http.get('/party-progress/chart-data')
+    const res = await partyApi.chartData()
     const data = res?.data || res || {}
     if (data.stage_distribution?.length) initStagePie(data.stage_distribution)
     else initStagePie(stages.map(s => ({ stage: s, count: 0 })))
@@ -457,7 +456,7 @@ watch(() => studentStore.refreshBumper, reload)
 
 const loadClasses = async () => {
   try {
-    const res = await http.get('/org/classes')
+    const res = await orgApi.classes()
     classes.value = Array.isArray(res) ? res : (res?.items || res?.data || [])
   } catch (e) { classes.value = [] }
 }

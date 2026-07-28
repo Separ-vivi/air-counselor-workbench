@@ -1,0 +1,74 @@
+<template>
+  <el-card shadow="never">
+    <template #header>
+      <span class="ch-title">快捷入口</span>
+    </template>
+    <div class="shortcuts">
+      <div class="sc-item" v-for="s in shortcuts" :key="s.to" @click="$router.push(s.to)">
+        <div class="sc-icon" :style="{ background: s.bg, color: s.color }"><el-icon :size="24"><component :is="s.icon" /></el-icon></div>
+        <div class="sc-label">{{ s.label }}</div>
+      </div>
+    </div>
+  </el-card>
+</template>
+
+<script setup>
+import { markRaw } from 'vue'
+import {
+  UserFilled, School, OfficeBuilding, UploadFilled,
+  DataAnalysis, Warning, Flag, Sunny
+} from '@element-plus/icons-vue'
+
+const shortcuts = [
+  { icon: markRaw(UserFilled),     label: '学生管理', to: '/students',        bg: 'rgba(91, 146, 229, 0.10)',  color: '#5B92E5' },
+  { icon: markRaw(School),         label: '班级管理', to: '/classes',         bg: 'rgba(79, 195, 184, 0.12)',  color: '#4FC3B8' },
+  { icon: markRaw(OfficeBuilding), label: '组织架构', to: '/org',             bg: 'rgba(143, 169, 229, 0.12)', color: '#7B92D6' },
+  { icon: markRaw(UploadFilled),   label: '智能导入', to: '/smart-import',    bg: 'rgba(123, 207, 203, 0.14)', color: '#5FB8AC' },
+  { icon: markRaw(DataAnalysis),   label: '成绩管理', to: '/module/grades',   bg: 'rgba(91, 146, 229, 0.10)',  color: '#5B92E5' },
+  { icon: markRaw(Warning),        label: '预警管理', to: '/module/warnings', bg: 'rgba(79, 195, 184, 0.12)',  color: '#4FC3B8' },
+  { icon: markRaw(Flag),           label: '党团发展', to: '/module/party',    bg: 'rgba(143, 169, 229, 0.12)', color: '#7B92D6' },
+  { icon: markRaw(Sunny),          label: '心理档案', to: '/module/psychology', bg: 'rgba(123, 207, 203, 0.14)', color: '#5FB8AC' }
+]
+</script>
+
+<style scoped>
+.ch-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #2E5A7F;
+  letter-spacing: 0.4px;
+}
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 12px;
+}
+.sc-item {
+  padding: 14px 6px;
+  text-align: center;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.sc-item:hover { background: var(--color-primary-light); }
+.sc-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s;
+  box-shadow: 0 2px 6px var(--shadow-md);
+}
+.sc-item:hover .sc-icon {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-hover);
+}
+.sc-label {
+  font-size: 13px;
+  color: #303133;
+  font-weight: 500;
+}
+</style>

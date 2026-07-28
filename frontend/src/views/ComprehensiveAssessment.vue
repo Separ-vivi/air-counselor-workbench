@@ -109,7 +109,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/api/index'
+import { comprehensive as comprehensiveApi, students as studentsApi } from '@/api/modules'
 
 
 const loading = ref(false)
@@ -145,7 +145,7 @@ const loadData = async () => {
     }
     if (filterSemester.value) params.semester = filterSemester.value
     
-    const res = await request.get('/comprehensive/', { params })
+    const res = await comprehensiveApi.list(params)
     tableData.value = res.items || []
     total.value = res.total || 0
   } catch (error) {
@@ -158,7 +158,7 @@ const loadData = async () => {
 
 const loadSemesters = async () => {
   try {
-    const res = await request.get('/comprehensive/semesters')
+    const res = await comprehensiveApi.semesters()
     semesters.value = res || []
   } catch (error) {
     console.error('加载学期列表失败:', error)
@@ -169,7 +169,7 @@ const loadStats = async () => {
   try {
     const params = {}
     if (filterSemester.value) params.semester = filterSemester.value
-    const res = await request.get('/comprehensive/statistics', { params })
+    const res = await comprehensiveApi.statistics(params)
     stats.value = res || {}
   } catch (error) {
     console.error('加载统计失败:', error)
@@ -178,7 +178,7 @@ const loadStats = async () => {
 
 const loadStudents = async () => {
   try {
-    const res = await request.get('/students/simple')
+    const res = await studentsApi.simple()
     students.value = Array.isArray(res) ? res : (res || [])
   } catch (error) {
     console.error('加载学生列表失败:', error)
@@ -230,10 +230,10 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     if (isEdit.value) {
-      await request.put(`/comprehensive/${editId.value}`, form.value)
+      await comprehensiveApi.update(editId.value, form.value)
       ElMessage.success('更新成功')
     } else {
-      await request.post('/comprehensive/', form.value)
+      await comprehensiveApi.create(form.value)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
@@ -252,7 +252,7 @@ const handleDelete = async (row) => {
     await ElMessageBox.confirm(`确定删除 ${row.student_name} 的综测记录吗？`, '提示', {
       type: 'warning'
     })
-    await request.delete(`/comprehensive/${row.id}`)
+    await comprehensiveApi.remove(row.id)
     ElMessage.success('删除成功')
     loadData()
     loadStats()

@@ -35,7 +35,8 @@ export const party = {
   /** v3j-B-b03 · 按当前搜索导出全部 */
   exportAll: (params = {}) => http.get('/party-progress/export', { params, responseType: 'blob' }),
   /** v3j-B-b03 · 按 ID 列表批量导出 */
-  exportByIds: (ids) => http.post('/party-progress/export-by-ids', { ids }, { responseType: 'blob' })
+  exportByIds: (ids) => http.post('/party-progress/export-by-ids', { ids }, { responseType: 'blob' }),
+  chartData: () => http.get('/party-progress/chart-data')
 }
 
 /** 党团学习记录 */
@@ -59,7 +60,8 @@ export const psychology = {
   /** v3j-B-b03 · 按当前搜索导出全部 */
   exportAll: (params = {}) => http.get('/psychology/export/all', { params, responseType: 'blob' }),
   toggleReminded: (id) => http.patch(`/psychology/${id}/toggle-reminded`),
-  batchMarkReminded: (ids, reminded = true) => http.post('/psychology/batch-mark-reminded', { ids, reminded })
+  batchMarkReminded: (ids, reminded = true) => http.post('/psychology/batch-mark-reminded', { ids, reminded }),
+  chartData: () => http.get('/psychology/chart-data')
 }
 
 /** 家庭联络 */
@@ -187,4 +189,48 @@ export const attendance = {
   topCourses: (params = {}) => http.get('/attendance/top-courses', { params }),
   monthlyTrend: () => http.get('/attendance/monthly-trend'),
   exportExcel: (params = {}) => http.get('/attendance/export', { params, responseType: 'blob' })
+}
+
+/** 资助管理 */
+export const financialAid = {
+  summary: () => http.get('/financial-aid/summary'),
+  chartData: () => http.get('/financial-aid/chart-data'),
+  list: (params = {}) => http.get('/financial-aid/list', { params }),
+  semesters: () => http.get('/financial-aid/semesters')
+}
+
+/** 综合素质测评 */
+export const comprehensive = {
+  list: (params = {}) => http.get('/comprehensive/', { params }),
+  semesters: () => http.get('/comprehensive/semesters'),
+  statistics: (params = {}) => http.get('/comprehensive/statistics', { params }),
+  create: (data) => http.post('/comprehensive/', data),
+  update: (id, data) => http.put(`/comprehensive/${id}`, data),
+  remove: (id) => http.delete(`/comprehensive/${id}`)
+}
+
+/** 学生访谈 */
+export const interview = {
+  list: (params = {}) => http.get('/interview/', { params }),
+  statistics: () => http.get('/interview/statistics'),
+  chartData: () => http.get('/interview/chart-data'),
+  coverage: () => http.get('/interview/coverage'),
+  create: (data) => http.post('/interview/', data),
+  update: (id, data) => http.put(`/interview/${id}`, data),
+  remove: (id) => http.delete(`/interview/${id}`)
+}
+
+/** 学生（公共） */
+export const students = {
+  simple: () => http.get('/students/simple')
+}
+
+/** 学期报告 */
+export const semesterReport = {
+  semesters: () => http.get('/semester-report/semesters')
+}
+
+/** 组织架构 */
+export const org = {
+  classes: () => http.get('/org/classes')
 }

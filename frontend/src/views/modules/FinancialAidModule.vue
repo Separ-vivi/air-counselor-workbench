@@ -147,7 +147,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
-import request from '@/api/index'
+import { financialAid as financialAidApi } from '@/api/modules'
 import {
   WarningFilled, Coin, Trophy, CreditCard, Briefcase, Medal
 } from '@element-plus/icons-vue'
@@ -224,14 +224,14 @@ const PALETTE = ['#5B92E5', '#7BCFCB', '#4FC3B8', '#8FA9E5', '#A8D5E2', '#6BA3D6
 // ===== 数据加载 =====
 const loadSummary = async () => {
   try {
-    const res = await request.get('/financial-aid/summary')
+    const res = await financialAidApi.summary()
     summary.value = res || {}
   } catch (e) { console.error('加载统计失败:', e) }
 }
 
 const loadChartData = async () => {
   try {
-    const res = await request.get('/financial-aid/chart-data')
+    const res = await financialAidApi.chartData()
     chartData.value = res || {}
     topRecipients.value = res.top_recipients || []
   } catch (e) { console.error('加载图表数据失败:', e) }
@@ -249,7 +249,7 @@ const loadList = async () => {
     if (filterAidType.value) params.aid_type = filterAidType.value
     if (filterYear.value) params.academic_year = filterYear.value
     if (filterSearch.value) params.search = filterSearch.value
-    const res = await request.get('/financial-aid/list', { params })
+    const res = await financialAidApi.list(params)
     listData.value = res.items || []
     listTotal.value = res.total || 0
   } catch (e) {
@@ -262,7 +262,7 @@ const loadList = async () => {
 
 const loadSemesters = async () => {
   try {
-    const res = await request.get('/financial-aid/semesters')
+    const res = await financialAidApi.semesters()
     semesters.value = res || []
   } catch (e) { console.error('加载学年失败:', e) }
 }

@@ -375,11 +375,10 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Download, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { grades as gradesApi } from '@/api/modules'
+import { grades as gradesApi, comprehensive as comprehensiveApi } from '@/api/modules'
 import { useOrgStore } from '@/stores/org'
 import StudentSelect from '@/components/StudentSelect.vue'
 import { triggerDownload, stampedName } from '@/utils/download'
-import request from '@/api/index'
 
 const router = useRouter()
 const orgStore = useOrgStore()
@@ -489,7 +488,7 @@ const loadAssessment = async () => {
   try {
     const params = { page: 1, size: 100 }
     if (assessFilter.semester) params.semester = assessFilter.semester
-    const res = await request.get('/comprehensive/', { params })
+    const res = await comprehensiveApi.list(params)
     let items = res.items || []
     // 按班级筛选
     if (assessFilter.classId) {
