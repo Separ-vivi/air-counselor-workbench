@@ -89,26 +89,41 @@
         <div ref="radarChartRef" class="radar-body"></div>
       </div>
 
-      <!-- Tab 区 -->
-      <div class="s360-body">
-        <div class="side-tabs">
-          <div
-            v-for="tab in tabs"
-            :key="tab.key"
-            class="side-tab-item"
-            :class="{ active: activeTab === tab.key }"
-            @click="activeTab = tab.key"
-          >
-            {{ tab.icon }} {{ tab.label }}
-          </div>
-        </div>
-
-        <div class="tab-main">
-          <keep-alive>
-            <component :is="currentTabComponent" :sid="sid" :student="student" :summary="summary" @refresh-header="loadHeader" />
-          </keep-alive>
-        </div>
+      <!-- 卡片网格 -->
+      <div class="s360-card-grid">
+        <DimensionCard
+          v-for="card in cardList"
+          :key="card.key"
+          :icon="card.icon"
+          :title="card.label"
+          :stats="card.stats"
+          :badge="card.badge"
+          :badge-class="card.badgeClass"
+          :accent="card.accent"
+          @click="openDialog(card.key)"
+        />
       </div>
+
+      <!-- 弹窗详情 -->
+      <el-dialog
+        v-model="dialogVisible"
+        :title="dialogTitle"
+        width="960px"
+        destroy-on-close
+        :close-on-click-modal="true"
+        top="5vh"
+        class="s360-detail-dialog"
+      >
+        <div v-if="dialogKey" class="s360-dialog-body">
+          <component
+            :is="currentDialogComponent"
+            :sid="sid"
+            :student="student"
+            :summary="summary"
+            @refresh-header="loadHeader"
+          />
+        </div>
+      </el-dialog>
     </template>
 
     <div v-else class="empty-hint">
@@ -200,7 +215,7 @@
           <el-switch v-model="pdfMask" active-text="身份证/电话中段脱敏" />
         </el-form-item>
       </el-form>
-      <div class="pdf-preview-hint">提示：确认后弹出浏览器打印窗口，可选择「另存为 PDF」</div>
+      <div class="pdf-preview-hint">提示：确认后弹出浏览器打印窗口，可以选择「另存为 PDF」</div>
       <template #footer>
         <el-button @click="pdfDialog = false">取消</el-button>
         <el-button type="primary" @click="onDoPrint">打印 / 保存 PDF</el-button>
@@ -291,6 +306,7 @@
 <script setup>
 import { ArrowLeft as _InlineArrowLeft } from '@element-plus/icons-vue'
 import { useRouter as _useRouterInline } from 'vue-router'
+import { Edit } from '@element-plus/icons-vue'
 const _routerInline = _useRouterInline()
 function inlineGoBack() {
   if (window.history.length > 1) _routerInline.back()
@@ -316,6 +332,7 @@ import TabFundingHonor from '@/components/student360/TabFundingHonor.vue'
 import TabDaily       from '@/components/student360/TabDaily.vue'
 import TabProjects    from '@/components/student360/TabProjects.vue'
 import TabTimeline    from '@/components/student360/TabTimeline.vue'
+import DimensionCard  from '@/components/common/DimensionCard.vue'
 
 const route = useRoute()
 const orgStore = useOrgStore()
@@ -329,7 +346,17 @@ const sid = computed(() => {
 const student = ref(null)
 const summary = ref(null)
 const loading = ref(false)
-const activeTab = ref('basic')
+
+// Dialog state
+const dialogVisible = ref(false)
+const dialogKey = ref('')
+const dialogTitle = computed(() => tabs.find(t => t.key === dialogKey.value)?.label || '详情')
+const currentDialogComponent = computed(() => tabs.find(t => t.key === dialogKey.value)?.comp || null)
+
+function openDialog(key) {
+  dialogKey.value = key
+  dialogVisible.value = true
+}
 
 // 雷达图相关
 const radarChartRef = ref(null)
@@ -356,7 +383,6 @@ function onOpenPdf() {
 
 function onDoPrint() {
   pdfDialog.value = false
-  // 等 DOM 更新完再打印
   setTimeout(() => {
     document.body.classList.add('printing-s360')
     window.print()
@@ -365,21 +391,122 @@ function onDoPrint() {
 }
 
 const tabs = [
-  { key: 'basic',      label: '基础信息 · 学籍异动', icon: '', comp: TabBasic },
-  { key: 'grades',     label: '学业情况',           icon: '', comp: TabGrades },
-  { key: 'party',      label: '党团发展',           icon: '', comp: TabParty },
-  { key: 'psychology', label: '心理档案',           icon: '', comp: TabPsychology },
-  { key: 'family',     label: '家庭联络',           icon: '', comp: TabFamily },
-  { key: 'cadres',     label: '学生工作',           icon: '', comp: TabCadres },
-  { key: 'activities', label: '活动参与',           icon: '', comp: TabActivities },
-  { key: 'employment', label: '就业信息',           icon: '', comp: TabEmployment },
-  { key: 'funding',    label: '资助与荣誉',         icon: '', comp: TabFundingHonor },
-  { key: 'daily',      label: '日常管理',           icon: '', comp: TabDaily },
-  { key: 'projects',   label: '专项工作',           icon: '', comp: TabProjects },
-  { key: 'timeline',   label: '时间线',             icon: '', comp: TabTimeline }
+  { key: 'basic',      label: '基础信息 · 学籍异动', icon: '📝', comp: TabBasic },
+  { key: 'grades',     label: '学业情况',           icon: '📊', comp: TabGrades },
+  { key: 'party',      label: '党团发展',           icon: '🚩', comp: TabParty },
+  { key: 'psychology', label: '心理档案',           icon: '💚', comp: TabPsychology },
+  { key: 'family',     label: '家庭联络',           icon: '👨‍👩‍👧', comp: TabFamily },
+  { key: 'cadres',     label: '学生工作',           icon: '🏅', comp: TabCadres },
+  { key: 'activities', label: '活动参与',           icon: '🏃', comp: TabActivities },
+  { key: 'employment', label: '就业信息',           icon: '💼', comp: TabEmployment },
+  { key: 'funding',    label: '资助与荣誉',         icon: '💰', comp: TabFundingHonor },
+  { key: 'daily',      label: '日常管理',           icon: '📋', comp: TabDaily },
+  { key: 'projects',   label: '专项工作',           icon: '🔧', comp: TabProjects },
+  { key: 'timeline',   label: '时间线',             icon: '📅', comp: TabTimeline }
 ]
 
-const currentTabComponent = computed(() => tabs.find(t => t.key === activeTab.value)?.comp)
+// Card list with summary data
+const cardList = computed(() => {
+  const s = summary.value
+  return [
+    {
+      key: 'basic', label: '基础信息', icon: '📝',
+      accent: '#5B92E5',
+      stats: [
+        { label: '学号', value: student.value?.student_no || '—' },
+        { label: '政治面貌', value: student.value?.political_status || '—' }
+      ]
+    },
+    {
+      key: 'grades', label: '学业情况', icon: '📊',
+      accent: '#5B92E5',
+      badge: warningClass.value === 'red' ? '红灯' : (warningClass.value === 'yellow' ? '黄灯' : ''),
+      badgeClass: warningClass.value === 'red' ? 'badge-red' : (warningClass.value === 'yellow' ? 'badge-yellow' : ''),
+      stats: [
+        { label: 'GPA', value: s?.stats?.gpa ?? '—', highlight: false },
+        { label: '挂科', value: `${s?.stats?.fail_count ?? '—'}门`, highlight: (s?.stats?.fail_count ?? 0) > 0 }
+      ]
+    },
+    {
+      key: 'party', label: '党团发展', icon: '🚩',
+      accent: '#e06c75',
+      stats: [
+        { label: '阶段', value: s?.stats?.party_stage || '群众' }
+      ]
+    },
+    {
+      key: 'psychology', label: '心理档案', icon: '💚',
+      accent: '#4FC3B8',
+      badge: s?.psych_status === 'attention' ? '需关注' : '',
+      badgeClass: s?.psych_status === 'attention' ? 'badge-yellow' : '',
+      stats: [
+        { label: '状态', value: s?.psych_status === 'attention' ? '需关注' : '正常' }
+      ]
+    },
+    {
+      key: 'family', label: '家庭联络', icon: '👨‍👩‍👧',
+      accent: '#8FA9E5',
+      stats: [
+        { label: '家长电话', value: student.value?.parent_phone || '—' },
+        { label: '生源地', value: student.value?.birth_source || '—' }
+      ]
+    },
+    {
+      key: 'cadres', label: '学生工作', icon: '🏅',
+      accent: '#e6a23c',
+      stats: [
+        { label: '职务', value: s?.stats?.cadre_title || '无' }
+      ]
+    },
+    {
+      key: 'activities', label: '活动参与', icon: '🏃',
+      accent: '#5B92E5',
+      stats: [
+        { label: '活动数', value: s?.stats?.activity_count ?? '—' },
+        { label: '志愿时长', value: s?.stats?.volunteer_hours ?? '—' }
+      ]
+    },
+    {
+      key: 'employment', label: '就业信息', icon: '💼',
+      accent: '#4FC3B8',
+      stats: [
+        { label: '状态', value: s?.stats?.employment_status || '未登记' }
+      ]
+    },
+    {
+      key: 'funding', label: '资助与荣誉', icon: '💰',
+      accent: '#e6a23c',
+      badge: hardshipClass.value === 'red' ? '特殊' : '',
+      badgeClass: hardshipClass.value === 'red' ? 'badge-red' : '',
+      stats: [
+        { label: '困难等级', value: s?.stats?.hardship_level || '无' },
+        { label: '奖学金', value: s?.stats?.scholarship_count ?? '—' }
+      ]
+    },
+    {
+      key: 'daily', label: '日常管理', icon: '📋',
+      accent: '#8FA9E5',
+      stats: [
+        { label: '缺勤', value: `${s?.stats?.absence_count ?? '—'}次` },
+        { label: '请假', value: `${s?.stats?.leave_count ?? '—'}次` }
+      ]
+    },
+    {
+      key: 'projects', label: '专项工作', icon: '🔧',
+      accent: '#5B92E5',
+      stats: [
+        { label: '项目数', value: s?.stats?.project_count ?? '—' }
+      ]
+    },
+    {
+      key: 'timeline', label: '时间线', icon: '📅',
+      accent: '#4FC3B8',
+      stats: [
+        { label: '事件数', value: s?.stats?.timeline_count ?? '—' }
+      ]
+    }
+  ]
+})
 
 const showRealIdCard = ref(false)
 const maskedIdCard = computed(() => {
@@ -561,7 +688,6 @@ function editBasic() {
 async function saveBasic() {
   savingBasic.value = true
   try {
-    // StudentUpdate schema 支持的字段
     const payload = {
       student_no: basicForm.value.student_no,
       name: basicForm.value.name,
@@ -592,19 +718,26 @@ async function saveBasic() {
 
 <style scoped>
 .s360-wrap { }
-.s360-body {
-  display: flex;
+
+/* 卡片网格 */
+.s360-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  align-items: flex-start;
+  margin-top: 8px;
 }
-.tab-main {
-  flex: 1;
-  min-width: 0;
-  background: var(--color-card-bg);
-  border: 1px solid var(--color-card-border);
-  border-radius: var(--radius-card);
-  padding: 16px;
-  box-shadow: var(--shadow-card);
+@media (max-width: 1400px) {
+  .s360-card-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 1100px) {
+  .s360-card-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* 弹窗内容 */
+.s360-dialog-body {
+  max-height: 75vh;
+  overflow-y: auto;
+  padding: 4px 0;
 }
 
 .inline-back-bar {

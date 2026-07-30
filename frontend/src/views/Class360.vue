@@ -50,33 +50,57 @@
         </div>
       </div>
 
-      <!-- 10 Tab -->
-      <div class="c360-body">
-        <div class="side-tabs">
-          <div
-            v-for="tab in tabs"
-            :key="tab.key"
-            class="side-tab-item"
-            :class="{ active: activeTab === tab.key }"
-            @click.stop="switchTab(tab.key)"
-          >
-            {{ tab.icon }} {{ tab.label }}
-          </div>
+      <!-- 内联视图：概览 & 花名册 -->
+      <div v-if="inlineTab" class="c360-inline-view">
+        <div class="inline-tab-bar">
+          <el-button size="small" @click="inlineTab = null">
+            <el-icon><component :is="_InlineArrowLeft" /></el-icon>
+            返回卡片视图
+          </el-button>
+          <span class="inline-tab-title">{{ tabs.find(t => t.key === inlineTab)?.label || '' }}</span>
         </div>
-
-        <div class="tab-main" v-if="!Number.isNaN(cid)">
-          <ClassSummary            v-if="activeTab==='summary'"    :cid="cid" :class-info="classInfo" :summary="summary" />
-          <ClassStudents           v-else-if="activeTab==='students'"   :cid="cid" :class-info="classInfo" :summary="summary" />
-          <ClassGrades             v-else-if="activeTab==='grades'"     :cid="cid" :class-info="classInfo" :summary="summary" />
-          <ClassParty              v-else-if="activeTab==='party'"      :cid="cid" :class-info="classInfo" :summary="summary" />
-          <ClassPsychology         v-else-if="activeTab==='psychology'" :cid="cid" :class-info="classInfo" :summary="summary" :class-student-count="classStudentCount" />
-          <ClassFunding            v-else-if="activeTab==='funding'"    :cid="cid" :class-info="classInfo" :summary="summary" />
-          <ClassActivities         v-else-if="activeTab==='activities'" :cid="cid" :class-info="classInfo" :summary="summary" />
-          <ClassFeaturedActivities v-else-if="activeTab==='featured'"   :cid="cid" :class-info="classInfo" :summary="summary" />
-          <ClassPartyBranch        v-else-if="activeTab==='branch'"     :cid="cid" :class-info="classInfo" :summary="summary" />
-          <ClassDaily              v-else-if="activeTab==='daily'"      :cid="cid" :class-info="classInfo" :summary="summary" />
+        <div class="inline-tab-content">
+          <ClassSummary  v-if="inlineTab==='summary'"  :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassStudents v-if="inlineTab==='students'" :cid="cid" :class-info="classInfo" :summary="summary" />
         </div>
       </div>
+
+      <!-- 卡片网格 -->
+      <div v-else class="c360-card-grid">
+        <DimensionCard
+          v-for="card in cardList"
+          :key="card.key"
+          :icon="card.icon"
+          :title="card.label"
+          :stats="card.stats"
+          :badge="card.badge"
+          :badge-class="card.badgeClass"
+          :accent="card.accent"
+          @click="card.inline ? (inlineTab = card.key) : openDialog(card.key)"
+        />
+      </div>
+
+      <!-- 弹窗详情 -->
+      <el-dialog
+        v-model="dialogVisible"
+        :title="dialogTitle"
+        width="960px"
+        destroy-on-close
+        :close-on-click-modal="true"
+        top="5vh"
+        class="c360-detail-dialog"
+      >
+        <div v-if="dialogKey" class="c360-dialog-body">
+          <ClassGrades             v-if="dialogKey==='grades'"     :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassParty              v-else-if="dialogKey==='party'"      :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassPsychology         v-else-if="dialogKey==='psychology'" :cid="cid" :class-info="classInfo" :summary="summary" :class-student-count="classStudentCount" />
+          <ClassFunding            v-else-if="dialogKey==='funding'"    :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassActivities         v-else-if="dialogKey==='activities'" :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassFeaturedActivities v-else-if="dialogKey==='featured'"   :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassPartyBranch        v-else-if="dialogKey==='branch'"     :cid="cid" :class-info="classInfo" :summary="summary" />
+          <ClassDaily              v-else-if="dialogKey==='daily'"      :cid="cid" :class-info="classInfo" :summary="summary" />
+        </div>
+      </el-dialog>
     </template>
 
     <div v-else class="empty-hint">
@@ -94,7 +118,7 @@ function inlineGoBack() {
   else _routerInline.push('/dashboard')
 }
 
-// v3j-D · D3: 班级360 导出
+// D3: 班级360 导出
 import { ref as _refExp } from 'vue'
 import { ElMessage as _ElMsgExp } from 'element-plus'
 import { triggerDownload as _triggerDl, stampedName as _stamp } from '@/utils/download'
@@ -130,6 +154,7 @@ import ClassActivities from '@/components/class360/ClassActivities.vue'
 import ClassDaily      from '@/components/class360/ClassDaily.vue'
 import ClassFeaturedActivities from '@/components/class360/ClassFeaturedActivities.vue'
 import ClassPartyBranch        from '@/components/class360/ClassPartyBranch.vue'
+import DimensionCard   from '@/components/common/DimensionCard.vue'
 
 const route = useRoute()
 const orgStore = useOrgStore()
@@ -145,24 +170,122 @@ const summary = ref(null)
 const summaryErr = ref(false)
 const students = ref([])
 const loadingHeader = ref(false)
-const activeTab = ref('summary')
-function switchTab(key) {
-  activeTab.value = key
+const inlineTab = ref(null)
+
+// Dialog state
+const dialogVisible = ref(false)
+const dialogKey = ref('')
+const dialogTitle = computed(() => tabs.find(t => t.key === dialogKey.value)?.label || '详情')
+
+function openDialog(key) {
+  dialogKey.value = key
+  dialogVisible.value = true
 }
 
 const tabs = [
-  { key: 'summary',    label: '概览',       icon: '', comp: ClassSummary },
-  { key: 'students',   label: '班级花名册', icon: '', comp: ClassStudents },
-  { key: 'grades',     label: '学业统计',   icon: '', comp: ClassGrades },
-  { key: 'party',      label: '党团进度',   icon: '', comp: ClassParty },
-  { key: 'psychology', label: '心理关注',   icon: '', comp: ClassPsychology },
-  { key: 'funding',    label: '资助分布',   icon: '', comp: ClassFunding },
-  { key: 'activities', label: '活动参与',   icon: '', comp: ClassActivities },
-  { key: 'featured',   label: '特色活动',   icon: '', comp: ClassFeaturedActivities },
-  { key: 'branch',     label: '党团支部',   icon: '', comp: ClassPartyBranch },
-  { key: 'daily',      label: '班级大事记', icon: '', comp: ClassDaily }
+  { key: 'summary',    label: '概览',       icon: '📋' },
+  { key: 'students',   label: '班级花名册', icon: '👥' },
+  { key: 'grades',     label: '学业统计',   icon: '📊' },
+  { key: 'party',      label: '党团进度',   icon: '🚩' },
+  { key: 'psychology', label: '心理关注',   icon: '💚' },
+  { key: 'funding',    label: '资助分布',   icon: '💰' },
+  { key: 'activities', label: '活动参与',   icon: '🏃' },
+  { key: 'featured',   label: '特色活动',   icon: '🌟' },
+  { key: 'branch',     label: '党团支部',   icon: '🏛️' },
+  { key: 'daily',      label: '班级大事记', icon: '📅' }
 ]
-const currentTabComponent = computed(() => tabs.find(t => t.key === activeTab.value)?.comp)
+
+// Card list with summary data
+const cardList = computed(() => {
+  const s = summary.value
+  return [
+    {
+      key: 'summary', label: '班级概览', icon: '📋', inline: true,
+      accent: '#5B92E5',
+      stats: [
+        { label: '总人数', value: classInfo.value?.student_count ?? students.value?.length ?? '—' },
+        { label: '挂科率', value: fmtPct(s?.fail_rate) }
+      ]
+    },
+    {
+      key: 'students', label: '班级花名册', icon: '👥', inline: true,
+      accent: '#8FA9E5',
+      stats: [
+        { label: '总人数', value: students.value?.length ?? '—' },
+        { label: '男生', value: (students.value || []).filter(st => st.gender === '男').length || '—' },
+        { label: '女生', value: (students.value || []).filter(st => st.gender === '女').length || '—' }
+      ]
+    },
+    {
+      key: 'grades', label: '学业统计', icon: '📊',
+      accent: '#5B92E5',
+      badge: (s?.fail_rate && s.fail_rate > 0.1) ? '预警' : '',
+      badgeClass: (s?.fail_rate && s.fail_rate > 0.1) ? 'badge-red' : '',
+      stats: [
+        { label: '挂科率', value: fmtPct(s?.fail_rate) },
+        { label: '均分', value: s?.avg_score ? Number(s.avg_score).toFixed(1) : '—' }
+      ]
+    },
+    {
+      key: 'party', label: '党团进度', icon: '🚩',
+      accent: '#e06c75',
+      stats: [
+        { label: '党员', value: `${s?.party_member_count ?? 0}人` },
+        { label: '发展对象', value: `${s?.party_develop_count ?? '—'}人` },
+        { label: '团员', value: `${s?.league_member_count ?? '—'}人` }
+      ]
+    },
+    {
+      key: 'psychology', label: '心理关注', icon: '💚',
+      accent: '#4FC3B8',
+      badge: (s?.warning_red_count > 0) ? '红灯' : '',
+      badgeClass: (s?.warning_red_count > 0) ? 'badge-red' : '',
+      stats: [
+        { label: '红灯', value: `${s?.warning_red_count ?? 0}人` },
+        { label: '黄灯', value: `${s?.warning_yellow_count ?? 0}人` },
+        { label: '绿灯', value: `${s?.warning_green_count ?? (students.value?.length - (s?.warning_red_count ?? 0) - (s?.warning_yellow_count ?? 0)) ?? '—'}人` }
+      ]
+    },
+    {
+      key: 'funding', label: '资助分布', icon: '💰',
+      accent: '#e6a23c',
+      stats: [
+        { label: '困难生', value: `${s?.hardship_count ?? 0}人` },
+        { label: '特殊困难', value: `${s?.special_hardship_count ?? '—'}人` }
+      ]
+    },
+    {
+      key: 'activities', label: '活动参与', icon: '🏃',
+      accent: '#5B92E5',
+      stats: [
+        { label: '活动总数', value: s?.activity_count ?? '—' },
+        { label: '参与率', value: fmtPct(s?.activity_rate) }
+      ]
+    },
+    {
+      key: 'featured', label: '特色活动', icon: '🌟',
+      accent: '#8FA9E5',
+      stats: [
+        { label: '特色项目', value: `${s?.featured_count ?? '—'}项` }
+      ]
+    },
+    {
+      key: 'branch', label: '党团支部', icon: '🏛️',
+      accent: '#e06c75',
+      stats: [
+        { label: '党支部', value: s?.party_branch_count ?? '—' },
+        { label: '团支部', value: s?.league_branch_count ?? '—' }
+      ]
+    },
+    {
+      key: 'daily', label: '班级大事记', icon: '📅',
+      accent: '#4FC3B8',
+      stats: [
+        { label: '事件数', value: s?.daily_count ?? '—' }
+      ]
+    }
+  ]
+})
 
 function fmtPct(v) {
   if (v == null) return '—'
@@ -199,10 +322,8 @@ async function loadHeader() {
   loadingHeader.value = true
   summaryErr.value = false
   try {
-    // 保证 orgTree 已加载（用于兜底）
     if (!orgStore.orgTree.length) await orgStore.loadTree().catch(() => {})
 
-    // 尝试 class summary（已知会 500，捕获后走兜底）
     let s = null
     try {
       s = await getClassSummary(cid.value)
@@ -212,11 +333,9 @@ async function loadHeader() {
       summary.value = null
     }
 
-    // classInfo 优先来自 summary，其次 fallback / org 详情
     if (s && (s.class_name || s.name)) {
       classInfo.value = s
     } else {
-      // 再试 /api/org/classes/{cid}
       try {
         const c = await getClass(cid.value)
         classInfo.value = c
@@ -225,7 +344,6 @@ async function loadHeader() {
       }
     }
 
-    // students 兜底用
     try {
       students.value = await getClassStudents(cid.value) || []
     } catch { students.value = [] }
@@ -233,7 +351,7 @@ async function loadHeader() {
     loadingHeader.value = false
   }
 }
-// 班级总人数（用于心理关注等级饼图动态化）
+
 const classStudentCount = computed(() => {
   const n = classInfo.value?.student_count
   if (typeof n === 'number' && n > 0) return n
@@ -243,54 +361,58 @@ const classStudentCount = computed(() => {
 watch(cid, loadHeader, { immediate: false })
 onMounted(() => {
   loadHeader()
-  // reinit 后自动重新加载当前班级数据
   window.addEventListener('system-reinit-done', loadHeader)
 })
 </script>
 
 <style scoped>
-.c360-body { display: flex; gap: 16px; align-items: flex-start; }
-.side-tabs {
-  width: 180px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--color-card-bg, #ffffff);
-  border: 1px solid var(--color-card-border, #eaeaea);
-  border-radius: var(--radius-card, 12px);
-  padding: 8px;
-  box-shadow: var(--shadow-card, 0 2px 8px rgba(0,0,0,0.04));
-  position: sticky;
-  top: 12px;
+.c360-wrap { }
+
+/* 卡片网格 */
+.c360-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 8px;
 }
-.side-tab-item {
-  padding: 10px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #555;
-  transition: background 0.15s, color 0.15s;
-  user-select: none;
-  white-space: nowrap;
+@media (max-width: 1400px) {
+  .c360-card-grid { grid-template-columns: repeat(3, 1fr); }
 }
-.side-tab-item:hover {
-  background: rgba(74, 122, 140, 0.08);
-  color: #4A7A8C;
+@media (max-width: 1100px) {
+  .c360-card-grid { grid-template-columns: repeat(2, 1fr); }
 }
-.side-tab-item.active {
-  background: rgba(74, 122, 140, 0.15);
-  color: #4A7A8C;
-  font-weight: 600;
-}
-.tab-main {
-  flex: 1;
-  min-width: 0;
-  background: var(--color-card-bg);
-  border: 1px solid var(--color-card-border);
-  border-radius: var(--radius-card);
+
+/* 内联视图 */
+.c360-inline-view {
+  background: var(--bg-card, #fff);
+  border: 1px solid rgba(91, 146, 229, 0.1);
+  border-radius: var(--radius-md, 12px);
   padding: 16px;
-  box-shadow: var(--shadow-card);
+  margin-top: 8px;
+  box-shadow: var(--shadow-sm);
+}
+.inline-tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(91, 146, 229, 0.1);
+}
+.inline-tab-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #2c3e50);
+}
+.inline-tab-content {
+  min-height: 200px;
+}
+
+/* 弹窗内容 */
+.c360-dialog-body {
+  max-height: 75vh;
+  overflow-y: auto;
+  padding: 4px 0;
 }
 
 .inline-back-bar {
