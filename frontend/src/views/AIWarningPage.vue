@@ -112,10 +112,12 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="学生" min-width="140" sortable="custom" prop="name">
+        <el-table-column label="学生" min-width="160" sortable="custom" prop="name">
           <template #default="{ row }">
-            <el-link type="primary" @click="goStudent(row.student_id)">{{ row.name }}</el-link>
-            <span class="cell-student-no">{{ row.student_no }}</span>
+            <div class="cell-student-info">
+              <el-link type="primary" @click="goStudent(row.student_id)" class="cell-student-name">{{ row.name }}</el-link>
+              <span class="cell-student-no">{{ row.student_no }}</span>
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="班级" prop="class_name" min-width="140" show-overflow-tooltip sortable="custom" />
@@ -461,11 +463,21 @@ onMounted(() => {
 .sev-badge.medium { background: linear-gradient(135deg, #E6A23C, #F5A76E); }
 .sev-badge.low { background: linear-gradient(135deg, #67C23A, #85CE61); }
 
-/* Cell styles */
+/* Cell styles - V6.13 姓名学号分行显示 */
+.cell-student-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cell-student-name {
+  font-size: 14px;
+  font-weight: 500;
+}
 .cell-student-no {
-  font-size: 11px;
-  color: #7F8C8D;
-  margin-left: 6px;
+  font-size: 12px;
+  color: #909399;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  letter-spacing: 0.3px;
 }
 
 /* Table */

@@ -384,3 +384,85 @@ def ai_summary(interview_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"AI 摘要未知错误: {e}")
         return {'error': f'AI摘要生成失败：{e}'}
+
+
+# ===== V6.13: AI 谈心分析接口（原始文本 → 结构化数据） =====
+
+class AiAnalyzeRequest(BaseModel):
+    text: str
+
+@router.post('/ai-analyze')
+def ai_analyze_text(data: AiAnalyzeRequest, db: Session = Depends(get_db)):
+    """V6.13: 接收访谈原始文本，AI 分析后返回结构化 JSON，用于自动填充表单"""
+    import json as _json
+
+    if not data.text or not data.text.strip():
+        raise HTTPException(400, '请输入访谈内容')
+
+    try:
+        from services.llm_adapter import LLMAdapter
+        llm = LLMAdapter()
+        if not llm.is_configured:
+            return {'error': True, 'message': '请在系统设置中配置 LLM API Key'}
+
+        prompt = f"""你是一位高校辅导员工作助手。请分析以下辅导员与学生的谈心谈话原始记录，提取关键信息并填充到表单中。
+
+以下是谈话原文：
+---
+{data.text.strip()}
+---
+
+请严格返回以下JSON格式（不要包含markdown代码块标记）：
+{{
+  "emotion": "学生情绪状态，从以下选择：平静/焦虑/低落/激动/积极/紧张/迷茫",
+  "issue_type": "问题类型，从以下选择：学业/生活/心理/人际/就业/经济/家庭/其他",
+  "topic": "谈话主题，简短概括（15字以内）",
+  "content_summary": "谈话内容摘要（80字以内）",
+  "key_info": "关键信息提取（学生表达的核心诉求或问题，60字以内）",
+  "follow_up": "后续跟进建议（一句话，具体可操作）",
+  "suggested_status": "建议状态，从以下选择：已完成/需跟进/待进行",
+  "suggested_type": "建议访谈类型，从以下选择：常规访谈/预警访谈/心理访谈/学业访谈/就业访谈/其他",
+  "risk_level": "风险等级，从以下选择：无/低/中/高"
+}}"""
+
+        messages = [
+            {"role": "system", "content": "你是高校辅导员工作助手，擅长分析学生谈心谈话记录。请始终返回有效的JSON格式，不要包含任何多余文字。"},
+            {"role": "user", "content": prompt}
+        ]
+        result_text = llm.chat(messages)
+
+        # 清理 markdown 代码块标记
+        cleaned = result_text.strip()
+        if cleaned.startswith('```'):
+            lines = cleaned.split('
+')
+            if lines[0].startswith('```'):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == '```':
+                lines = lines[:-1]
+            cleaned = '
+'.join(lines)
+
+        parsed = _json.loads(cleaned)
+        return {
+            'error': False,
+            'emotion': parsed.get('emotion', '平静'),
+            'issue_type': parsed.get('issue_type', '其他'),
+            'topic': parsed.get('topic', ''),
+            'content_summary': parsed.get('content_summary', ''),
+            'key_info': parsed.get('key_info', ''),
+            'follow_up': parsed.get('follow_up', ''),
+            'suggested_status': parsed.get('suggested_status', '已完成'),
+            'suggested_type': parsed.get('suggested_type', '常规访谈'),
+            'risk_level': parsed.get('risk_level', '无')
+        }
+
+    except _json.JSONDecodeError as e:
+        logger.error(f'AI 分析解析失败: {e}')
+        return {'error': True, 'message': 'AI 返回格式异常，请重试'}
+    except RuntimeError as e:
+        logger.error(f'AI 分析调用失败: {e}')
+        return {'error': True, 'message': str(e)}
+    except Exception as e:
+        logger.error(f'AI 分析未知错误: {e}')
+        return {'error': True, 'message': f'AI 分析失败：{e}'}

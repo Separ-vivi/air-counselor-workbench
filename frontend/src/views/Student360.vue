@@ -54,7 +54,7 @@
             <span class="status-chip" :class="warningClass">
               <span class="status-dot" :class="warningClass" /> 学业预警 · {{ warningLabel }}
             </span>
-            <span class="status-chip">党团 · {{ summary?.stats?.party_stage || student?.political_status || '群众' }}</span>
+            <span class="status-chip">党团 · {{ summary?.stats?.party_stage || student?.political_status || '—' }}</span>
             <span class="status-chip" :class="summary?.psych_status === 'attention' ? 'yellow' : 'green'">
               心理 · {{ summary?.psych_status === 'attention' ? '需关注' : '正常' }}
             </span>
@@ -408,8 +408,8 @@ const tabs = [
 // Card list with summary data
 const cardList = computed(() => {
   const s = summary.value
-  // 党团发展阶段：无值时显示政治面貌
-  const partyStage = s?.stats?.party_stage || student.value?.political_status || '群众'
+  // V6.13: 党团发展阶段：无值时显示政治面貌，不再默认为群众
+  const partyStage = s?.stats?.party_stage || student.value?.political_status || '—'
   return [
     {
       key: 'basic', label: '基础信息', icon: '📝',

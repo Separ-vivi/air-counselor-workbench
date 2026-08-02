@@ -221,7 +221,9 @@ export const interview = {
   update: (id, data) => http.put(`/interview/${id}`, data),
   remove: (id) => http.delete(`/interview/${id}`),
   // V6.10: AI 摘要
-  aiSummary: (id) => http.post(`/interview/${id}/ai-summary`, null, { timeout: 30000 })
+  aiSummary: (id) => http.post(`/interview/${id}/ai-summary`, null, { timeout: 30000 }),
+  // V6.13: AI 谈心分析（原始文本 → 结构化数据）
+  aiAnalyze: (text) => http.post('/interview/ai-analyze', { text }, { timeout: 60000 })
 }
 
 /** 学生（公共） */

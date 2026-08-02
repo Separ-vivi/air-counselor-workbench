@@ -6,12 +6,12 @@
 
     <ChartSection ref="chartSectionRef" :dash="dash" :week-events="weekEvents" @go-warning="goWarning" />
 
-    <!-- V6.11hotfix: AI 智能预警 + 效率中心并排 — 优化布局 -->
+    <!-- V6.13: AI 智能预警 + 效率中心等宽并排 -->
     <el-row :gutter="16" style="margin-bottom: 16px" class="ai-efficiency-row">
-      <el-col :span="14">
+      <el-col :span="12">
         <AIWarningCard ref="aiWarningRef" />
       </el-col>
-      <el-col :span="10">
+      <el-col :span="12">
         <EfficiencyCenter :prod-stats="prodStats" />
       </el-col>
     </el-row>

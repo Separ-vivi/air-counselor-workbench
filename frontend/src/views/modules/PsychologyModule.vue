@@ -57,15 +57,13 @@
       有 {{ reminders.length }} 条心理关注提醒需要处理
     </el-alert>
 
-    <!-- 统计卡片 -->
-    <el-row :gutter="16" style="margin-bottom: 12px">
-      <el-col :span="5" v-for="s in psyStats" :key="s.label">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-label">{{ s.label }}</div>
-          <div class="stat-value" :style="{ color: s.color }">{{ s.count }}</div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <!-- V6.13: 统计卡片 - 5列均匀排列 -->
+    <div class="psy-stats-grid" style="margin-bottom: 12px">
+      <div v-for="s in psyStats" :key="s.label" class="stat-card">
+        <div class="stat-label">{{ s.label }}</div>
+        <div class="stat-value" :style="{ color: s.color }">{{ s.count }}</div>
+      </div>
+    </div>
 
     <!-- 统计图表区域 -->
     <el-row :gutter="16" class="chart-row">
@@ -645,6 +643,12 @@ onBeforeUnmount(() => {
   color: #3A4F6B;
   margin-bottom: 10px;
   padding-left: 4px;
+}
+/* V6.13: 心理关怀统计卡片 - 5列均匀排列 */
+.psy-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
 }
 /* V6.12 统一规范 */
 .stats-row {

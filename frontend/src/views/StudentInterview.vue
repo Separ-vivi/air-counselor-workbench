@@ -134,54 +134,112 @@
       />
     </div>
 
-    <!-- 新增/编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑访谈' : '新增访谈'" width="650px">
+    <!-- V6.13: 新增/编辑对话框 - AI 自动填表助手 -->
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑访谈' : '新增访谈'" width="720px" top="5vh">
+      <!-- AI 分析输入区 -->
+      <div class="ai-analyze-section">
+        <div class="ai-analyze-header">
+          <span class="ai-analyze-title">
+            <span class="ai-spark-icon">✨</span> AI 智能分析
+          </span>
+          <span class="ai-analyze-hint">粘贴访谈原文，AI 自动提取并填充表单</span>
+        </div>
+        <el-input
+          v-model="aiRawText"
+          type="textarea"
+          :rows="5"
+          placeholder="在此粘贴访谈原文（文字记录或录音转文字内容）..."
+          class="ai-analyze-input"
+        />
+        <div class="ai-analyze-actions">
+          <el-button
+            type="primary"
+            :loading="aiAnalyzeLoading"
+            :disabled="!aiRawText.trim()"
+            @click="runAiAnalyze"
+            class="ai-analyze-btn"
+          >
+            <span v-if="!aiAnalyzeLoading">✨</span>
+            {{ aiAnalyzeLoading ? 'AI 分析中...' : 'AI 智能分析并填充' }}
+          </el-button>
+          <span v-if="aiAnalyzeResult && !aiAnalyzeLoading" class="ai-analyze-success">
+            ✅ 已填充 — 情绪：{{ aiAnalyzeResult.emotion }} | 类型：{{ aiAnalyzeResult.issue_type }} | 风险：{{ aiAnalyzeResult.risk_level }}
+          </span>
+        </div>
+      </div>
+
+      <el-divider content-position="left">
+        <span style="font-size: 13px; color: #909399;">表单信息（可手动编辑）</span>
+      </el-divider>
+
       <el-form :model="form" label-width="100px">
         <el-form-item label="学生" required>
           <el-select v-model="form.student_id" filterable placeholder="选择学生" style="width: 100%;">
             <el-option v-for="s in students" :key="s.id" :label="`${s.student_no} - ${s.name}`" :value="s.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="访谈日期" required>
-          <el-date-picker v-model="form.interview_date" type="date" placeholder="选择日期" format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%;" />
-        </el-form-item>
-        <el-form-item label="访谈类型">
-          <el-select v-model="form.interview_type" style="width: 100%;">
-            <el-option v-for="t in interviewTypes" :key="t" :label="t" :value="t" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="访谈人">
-          <el-input v-model="form.interviewer" placeholder="请输入访谈人" />
-        </el-form-item>
-        <el-form-item label="访谈地点">
-          <el-input v-model="form.location" placeholder="请输入地点" />
-        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="访谈日期" required>
+              <el-date-picker v-model="form.interview_date" type="date" placeholder="选择日期" format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%;" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="访谈类型">
+              <el-select v-model="form.interview_type" style="width: 100%;">
+                <el-option v-for="t in interviewTypes" :key="t" :label="t" :value="t" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="访谈人">
+              <el-input v-model="form.interviewer" placeholder="请输入访谈人" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="访谈地点">
+              <el-input v-model="form.location" placeholder="请输入地点" />
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="访谈主题">
-          <el-input v-model="form.topic" placeholder="请输入主题" />
+          <el-input v-model="form.topic" placeholder="请输入主题">
+            <template #suffix>
+              <el-tag v-if="form._aiFilled?.topic" type="success" size="small" effect="plain">AI</el-tag>
+            </template>
+          </el-input>
         </el-form-item>
         <el-form-item label="访谈内容">
-          <el-input v-model="form.content" type="textarea" :rows="4" placeholder="请输入访谈内容" />
+          <el-input v-model="form.content" type="textarea" :rows="3" placeholder="请输入访谈内容（AI分析后自动填充）" />
         </el-form-item>
-        <el-form-item label="学生反馈">
-          <el-input v-model="form.feedback" type="textarea" :rows="3" placeholder="请输入学生反馈" />
+        <el-form-item label="关键信息">
+          <el-input v-model="form.feedback" type="textarea" :rows="2" placeholder="学生反馈/关键信息" />
         </el-form-item>
         <el-form-item label="后续跟进">
-          <el-input v-model="form.follow_up" type="textarea" :rows="2" placeholder="请输入跟进计划" />
+          <el-input v-model="form.follow_up" type="textarea" :rows="2" placeholder="跟进建议（AI分析后自动填充）" />
         </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="form.status" style="width: 100%;">
-            <el-option label="待进行" value="待进行" />
-            <el-option label="已完成" value="已完成" />
-            <el-option label="需跟进" value="需跟进" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="提醒日期">
-          <el-date-picker v-model="form.remind_date" type="date" placeholder="选择提醒日期" format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%;" />
-        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="状态">
+              <el-select v-model="form.status" style="width: 100%;">
+                <el-option label="待进行" value="待进行" />
+                <el-option label="已完成" value="已完成" />
+                <el-option label="需跟进" value="需跟进" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="提醒日期">
+              <el-date-picker v-model="form.remind_date" type="date" placeholder="选择提醒日期" format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%;" />
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting">确定</el-button>
+        <el-button type="primary" @click="handleSubmit" :loading="submitting">确定保存</el-button>
       </template>
     </el-dialog>
 
@@ -554,6 +612,8 @@ const loadTotalStudents = async () => {
 const showAddDialog = () => {
   isEdit.value = false
   editId.value = null
+  aiRawText.value = ''
+  aiAnalyzeResult.value = null
   form.value = {
     student_id: null,
     interview_date: '',
@@ -565,7 +625,8 @@ const showAddDialog = () => {
     feedback: '',
     follow_up: '',
     status: '已完成',
-    remind_date: ''
+    remind_date: '',
+    _aiFilled: {}
   }
   dialogVisible.value = true
 }
@@ -624,6 +685,46 @@ const handleDelete = async (row) => {
 }
 
 // V6.10: AI 摘要相关
+// V6.13: AI 谈心分析相关
+const aiRawText = ref('')
+const aiAnalyzeLoading = ref(false)
+const aiAnalyzeResult = ref(null)
+
+const runAiAnalyze = async () => {
+  if (!aiRawText.value.trim()) { ElMessage.warning('请输入访谈原文'); return }
+  aiAnalyzeLoading.value = true
+  aiAnalyzeResult.value = null
+  try {
+    const res = await interviewApi.aiAnalyze(aiRawText.value)
+    if (res?.error) {
+      ElMessage.error(res.message || 'AI 分析失败')
+      return
+    }
+    aiAnalyzeResult.value = res
+    // 自动填充表单字段
+    if (res.topic) form.value.topic = res.topic
+    if (res.content_summary) form.value.content = res.content_summary
+    if (res.key_info) form.value.feedback = res.key_info
+    if (res.follow_up) form.value.follow_up = res.follow_up
+    if (res.suggested_status) form.value.status = res.suggested_status
+    if (res.suggested_type) form.value.interview_type = res.suggested_type
+    // 标记 AI 填充的字段
+    form.value._aiFilled = {
+      topic: !!res.topic,
+      content: !!res.content_summary,
+      feedback: !!res.key_info,
+      follow_up: !!res.follow_up,
+      status: !!res.suggested_status,
+      type: !!res.suggested_type
+    }
+    ElMessage.success('AI 分析完成，表单已自动填充')
+  } catch (e) {
+    ElMessage.error('AI 服务暂时不可用，请稍后重试')
+  } finally {
+    aiAnalyzeLoading.value = false
+  }
+}
+
 const aiSummaryLoading = ref(false)
 const aiSummaryData = ref(null)
 const aiSummaryError = ref('')
@@ -952,5 +1053,72 @@ const handleChartResize = () => {
 .ai-quick-btn:hover {
   opacity: 0.9;
   transform: translateY(-1px);
+}
+
+/* V6.13: AI 分析输入区样式 */
+.ai-analyze-section {
+  background: linear-gradient(135deg, rgba(91, 146, 229, 0.06) 0%, rgba(123, 207, 203, 0.08) 100%);
+  border: 1.5px solid rgba(91, 146, 229, 0.2);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 4px;
+}
+.ai-analyze-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.ai-analyze-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2E5A7F;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ai-analyze-hint {
+  font-size: 12px;
+  color: #909399;
+}
+.ai-analyze-input :deep(.el-textarea__inner) {
+  border-radius: 10px;
+  border-color: rgba(91, 146, 229, 0.25);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ai-analyze-input :deep(.el-textarea__inner:focus) {
+  border-color: #5B92E5;
+  box-shadow: 0 0 0 2px rgba(91, 146, 229, 0.12);
+}
+.ai-analyze-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.ai-analyze-btn {
+  background: linear-gradient(135deg, #5B92E5 0%, #7BCFCB 100%) !important;
+  border: none !important;
+  border-radius: 20px !important;
+  padding: 10px 28px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 14px rgba(91, 146, 229, 0.3) !important;
+  transition: all 0.3s ease !important;
+  color: #fff !important;
+}
+.ai-analyze-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(91, 146, 229, 0.4) !important;
+}
+.ai-analyze-success {
+  font-size: 12px;
+  color: #67C23A;
+  font-weight: 500;
+  background: rgba(103, 194, 58, 0.08);
+  padding: 4px 12px;
+  border-radius: 12px;
 }
 </style>
