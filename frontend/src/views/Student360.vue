@@ -54,7 +54,7 @@
             <span class="status-chip" :class="warningClass">
               <span class="status-dot" :class="warningClass" /> 学业预警 · {{ warningLabel }}
             </span>
-            <span class="status-chip">党团 · {{ summary?.stats?.party_stage || '群众' }}</span>
+            <span class="status-chip">党团 · {{ summary?.stats?.party_stage || student?.political_status || '群众' }}</span>
             <span class="status-chip" :class="summary?.psych_status === 'attention' ? 'yellow' : 'green'">
               心理 · {{ summary?.psych_status === 'attention' ? '需关注' : '正常' }}
             </span>
@@ -408,13 +408,15 @@ const tabs = [
 // Card list with summary data
 const cardList = computed(() => {
   const s = summary.value
+  // 党团发展阶段：无值时显示政治面貌
+  const partyStage = s?.stats?.party_stage || student.value?.political_status || '群众'
   return [
     {
       key: 'basic', label: '基础信息', icon: '📝',
       accent: '#5B92E5',
       stats: [
-        { label: '学号', value: student.value?.student_no || '—' },
-        { label: '政治面貌', value: student.value?.political_status || '—' }
+        { label: '学号', value: student.value?.student_no || '无' },
+        { label: '政治面貌', value: student.value?.political_status || '无' }
       ]
     },
     {
@@ -423,15 +425,15 @@ const cardList = computed(() => {
       badge: warningClass.value === 'red' ? '红灯' : (warningClass.value === 'yellow' ? '黄灯' : ''),
       badgeClass: warningClass.value === 'red' ? 'badge-red' : (warningClass.value === 'yellow' ? 'badge-yellow' : ''),
       stats: [
-        { label: 'GPA', value: s?.stats?.gpa ?? '—', highlight: false },
-        { label: '挂科', value: `${s?.stats?.fail_count ?? '—'}门`, highlight: (s?.stats?.fail_count ?? 0) > 0 }
+        { label: 'GPA', value: s?.stats?.gpa != null ? s.stats.gpa : '无', highlight: false },
+        { label: '挂科', value: `${s?.stats?.fail_count ?? 0}门`, highlight: (s?.stats?.fail_count ?? 0) > 0 }
       ]
     },
     {
       key: 'party', label: '党团发展', icon: '🚩',
       accent: '#e06c75',
       stats: [
-        { label: '阶段', value: s?.stats?.party_stage || '群众' }
+        { label: '阶段', value: partyStage }
       ]
     },
     {
@@ -447,8 +449,8 @@ const cardList = computed(() => {
       key: 'family', label: '家庭联络', icon: '👨‍👩‍👧',
       accent: '#8FA9E5',
       stats: [
-        { label: '家长电话', value: student.value?.parent_phone || '—' },
-        { label: '生源地', value: student.value?.birth_source || '—' }
+        { label: '家长电话', value: student.value?.parent_phone || '无' },
+        { label: '生源地', value: student.value?.birth_source || '无' }
       ]
     },
     {
@@ -462,8 +464,8 @@ const cardList = computed(() => {
       key: 'activities', label: '活动参与', icon: '🏃',
       accent: '#5B92E5',
       stats: [
-        { label: '活动数', value: s?.stats?.activity_count ?? '—' },
-        { label: '志愿时长', value: s?.stats?.volunteer_hours ?? '—' }
+        { label: '活动数', value: s?.stats?.activity_count ?? 0 },
+        { label: '志愿时长', value: s?.stats?.volunteer_hours ?? 0 }
       ]
     },
     {
@@ -480,29 +482,29 @@ const cardList = computed(() => {
       badgeClass: hardshipClass.value === 'red' ? 'badge-red' : '',
       stats: [
         { label: '困难等级', value: s?.stats?.hardship_level || '无' },
-        { label: '奖学金', value: s?.stats?.scholarship_count ?? '—' }
+        { label: '奖学金', value: s?.stats?.scholarship_count ?? 0 }
       ]
     },
     {
       key: 'daily', label: '日常管理', icon: '📋',
       accent: '#8FA9E5',
       stats: [
-        { label: '缺勤', value: `${s?.stats?.absence_count ?? '—'}次` },
-        { label: '请假', value: `${s?.stats?.leave_count ?? '—'}次` }
+        { label: '缺勤', value: `${s?.stats?.absence_count ?? 0}次` },
+        { label: '请假', value: `${s?.stats?.leave_count ?? 0}次` }
       ]
     },
     {
       key: 'projects', label: '专项工作', icon: '🔧',
       accent: '#5B92E5',
       stats: [
-        { label: '项目数', value: s?.stats?.project_count ?? '—' }
+        { label: '项目数', value: s?.stats?.project_count ?? 0 }
       ]
     },
     {
       key: 'timeline', label: '时间线', icon: '📅',
       accent: '#4FC3B8',
       stats: [
-        { label: '事件数', value: s?.stats?.timeline_count ?? '—' }
+        { label: '事件数', value: s?.stats?.timeline_count ?? 0 }
       ]
     }
   ]

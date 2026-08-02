@@ -96,6 +96,54 @@ def get_class_summary(class_id: int, db: Session = Depends(get_db)):
             StudentScholarship.student_id.in_(student_ids)).scalar()
         scholarship_total = float(sc_sum or 0)
 
+    # ===== V6.9: 补充前端需要的字段 =====
+    # 团员数：政治面貌含"团员"
+    league_member_count = 0
+    party_develop_count = 0
+    if students:
+        league_member_count = sum(1 for s in students if s.political_status and '团员' in s.political_status)
+        party_develop_count = sum(1 for s in students if s.political_status and ('发展对象' in s.political_status or '积极分子' in s.political_status))
+
+    # 活动参与率：有签到记录的不重复学生数 / 总人数
+    activity_rate = 0
+    if student_ids and activity_count > 0:
+        unique_participants = db.query(func.count(func.distinct(ActivitySignup.student_id))).filter(
+            ActivitySignup.student_id.in_(student_ids)
+        ).scalar() or 0
+        activity_rate = round(unique_participants / len(students), 4) if students else 0
+
+    # 特色活动数（班级学生参与的不重复活动）
+    featured_count = 0
+    if student_ids:
+        featured_count = db.query(func.count(func.distinct(ActivitySignup.activity_id))).filter(
+            ActivitySignup.student_id.in_(student_ids)
+        ).scalar() or 0
+
+    # 党团支部数（简化：有党员=1个党支部，有团员=1个团支部）
+    party_branch_count = 1 if party_members > 0 else 0
+    league_branch_count = 1 if league_member_count > 0 else 0
+
+    # 特殊困难生数
+    special_hardship_count = 0
+    if student_ids:
+        special_hardship_count = db.query(StudentHardship).filter(
+            StudentHardship.student_id.in_(student_ids),
+            StudentHardship.hardship_level.in_(['特殊困难', '特别困难', '建档'])
+        ).count()
+
+    # 班级大事件数 = 请假 + 违纪 + 宿舍走访
+    daily_count = leave_count + discipline_count + db.query(StudentDormVisit).filter(
+        StudentDormVisit.student_id.in_(student_ids)
+    ).count() if student_ids else 0
+
+    # 绿灯学生数（没有预警记录的）
+    warning_student_ids = set()
+    if student_ids:
+        from models import WarningRecord as _WR2
+        warning_records = db.query(_WR2.student_id).filter(_WR2.student_id.in_(student_ids)).distinct().all()
+        warning_student_ids = set(r[0] for r in warning_records)
+    warning_green_count = len(students) - len(warning_student_ids)
+
     return {
         'id': cls.id,
         'class_name': cls.class_name,
@@ -126,6 +174,16 @@ def get_class_summary(class_id: int, db: Session = Depends(get_db)):
         'activity_count': activity_count,
         'employed_count': employed_count,
         'scholarship_total': scholarship_total,
+        # ===== V6.9: 新增字段 =====
+        'league_member_count': league_member_count,
+        'party_develop_count': party_develop_count,
+        'activity_rate': activity_rate,
+        'featured_count': featured_count,
+        'party_branch_count': party_branch_count,
+        'league_branch_count': league_branch_count,
+        'special_hardship_count': special_hardship_count,
+        'daily_count': daily_count,
+        'warning_green_count': warning_green_count,
         # ===== 保留 stats 结构兼容旧代码 =====
         'stats': {
             'grade_count': grade_count,
@@ -142,6 +200,15 @@ def get_class_summary(class_id: int, db: Session = Depends(get_db)):
             'warning_yellow_count': warning_yellow_count,
             'employed_count': employed_count,
             'scholarship_total': scholarship_total,
+            'league_member_count': league_member_count,
+            'party_develop_count': party_develop_count,
+            'activity_rate': activity_rate,
+            'featured_count': featured_count,
+            'party_branch_count': party_branch_count,
+            'league_branch_count': league_branch_count,
+            'special_hardship_count': special_hardship_count,
+            'daily_count': daily_count,
+            'warning_green_count': warning_green_count,
         }
     }
 

@@ -289,6 +289,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Upload, Download, Refresh, Edit } from '@element-plus/icons-vue'
 import {
@@ -302,6 +303,7 @@ import { tagsApi } from '@/api/tags.js'
 
 const orgStore = useOrgStore()
 const studentStore = useStudentStore()
+const route = useRoute()
 
 const list = ref([])
 const selected = ref([])
@@ -547,9 +549,17 @@ const exportAll = async () => {
   } catch (e) { ElMessage.error('导出失败') }
 }
 
-onMounted(() => {
-  if (!orgStore.orgTree.length) orgStore.loadTree()
+onMounted(async () => {
+  if (!orgStore.orgTree.length) await orgStore.loadTree().catch(() => {})
   loadAllTags()
+  // V6.9: 支持从班级360跳转时自动筛选班级
+  const queryClassId = route.query.class_id
+  if (queryClassId) {
+    const classItem = orgStore.allClasses.find(c => String(c.id) === String(queryClassId))
+    if (classItem) {
+      filters.class_name = classItem.name
+    }
+  }
   reload()
   window.addEventListener('system-reinit-done', () => { orgStore.loadTree(true); reload() })
 })

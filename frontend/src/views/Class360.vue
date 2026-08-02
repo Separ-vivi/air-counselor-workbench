@@ -76,7 +76,7 @@
           :badge="card.badge"
           :badge-class="card.badgeClass"
           :accent="card.accent"
-          @click="card.inline ? (inlineTab = card.key) : openDialog(card.key)"
+          @click="card.navigate ? $router.push(card.navigate) : (card.inline ? (inlineTab = card.key) : openDialog(card.key))"
         />
       </div>
 
@@ -198,22 +198,26 @@ const tabs = [
 // Card list with summary data
 const cardList = computed(() => {
   const s = summary.value
+  const stuCount = students.value?.length || 0
+  const maleCount = (students.value || []).filter(st => st.gender === '男').length
+  const femaleCount = (students.value || []).filter(st => st.gender === '女').length
   return [
     {
       key: 'summary', label: '班级概览', icon: '📋', inline: true,
       accent: '#5B92E5',
       stats: [
-        { label: '总人数', value: classInfo.value?.student_count ?? students.value?.length ?? '—' },
+        { label: '总人数', value: classInfo.value?.student_count ?? stuCount ?? 0 },
         { label: '挂科率', value: fmtPct(s?.fail_rate) }
       ]
     },
     {
-      key: 'students', label: '班级花名册', icon: '👥', inline: true,
+      key: 'students', label: '班级花名册', icon: '👥',
+      navigate: { name: 'students', query: { class_id: cid.value } },
       accent: '#8FA9E5',
       stats: [
-        { label: '总人数', value: students.value?.length ?? '—' },
-        { label: '男生', value: (students.value || []).filter(st => st.gender === '男').length || '—' },
-        { label: '女生', value: (students.value || []).filter(st => st.gender === '女').length || '—' }
+        { label: '总人数', value: stuCount || 0 },
+        { label: '男生', value: maleCount || 0 },
+        { label: '女生', value: femaleCount || 0 }
       ]
     },
     {
@@ -223,7 +227,7 @@ const cardList = computed(() => {
       badgeClass: (s?.fail_rate && s.fail_rate > 0.1) ? 'badge-red' : '',
       stats: [
         { label: '挂科率', value: fmtPct(s?.fail_rate) },
-        { label: '均分', value: s?.avg_score ? Number(s.avg_score).toFixed(1) : '—' }
+        { label: '均分', value: s?.avg_score ? Number(s.avg_score).toFixed(1) : '无' }
       ]
     },
     {
@@ -231,8 +235,8 @@ const cardList = computed(() => {
       accent: '#e06c75',
       stats: [
         { label: '党员', value: `${s?.party_member_count ?? 0}人` },
-        { label: '发展对象', value: `${s?.party_develop_count ?? '—'}人` },
-        { label: '团员', value: `${s?.league_member_count ?? '—'}人` }
+        { label: '发展对象', value: `${s?.party_develop_count ?? 0}人` },
+        { label: '团员', value: `${s?.league_member_count ?? 0}人` }
       ]
     },
     {
@@ -243,7 +247,7 @@ const cardList = computed(() => {
       stats: [
         { label: '红灯', value: `${s?.warning_red_count ?? 0}人` },
         { label: '黄灯', value: `${s?.warning_yellow_count ?? 0}人` },
-        { label: '绿灯', value: `${s?.warning_green_count ?? (students.value?.length - (s?.warning_red_count ?? 0) - (s?.warning_yellow_count ?? 0)) ?? '—'}人` }
+        { label: '绿灯', value: `${s?.warning_green_count ?? (stuCount - (s?.warning_red_count ?? 0) - (s?.warning_yellow_count ?? 0))}人` }
       ]
     },
     {
@@ -251,14 +255,14 @@ const cardList = computed(() => {
       accent: '#e6a23c',
       stats: [
         { label: '困难生', value: `${s?.hardship_count ?? 0}人` },
-        { label: '特殊困难', value: `${s?.special_hardship_count ?? '—'}人` }
+        { label: '特殊困难', value: `${s?.special_hardship_count ?? 0}人` }
       ]
     },
     {
       key: 'activities', label: '活动参与', icon: '🏃',
       accent: '#5B92E5',
       stats: [
-        { label: '活动总数', value: s?.activity_count ?? '—' },
+        { label: '活动总数', value: s?.activity_count ?? 0 },
         { label: '参与率', value: fmtPct(s?.activity_rate) }
       ]
     },
@@ -266,31 +270,31 @@ const cardList = computed(() => {
       key: 'featured', label: '特色活动', icon: '🌟',
       accent: '#8FA9E5',
       stats: [
-        { label: '特色项目', value: `${s?.featured_count ?? '—'}项` }
+        { label: '特色项目', value: `${s?.featured_count ?? 0}项` }
       ]
     },
     {
       key: 'branch', label: '党团支部', icon: '🏛️',
       accent: '#e06c75',
       stats: [
-        { label: '党支部', value: s?.party_branch_count ?? '—' },
-        { label: '团支部', value: s?.league_branch_count ?? '—' }
+        { label: '党支部', value: s?.party_branch_count ?? 0 },
+        { label: '团支部', value: s?.league_branch_count ?? 0 }
       ]
     },
     {
       key: 'daily', label: '班级大事记', icon: '📅',
       accent: '#4FC3B8',
       stats: [
-        { label: '事件数', value: s?.daily_count ?? '—' }
+        { label: '事件数', value: s?.daily_count ?? 0 }
       ]
     }
   ]
 })
 
 function fmtPct(v) {
-  if (v == null) return '—'
+  if (v == null) return '无'
   const n = Number(v)
-  if (Number.isNaN(n)) return '—'
+  if (Number.isNaN(n)) return '无'
   return (n > 1 ? n : n * 100).toFixed(1) + '%'
 }
 

@@ -16,7 +16,7 @@
           <span class="stat-label">{{ stat.label }}</span>
         </div>
         <div v-if="!stats.length" class="stat-item">
-          <span class="stat-value">—</span>
+          <span class="stat-value">无</span>
         </div>
       </div>
     </div>

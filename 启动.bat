@@ -1,10 +1,10 @@
 @echo off
 chcp 936 >nul
-title Air Counselor Workbench V6.8
+title Air Counselor Workbench V6.10
 cd /d "%~dp0"
 
 echo ================================================
-echo   Counselor Workbench V6.8 (Portable)
+echo   Counselor Workbench V6.10 (Portable)
 echo   http://127.0.0.1:5000
 echo ================================================
 echo.

@@ -294,8 +294,42 @@ def get_student_summary(student_id: int, db: Session = Depends(get_db)):
     hardship_level = hardship.hardship_level if hardship else '无'
 
     # 统计
+    # GPA计算
+    grade_records = db.query(GradeRecord).filter(GradeRecord.student_id == student_id).all()
+    gpa_val = None
+    fail_count = 0
+    if grade_records:
+        gpas = [g.gpa for g in grade_records if g.gpa is not None]
+        gpa_val = round(sum(gpas) / len(gpas), 2) if gpas else None
+        fail_count = sum(1 for g in grade_records if g.score is not None and g.score < 60)
+
+    # 时间线事件总数
+    timeline_count = 0
+    timeline_count += db.query(GradeRecord).filter(GradeRecord.student_id == student_id).count()
+    timeline_count += db.query(WarningRecord).filter(WarningRecord.student_id == student_id).count()
+    timeline_count += db.query(PartyProgress).filter(PartyProgress.student_id == student_id).count()
+    timeline_count += db.query(PsychologyRecord).filter(PsychologyRecord.student_id == student_id).count()
+    timeline_count += db.query(FamilyContact).filter(FamilyContact.student_id == student_id).count()
+    timeline_count += db.query(StudentStatusChange).filter(StudentStatusChange.student_id == student_id).count()
+    timeline_count += db.query(StudentLeave).filter(StudentLeave.student_id == student_id).count()
+    timeline_count += db.query(StudentDiscipline).filter(StudentDiscipline.student_id == student_id).count()
+    timeline_count += db.query(StudentHonor).filter(StudentHonor.student_id == student_id).count()
+
+    # 当前职务
+    cadre_record = db.query(StudentCadreRecord).filter(StudentCadreRecord.student_id == student_id)\
+        .order_by(desc(StudentCadreRecord.id)).first()
+    cadre_title = cadre_record.position if cadre_record else '无'
+
+    # 缺勤次数
+    absence_count = db.query(StudentAttendanceException).filter(
+        StudentAttendanceException.student_id == student_id).count()
+
+    # 奖学金数
+    scholarship_count = db.query(StudentScholarship).filter(
+        StudentScholarship.student_id == student_id).count()
+
     stats = {
-        'grade_count': db.query(GradeRecord).filter(GradeRecord.student_id == student_id).count(),
+        'grade_count': len(grade_records),
         'warning_count': len(warnings),
         'party_stage': party_stage,
         'psych_count': psych_count,
@@ -309,6 +343,13 @@ def get_student_summary(student_id: int, db: Session = Depends(get_db)):
         'discipline_count': db.query(StudentDiscipline).filter(StudentDiscipline.student_id == student_id).count(),
         'status_change_count': db.query(StudentStatusChange).filter(StudentStatusChange.student_id == student_id).count(),
         'project_count': db.query(ProjectStudent).filter(ProjectStudent.student_id == student_id).count(),
+        'gpa': gpa_val,
+        'fail_count': fail_count,
+        'timeline_count': timeline_count,
+        'volunteer_hours': 0,
+        'absence_count': absence_count,
+        'scholarship_count': scholarship_count,
+        'cadre_title': cadre_title,
     }
 
     return {
