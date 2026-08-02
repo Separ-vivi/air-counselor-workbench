@@ -15,19 +15,24 @@
 <script setup>
 import { markRaw } from 'vue'
 import {
-  UserFilled, School, OfficeBuilding, UploadFilled,
-  DataAnalysis, Warning, Flag, Sunny
+  UserFilled, School, UploadFilled,
+  DataAnalysis, Warning, Flag, Sunny,
+  ChatDotRound, Calendar, Money, Promotion
 } from '@element-plus/icons-vue'
 
 const shortcuts = [
-  { icon: markRaw(UserFilled),     label: '学生管理', to: '/students',        bg: 'rgba(91, 146, 229, 0.10)',  color: '#5B92E5' },
-  { icon: markRaw(School),         label: '班级管理', to: '/classes',         bg: 'rgba(79, 195, 184, 0.12)',  color: '#4FC3B8' },
-  { icon: markRaw(OfficeBuilding), label: '组织架构', to: '/org',             bg: 'rgba(143, 169, 229, 0.12)', color: '#7B92D6' },
-  { icon: markRaw(UploadFilled),   label: '智能导入', to: '/smart-import',    bg: 'rgba(123, 207, 203, 0.14)', color: '#5FB8AC' },
-  { icon: markRaw(DataAnalysis),   label: '成绩管理', to: '/module/grades',   bg: 'rgba(91, 146, 229, 0.10)',  color: '#5B92E5' },
-  { icon: markRaw(Warning),        label: '预警管理', to: '/module/warnings', bg: 'rgba(79, 195, 184, 0.12)',  color: '#4FC3B8' },
-  { icon: markRaw(Flag),           label: '党团发展', to: '/module/party',    bg: 'rgba(143, 169, 229, 0.12)', color: '#7B92D6' },
-  { icon: markRaw(Sunny),          label: '心理档案', to: '/module/psychology', bg: 'rgba(123, 207, 203, 0.14)', color: '#5FB8AC' }
+  { icon: markRaw(UserFilled),      label: '学生管理', to: '/students',            bg: 'rgba(91, 146, 229, 0.10)',  color: '#5B92E5' },
+  { icon: markRaw(School),          label: '班级管理', to: '/classes',             bg: 'rgba(79, 195, 184, 0.12)',  color: '#4FC3B8' },
+  { icon: markRaw(UploadFilled),    label: '智能导入', to: '/smart-import',        bg: 'rgba(123, 207, 203, 0.14)', color: '#5FB8AC' },
+  { icon: markRaw(DataAnalysis),    label: '成绩管理', to: '/module/grades',       bg: 'rgba(91, 146, 229, 0.10)',  color: '#5B92E5' },
+  { icon: markRaw(Warning),         label: '学业预警', to: '/module/warnings',     bg: 'rgba(245, 108, 108, 0.10)', color: '#E74C3C' },
+  { icon: markRaw(Flag),            label: '党团进程', to: '/module/party',        bg: 'rgba(143, 169, 229, 0.12)', color: '#7B92D6' },
+  { icon: markRaw(Sunny),           label: '心理关怀', to: '/module/psychology',   bg: 'rgba(123, 207, 203, 0.14)', color: '#5FB8AC' },
+  { icon: markRaw(ChatDotRound),    label: '学生访谈', to: '/module/interview',    bg: 'rgba(91, 146, 229, 0.10)',  color: '#5B92E5' },
+  { icon: markRaw(Calendar),        label: '查课考勤', to: '/module/attendance',   bg: 'rgba(79, 195, 184, 0.12)',  color: '#4FC3B8' },
+  { icon: markRaw(Money),           label: '奖助贷',   to: '/module/financial-aid', bg: 'rgba(230, 162, 60, 0.10)', color: '#E6A23C' },
+  { icon: markRaw(Promotion),       label: '综测成绩', to: '/module/comprehensive', bg: 'rgba(143, 169, 229, 0.12)', color: '#7B92D6' },
+  { icon: markRaw(DataAnalysis),    label: '学期报表', to: '/semester-report',     bg: 'rgba(123, 207, 203, 0.14)', color: '#5FB8AC' }
 ]
 </script>
 
@@ -40,8 +45,8 @@ const shortcuts = [
 }
 .shortcuts {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
 }
 .sc-item {
   padding: 14px 6px;

@@ -143,6 +143,8 @@ export const classTeachers = {
 
 /** 驾驶舱 */
 export const dashboard = () => http.get('/dashboard')
+/** V6.10: AI 智能预警 */
+export const aiWarnings = () => http.get('/dashboard/ai-warnings', { timeout: 30000 })
 
 /** 全局设置 */
 export const settings = {
@@ -217,7 +219,9 @@ export const interview = {
   coverage: () => http.get('/interview/coverage'),
   create: (data) => http.post('/interview/', data),
   update: (id, data) => http.put(`/interview/${id}`, data),
-  remove: (id) => http.delete(`/interview/${id}`)
+  remove: (id) => http.delete(`/interview/${id}`),
+  // V6.10: AI 摘要
+  aiSummary: (id) => http.post(`/interview/${id}/ai-summary`, null, { timeout: 30000 })
 }
 
 /** 学生（公共） */

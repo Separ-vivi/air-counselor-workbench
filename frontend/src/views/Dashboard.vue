@@ -6,7 +6,15 @@
 
     <ChartSection ref="chartSectionRef" :dash="dash" :week-events="weekEvents" @go-warning="goWarning" />
 
-    <EfficiencyCenter :prod-stats="prodStats" />
+    <!-- V6.11: AI 智能预警 + 效率中心并排 -->
+    <el-row :gutter="16" style="margin-bottom: 16px">
+      <el-col :span="12">
+        <AIWarningCard ref="aiWarningRef" />
+      </el-col>
+      <el-col :span="12">
+        <EfficiencyCenter :prod-stats="prodStats" />
+      </el-col>
+    </el-row>
 
     <ShortcutsGrid />
   </div>
@@ -26,9 +34,11 @@ import StatCards from './components/dashboard/StatCards.vue'
 import ChartSection from './components/dashboard/ChartSection.vue'
 import EfficiencyCenter from './components/dashboard/EfficiencyCenter.vue'
 import ShortcutsGrid from './components/dashboard/ShortcutsGrid.vue'
+import AIWarningCard from './components/dashboard/AIWarningCard.vue'
 
 const router = useRouter()
 const chartSectionRef = ref(null)
+const aiWarningRef = ref(null)
 
 const dash = ref({
   total_students: 0, total_classes: 0, total_majors: 0,
@@ -46,7 +56,7 @@ const statCards = ref([
   { label: '本月活动',       value: 0, icon: markRaw(Trophy),     bg: 'rgba(123, 207, 203, 0.16)', color: '#5FB8AC' }
 ])
 
-const goWarning = () => router.push('/module/warnings')
+const goWarning = () => router.push('/ai-warnings')
 
 onMounted(async () => {
   try {

@@ -285,3 +285,102 @@ def delete_interview(interview_id: int, db: Session = Depends(get_db)):
     db.commit()
     
     return {'message': '删除成功'}
+
+
+# ===== V6.10: AI 摘要接口 =====
+
+@router.post('/{interview_id}/ai-summary')
+def ai_summary(interview_id: int, db: Session = Depends(get_db)):
+    """V6.10: 调用 LLM 生成访谈 AI 摘要，结果缓存到数据库"""
+    import json as _json
+
+    item = db.query(StudentInterview).filter(StudentInterview.id == interview_id).first()
+    if not item:
+        raise HTTPException(404, '记录不存在')
+
+    # 如果已有缓存，直接返回
+    if item.ai_summary:
+        try:
+            cached = _json.loads(item.ai_summary)
+            if isinstance(cached, dict) and cached.get('summary'):
+                return {'cached': True, **cached}
+        except Exception:
+            pass
+
+    # 拼接谈话内容
+    content_parts = []
+    if item.topic:
+        content_parts.append(f'访谈主题：{item.topic}')
+    if item.content:
+        content_parts.append(f'访谈内容：{item.content}')
+    if item.feedback:
+        content_parts.append(f'学生反馈：{item.feedback}')
+    if item.follow_up:
+        content_parts.append(f'后续跟进：{item.follow_up}')
+
+    talk_content = '\n'.join(content_parts) if content_parts else '（无内容）'
+
+    # 调用 LLM
+    try:
+        from services.llm_adapter import LLMAdapter
+        llm = LLMAdapter()
+        if not llm.is_configured:
+            return {'error': 'AI功能未配置', 'message': '请在系统设置中配置 LLM API Key'}
+
+        student = item.student
+        prompt = f"""你是一位高校辅导员工作助手。请分析以下辅导员与学生的谈心记录，提取关键信息。
+
+学生姓名：{student.name if student else '未知'}
+访谈类型：{item.interview_type}
+访谈日期：{item.interview_date}
+
+{talk_content}
+
+请严格返回以下JSON格式（不要包含markdown代码块标记）：
+{{
+  "emotion": "学生情绪状态，从以下选择：平静/焦虑/低落/激动/积极/紧张/迷茫",
+  "issue_type": "问题类型，从以下选择：学业/生活/心理/人际/就业/经济/家庭/其他",
+  "follow_up": "后续跟进建议，一句话概括",
+  "summary": "100字以内的谈话摘要"
+}}"""
+
+        messages = [
+            {"role": "system", "content": "你是高校辅导员工作助手，擅长分析学生谈心记录。请始终返回有效的JSON格式。"},
+            {"role": "user", "content": prompt}
+        ]
+        result_text = llm.chat(messages)
+
+        # 清理可能的 markdown 代码块标记
+        cleaned = result_text.strip()
+        if cleaned.startswith('```'):
+            lines = cleaned.split('\n')
+            # 去掉首行 ```json 和末行 ```
+            if lines[0].startswith('```'):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == '```':
+                lines = lines[:-1]
+            cleaned = '\n'.join(lines)
+
+        parsed = _json.loads(cleaned)
+        result = {
+            'emotion': parsed.get('emotion', '未知'),
+            'issue_type': parsed.get('issue_type', '其他'),
+            'follow_up': parsed.get('follow_up', ''),
+            'summary': parsed.get('summary', ''),
+        }
+
+        # 缓存到数据库
+        item.ai_summary = _json.dumps(result, ensure_ascii=False)
+        db.commit()
+
+        return {'cached': False, **result}
+
+    except _json.JSONDecodeError as e:
+        logger.error(f"AI 摘要解析失败: {e}")
+        return {'error': 'AI返回格式异常', 'message': '请重试'}
+    except RuntimeError as e:
+        logger.error(f"AI 摘要调用失败: {e}")
+        return {'error': str(e)}
+    except Exception as e:
+        logger.error(f"AI 摘要未知错误: {e}")
+        return {'error': f'AI摘要生成失败：{e}'}

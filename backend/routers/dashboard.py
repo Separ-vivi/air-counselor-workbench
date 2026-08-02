@@ -156,3 +156,221 @@ def get_dashboard(
         'warnings': warnings_list,
         'recent_activities': recent_act_list,
     }
+
+
+# ===== V6.10: AI 智能预警 =====
+
+import json as _json
+import logging
+from models import StudentInterview, PsychologyRecord, StudentAttendanceException, StudentDiscipline
+
+_logger = logging.getLogger(__name__)
+
+# 简单的内存缓存（进程内，1小时过期）
+_ai_warnings_cache = {'data': None, 'ts': 0}
+_CACHE_TTL = 3600  # 1小时
+
+
+@router.get('/ai-warnings')
+def get_ai_warnings(db: Session = Depends(get_db)):
+    """V6.10: AI 智能预警 - 规则引擎 + LLM 增强分析"""
+    import time
+    now = time.time()
+
+    # 检查缓存
+    if _ai_warnings_cache['data'] and (now - _ai_warnings_cache['ts']) < _CACHE_TTL:
+        return {'cached': True, 'warnings': _ai_warnings_cache['data']}
+
+    warnings = []
+
+    # ===== 规则引擎：快速筛选 =====
+
+    # 1. 成绩预警 - 有 red 类型预警记录的学生
+    red_warnings = db.query(WarningRecord).filter(WarningRecord.warning_type == 'red').all()
+    red_student_ids = set(w.student_id for w in red_warnings)
+    for sid in red_student_ids:
+        student = db.query(Student).filter(Student.id == sid).first()
+        if student:
+            warnings.append({
+                'student_id': student.id,
+                'name': student.name,
+                'student_no': student.student_no,
+                'class_name': student.class_name,
+                'warning_type': '成绩预警',
+                'reason': '存在红色学业预警，多门课程不及格',
+                'severity': 'high',
+                'source': 'rule'
+            })
+
+    # 2. 缺勤过多 - 考勤异常>=1次（V6.11: 降低阈值，确保预警可见）
+    from sqlalchemy import func as sa_func
+    absence_rows = db.query(
+        StudentAttendanceException.student_id,
+        sa_func.count(StudentAttendanceException.id).label('cnt')
+    ).group_by(StudentAttendanceException.student_id).having(sa_func.count(StudentAttendanceException.id) >= 1).all()
+
+    for sid, cnt in absence_rows:
+        # 避免重复
+        if any(w['student_id'] == sid for w in warnings):
+            continue
+        student = db.query(Student).filter(Student.id == sid).first()
+        if student:
+            warnings.append({
+                'student_id': student.id,
+                'name': student.name,
+                'student_no': student.student_no,
+                'class_name': student.class_name,
+                'warning_type': '缺勤过多',
+                'reason': f'考勤异常 {cnt} 次（迟到/早退/旷课）',
+                'severity': 'medium' if cnt < 5 else 'high',
+                'source': 'rule'
+            })
+
+    # 3. 心理关注 - 有一级/二级关注等级的学生
+    psych_high = db.query(PsychologyRecord).filter(
+        PsychologyRecord.attention_level.in_(['一级关注', '二级关注'])
+    ).all()
+    psych_student_ids = set()
+    for rec in psych_high:
+        if rec.student_id in psych_student_ids:
+            continue
+        psych_student_ids.add(rec.student_id)
+        if any(w['student_id'] == rec.student_id for w in warnings):
+            continue
+        student = db.query(Student).filter(Student.id == rec.student_id).first()
+        if student:
+            warnings.append({
+                'student_id': student.id,
+                'name': student.name,
+                'student_no': student.student_no,
+                'class_name': student.class_name,
+                'warning_type': '心理关注',
+                'reason': f'心理关注等级：{rec.attention_level}',
+                'severity': 'high' if rec.attention_level == '一级关注' else 'medium',
+                'source': 'rule'
+            })
+
+    # 4. 纪律处分
+    discipline_records = db.query(StudentDiscipline).all()
+    disc_student_ids = set()
+    for rec in discipline_records:
+        if rec.student_id in disc_student_ids:
+            continue
+        disc_student_ids.add(rec.student_id)
+        if any(w['student_id'] == rec.student_id for w in warnings):
+            continue
+        student = db.query(Student).filter(Student.id == rec.student_id).first()
+        if student:
+            warnings.append({
+                'student_id': student.id,
+                'name': student.name,
+                'student_no': student.student_no,
+                'class_name': student.class_name,
+                'warning_type': '纪律处分',
+                'reason': f'处分类型：{getattr(rec, "discipline_type", "未知")}',
+                'severity': 'medium',
+                'source': 'rule'
+            })
+
+    # 5. 访谈标记"需跟进"的学生
+    follow_up_interviews = db.query(StudentInterview).filter(StudentInterview.status == '需跟进').all()
+    for item in follow_up_interviews:
+        if any(w['student_id'] == item.student_id for w in warnings):
+            continue
+        student = db.query(Student).filter(Student.id == item.student_id).first()
+        if student:
+            warnings.append({
+                'student_id': student.id,
+                'name': student.name,
+                'student_no': student.student_no,
+                'class_name': student.class_name,
+                'warning_type': '访谈待跟进',
+                'reason': f'访谈"{item.topic}"标记为需跟进',
+                'severity': 'medium',
+                'source': 'rule'
+            })
+
+    # ===== LLM 增强分析（可选）=====
+    llm_enhanced = False
+    if warnings:
+        try:
+            from services.llm_adapter import LLMAdapter
+            llm = LLMAdapter()
+            if llm.is_configured:
+                # 取前20条给 LLM 分析
+                sample = warnings[:20]
+                summary_lines = []
+                for i, w in enumerate(sample, 1):
+                    summary_lines.append(f"{i}. {w['name']}({w['student_no']}) - {w['warning_type']}: {w['reason']}")
+
+                prompt = f"""你是高校辅导员AI助手。以下学生存在需要关注的情况，请分析并给出：
+1. 按紧急程度排序建议（前3名最需要关注的学生）
+2. 给出一句整体工作建议
+
+学生列表：
+{chr(10).join(summary_lines)}
+
+请返回JSON格式：
+{{
+  "top_priority": [前3名学生姓名],
+  "advice": "整体工作建议（50字以内）"
+}}"""
+
+                messages = [
+                    {"role": "system", "content": "你是高校辅导员AI助手，擅长学生风险研判。请始终返回有效JSON。"},
+                    {"role": "user", "content": prompt}
+                ]
+                result_text = llm.chat(messages)
+
+                # 清理 markdown
+                cleaned = result_text.strip()
+                if cleaned.startswith('```'):
+                    lines = cleaned.split('\n')
+                    if lines[0].startswith('```'):
+                        lines = lines[1:]
+                    if lines and lines[-1].strip() == '```':
+                        lines = lines[:-1]
+                    cleaned = '\n'.join(lines)
+
+                llm_result = _json.loads(cleaned)
+                llm_enhanced = True
+
+                # 将 LLM 的建议附加到返回结果
+                ai_advice = llm_result.get('advice', '')
+                top_priority = llm_result.get('top_priority', [])
+
+                # 调整排序：top_priority 中的学生排前面
+                priority_set = set(top_priority)
+                if priority_set:
+                    warnings.sort(key=lambda w: (0 if w['name'] in priority_set else 1, {'high': 0, 'medium': 1, 'low': 2}.get(w['severity'], 3)))
+
+        except Exception as e:
+            _logger.warning(f"LLM 增强分析失败，降级为纯规则引擎: {e}")
+            ai_advice = ''
+            top_priority = []
+
+    # V6.11: 按严重程度排序（high > medium > low），返回完整列表
+    severity_order = {'high': 0, 'medium': 1, 'low': 2}
+    warnings.sort(key=lambda w: (severity_order.get(w['severity'], 3), w.get('name', '')))
+
+    high_count = sum(1 for w in warnings if w['severity'] == 'high')
+    medium_count = sum(1 for w in warnings if w['severity'] == 'medium')
+    low_count = sum(1 for w in warnings if w['severity'] == 'low')
+
+    # 构造返回结果 — V6.11: 返回完整预警列表，不再截断
+    result_data = {
+        'warnings': warnings,
+        'total': len(warnings),
+        'high_count': high_count,
+        'medium_count': medium_count,
+        'low_count': low_count,
+        'llm_enhanced': llm_enhanced,
+        'ai_advice': ai_advice if llm_enhanced else '',
+        'top_priority': top_priority if llm_enhanced else [],
+    }
+
+    # 缓存
+    _ai_warnings_cache['data'] = result_data
+    _ai_warnings_cache['ts'] = now
+
+    return {'cached': False, **result_data}

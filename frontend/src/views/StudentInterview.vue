@@ -172,7 +172,7 @@
     </el-dialog>
 
     <!-- 详情对话框 -->
-    <el-dialog v-model="detailVisible" title="访谈详情" width="600px">
+    <el-dialog v-model="detailVisible" title="访谈详情" width="720px">
       <el-descriptions :column="2" border>
         <el-descriptions-item label="学生">{{ detailData.student_name }}</el-descriptions-item>
         <el-descriptions-item label="学号">{{ detailData.student_no }}</el-descriptions-item>
@@ -188,6 +188,63 @@
         <el-descriptions-item label="后续跟进" :span="2">{{ detailData.follow_up }}</el-descriptions-item>
         <el-descriptions-item label="提醒日期">{{ detailData.remind_date }}</el-descriptions-item>
       </el-descriptions>
+      <!-- V6.11: AI 摘要卡片 — 增强入口可见性 -->
+      <div class="ai-summary-section">
+        <div class="ai-summary-header">
+          <span class="ai-summary-title">
+            <span class="ai-spark-icon">✨</span>
+            AI 智能摘要
+          </span>
+          <el-button 
+            type="primary" 
+            :loading="aiSummaryLoading"
+            @click="generateAiSummary"
+            :disabled="!detailData.content && !detailData.topic"
+          >
+            {{ aiSummaryData ? '🔄 重新生成' : '✨ 生成 AI 摘要' }}
+          </el-button>
+        </div>
+        
+        <div v-if="aiSummaryLoading" class="ai-summary-loading">
+          <div class="ai-loading-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <span>AI 正在分析谈话记录...</span>
+        </div>
+        
+        <div v-else-if="aiSummaryError" class="ai-summary-error">
+          <span>{{ aiSummaryError }}</span>
+          <el-button text size="small" @click="generateAiSummary">重试</el-button>
+        </div>
+        
+        <div v-else-if="aiSummaryData" class="ai-summary-card">
+          <div class="ai-tags-row">
+            <div class="ai-tag-item">
+              <span class="ai-tag-label">情绪状态</span>
+              <el-tag :type="getEmotionTagType(aiSummaryData.emotion)" effect="plain" round>{{ aiSummaryData.emotion }}</el-tag>
+            </div>
+            <div class="ai-tag-item">
+              <span class="ai-tag-label">问题类型</span>
+              <el-tag type="info" effect="plain" round>{{ aiSummaryData.issue_type }}</el-tag>
+            </div>
+          </div>
+          <div class="ai-summary-text">
+            <div class="ai-summary-label">摘要</div>
+            <div class="ai-summary-content">{{ aiSummaryData.summary }}</div>
+          </div>
+          <div class="ai-follow-up">
+            <div class="ai-summary-label">跟进建议</div>
+            <div class="ai-follow-up-content">{{ aiSummaryData.follow_up }}</div>
+          </div>
+          <div v-if="aiSummaryData.cached === false" class="ai-fresh-badge">✨ 刚刚生成</div>
+        </div>
+        
+        <div v-else class="ai-summary-empty">
+          <div class="ai-empty-hint">👆 点击上方「✨ 生成 AI 摘要」按钮</div>
+          <div class="ai-empty-desc">AI 将自动分析谈话内容，提取情绪状态、问题类型和跟进建议</div>
+        </div>
+      </div>
+
       <template #footer>
         <el-button @click="detailVisible = false">关闭</el-button>
         <el-button type="primary" @click="showEditDialog(detailData)">编辑</el-button>
@@ -201,6 +258,7 @@ import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as echarts from 'echarts'
 import { interview as interviewApi, students as studentsApi, semesterReport } from '@/api/modules'
+// V6.10: AI 摘要通过 interviewApi.aiSummary 调用
 import { useOrgStore } from '@/stores/org'
 import StudentSelect from '@/components/StudentSelect.vue'
 
@@ -506,6 +564,8 @@ const showEditDialog = (row) => {
 
 const showDetailDialog = (row) => {
   detailData.value = { ...row }
+  aiSummaryData.value = null
+  aiSummaryError.value = ''
   detailVisible.value = true
 }
 
@@ -545,6 +605,40 @@ const handleDelete = async (row) => {
       ElMessage.error('删除失败')
     }
   }
+}
+
+// V6.10: AI 摘要相关
+const aiSummaryLoading = ref(false)
+const aiSummaryData = ref(null)
+const aiSummaryError = ref('')
+
+const generateAiSummary = async () => {
+  if (!detailData.value?.id) return
+  aiSummaryLoading.value = true
+  aiSummaryError.value = ''
+  try {
+    const res = await interviewApi.aiSummary(detailData.value.id)
+    if (res?.error) {
+      aiSummaryError.value = res.message || res.error
+      aiSummaryData.value = null
+    } else {
+      aiSummaryData.value = res
+    }
+  } catch (e) {
+    aiSummaryError.value = 'AI 服务暂时不可用，请稍后重试'
+    aiSummaryData.value = null
+  } finally {
+    aiSummaryLoading.value = false
+  }
+}
+
+const getEmotionTagType = (emotion) => {
+  const map = {
+    '平静': 'success', '积极': 'success',
+    '焦虑': 'warning', '紧张': 'warning', '迷茫': 'warning',
+    '低落': 'danger', '激动': 'danger'
+  }
+  return map[emotion] || 'info'
 }
 
 onMounted(async () => {
@@ -593,4 +687,140 @@ const handleChartResize = () => {
 .chart-card { background: #fff; border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow-sm); }
 .chart-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
 .chart-body { width: 100%; height: 260px; }
+
+/* V6.11: AI 摘要样式 — 增强可见性 */
+.ai-summary-section {
+  margin-top: 18px;
+  padding: 18px;
+  background: linear-gradient(135deg, rgba(91, 146, 229, 0.08) 0%, rgba(123, 207, 203, 0.10) 100%);
+  border-radius: 14px;
+  border: 1.5px solid rgba(91, 146, 229, 0.25);
+  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.08);
+}
+.ai-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.ai-summary-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2E5A7F;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ai-spark-icon {
+  font-size: 18px;
+  animation: sparkle 2s ease-in-out infinite;
+}
+@keyframes sparkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.15); }
+}
+.ai-summary-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  justify-content: center;
+  color: #5B92E5;
+  font-size: 13px;
+}
+.ai-loading-dots {
+  display: flex;
+  gap: 4px;
+}
+.ai-loading-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5B92E5;
+  animation: aiDotPulse 1.2s infinite ease-in-out;
+}
+.ai-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.ai-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes aiDotPulse {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1.2); }
+}
+.ai-summary-error {
+  padding: 12px 16px;
+  background: rgba(245, 108, 108, 0.08);
+  border-radius: 8px;
+  color: #F56C6C;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ai-summary-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 4px rgba(91, 146, 229, 0.08);
+}
+.ai-tags-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 12px;
+}
+.ai-tag-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ai-tag-label {
+  font-size: 12px;
+  color: #7F8C8D;
+  font-weight: 500;
+}
+.ai-summary-label {
+  font-size: 12px;
+  color: #5B92E5;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.ai-summary-text {
+  margin-bottom: 10px;
+}
+.ai-summary-content {
+  font-size: 13px;
+  color: #2C3E50;
+  line-height: 1.6;
+  background: rgba(91, 146, 229, 0.04);
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+.ai-follow-up-content {
+  font-size: 13px;
+  color: #2C3E50;
+  line-height: 1.6;
+  background: rgba(123, 207, 203, 0.08);
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+.ai-fresh-badge {
+  text-align: right;
+  font-size: 11px;
+  color: #7BCFCB;
+  margin-top: 8px;
+}
+.ai-summary-empty {
+  text-align: center;
+  padding: 20px;
+  color: #7F8C8D;
+  font-size: 13px;
+}
+.ai-empty-hint {
+  font-size: 14px;
+  font-weight: 600;
+  color: #5B92E5;
+  margin-bottom: 6px;
+}
+.ai-empty-desc {
+  font-size: 12px;
+  color: #95A5A6;
+}
 </style>

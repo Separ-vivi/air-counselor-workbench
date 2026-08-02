@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">V6.10</div>
+        <div class="brand-ver">V6.11</div>
       </div>
     </div>
 
@@ -35,6 +35,7 @@
         <template #title><el-icon><Menu /></el-icon><span>业务模块</span></template>
         <el-menu-item index="/module/grades"><el-icon><Notebook /></el-icon><span>成绩管理</span></el-menu-item>
         <el-menu-item index="/module/warnings"><el-icon><WarningFilled /></el-icon><span>学业预警</span></el-menu-item>
+        <el-menu-item index="/ai-warnings"><el-icon><MagicStick /></el-icon><span>AI 智能预警</span></el-menu-item>
         <el-menu-item index="/module/party"><el-icon><Flag /></el-icon><span>党团发展</span></el-menu-item>
         <el-menu-item index="/module/psychology"><el-icon><Sunny /></el-icon><span>心理关怀</span></el-menu-item>
         <el-menu-item index="/module/interview"><el-icon><ChatDotSquare /></el-icon><span>学生访谈</span></el-menu-item>

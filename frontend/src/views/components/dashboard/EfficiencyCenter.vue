@@ -1,34 +1,31 @@
 <template>
-  <div>
-    <el-row :gutter="16" style="margin-bottom: 16px">
-      <el-col :span="24">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span class="ch-title">效率中心统计</span>
-              <el-button text type="primary" size="small" @click="$router.push('/notes')">查看便签</el-button>
-            </div>
-          </template>
-          <div class="prod-row">
-            <div class="prod-item" @click="openTodoDrawer">
-              <div class="prod-num warning">
-                {{ prodStats.todo_active }}
-                <span v-if="prodStats.todo_overdue > 0" class="prod-overdue">{{ prodStats.todo_overdue }}</span>
-              </div>
-              <div class="prod-label">待办中</div>
-            </div>
-            <div class="prod-item" @click="openUrgentDrawer">
-              <div class="prod-num danger">{{ prodStats.todo_urgent_week }}</div>
-              <div class="prod-label">一周内到期</div>
-            </div>
-            <div class="prod-item" @click="openProjectsDrawer">
-              <div class="prod-num success">{{ prodStats.projects_active }}</div>
-              <div class="prod-label">进行中项目</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+  <div class="efficiency-center">
+    <div class="ec-header">
+      <span class="ch-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B92E5" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;">
+          <path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+        效率中心
+      </span>
+      <el-button text type="primary" size="small" @click="$router.push('/notes')">查看便签</el-button>
+    </div>
+    <div class="prod-row">
+      <div class="prod-item" @click="openTodoDrawer">
+        <div class="prod-num warning">
+          {{ prodStats.todo_active }}
+          <span v-if="prodStats.todo_overdue > 0" class="prod-overdue">{{ prodStats.todo_overdue }}</span>
+        </div>
+        <div class="prod-label">待办中</div>
+      </div>
+      <div class="prod-item" @click="openUrgentDrawer">
+        <div class="prod-num danger">{{ prodStats.todo_urgent_week }}</div>
+        <div class="prod-label">一周内到期</div>
+      </div>
+      <div class="prod-item" @click="openProjectsDrawer">
+        <div class="prod-num success">{{ prodStats.projects_active }}</div>
+        <div class="prod-label">进行中项目</div>
+      </div>
+    </div>
 
     <!-- 抽屉: 待办中 -->
     <el-drawer v-model="drawerTodoOpen" title="待办中" size="480px" :with-header="true">
@@ -261,10 +258,19 @@ async function handleTodoToggle(t) {
 </script>
 
 <style scoped>
-.card-header {
+.efficiency-center {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid rgba(200, 215, 235, 0.55) !important;
+  background: linear-gradient(180deg, #FFFFFF 0%, #F3F8FE 100%) !important;
+  padding: 0;
+}
+.ec-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 12px 18px;
+  background: transparent;
+  border-bottom: 1px solid rgba(220, 226, 232, 0.5);
 }
 .ch-title {
   font-weight: 600;
@@ -272,29 +278,30 @@ async function handleTodoToggle(t) {
   color: #2E5A7F;
   letter-spacing: 0.4px;
 }
-.prod-row { display: flex; gap: 12px; align-items: stretch; }
+.prod-row { display: flex; gap: 10px; align-items: stretch; padding: 14px 18px; }
 .prod-item {
   flex: 1;
   text-align: center;
-  padding: 22px 8px;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, #FFFFFF 0%, #F3F8FE 100%);
-  border: 1px solid var(--shadow-sm);
+  padding: 14px 8px;
+  border-radius: 10px;
+  background: rgba(91, 146, 229, 0.04);
+  border: 1px solid rgba(200, 215, 235, 0.4);
   cursor: pointer;
   transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s;
 }
 .prod-item:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(91, 146, 229, 0.12);
+  border-color: rgba(160, 195, 225, 0.6);
 }
-.prod-num { position: relative; display: inline-flex; align-items: baseline; gap: 6px; font-size: 36px; font-weight: 800; color: #2E5A7F; letter-spacing: 0.5px; font-family: -apple-system, 'SF Pro Display', 'PingFang SC', sans-serif; }
+.prod-num { position: relative; display: inline-flex; align-items: baseline; gap: 4px; font-size: 28px; font-weight: 800; color: #2E5A7F; letter-spacing: 0.5px; font-family: -apple-system, 'SF Pro Display', 'PingFang SC', sans-serif; }
 .prod-num.warning { color: var(--color-primary); }
 .prod-num.danger  { color: var(--color-secondary); }
 .prod-num.success { color: var(--color-accent); }
-.prod-label { color: rgba(91, 146, 229, 0.65); font-size: 12px; margin-top: 6px; letter-spacing: 0.3px; font-weight: 500; }
+.prod-label { color: rgba(91, 146, 229, 0.65); font-size: 11px; margin-top: 4px; letter-spacing: 0.3px; font-weight: 500; }
 .prod-overdue {
-  font-size: 12px; font-weight: 600; color: #E74C3C;
-  background: rgba(231, 76, 60, 0.10); padding: 2px 6px; border-radius: 10px;
+  font-size: 11px; font-weight: 600; color: #E74C3C;
+  background: rgba(231, 76, 60, 0.10); padding: 2px 5px; border-radius: 8px;
   line-height: 1.2; letter-spacing: 0.3px;
 }
 /* 抽屉样式 */

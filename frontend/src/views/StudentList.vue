@@ -288,7 +288,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Upload, Download, Refresh, Edit } from '@element-plus/icons-vue'
@@ -551,13 +551,28 @@ const exportAll = async () => {
 
 onMounted(async () => {
   if (!orgStore.orgTree.length) await orgStore.loadTree().catch(() => {})
+  // V6.11: 等待 nextTick 确保 computed(allClasses) 刷新
+  await nextTick()
   loadAllTags()
-  // V6.9: 支持从班级360跳转时自动筛选班级
+  // V6.11: 支持从班级360跳转时自动筛选班级（增强版）
   const queryClassId = route.query.class_id
   if (queryClassId) {
     const classItem = orgStore.allClasses.find(c => String(c.id) === String(queryClassId))
     if (classItem) {
       filters.class_name = classItem.name
+      await nextTick() // 确保 filter 赋值后视图更新
+    } else {
+      // 兜底：组织树可能尚未加载完，监听 system-reinit-done 后再查一次
+      const retryHandler = async () => {
+        const retryItem = orgStore.allClasses.find(c => String(c.id) === String(queryClassId))
+        if (retryItem) {
+          filters.class_name = retryItem.name
+          await nextTick()
+          reload()
+        }
+        window.removeEventListener('system-reinit-done', retryHandler)
+      }
+      window.addEventListener('system-reinit-done', retryHandler)
     }
   }
   reload()

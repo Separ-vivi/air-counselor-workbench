@@ -42,6 +42,7 @@ const routes = [
   { path: '/module/comprehensive',    name: 'comprehensive',    component: () => import('@/views/ComprehensiveAssessment.vue'), meta: { title: '综测成绩' } },
   { path: '/module/interview',        name: 'interview',        component: () => import('@/views/StudentInterview.vue'),        meta: { title: '学生访谈' } },
   { path: '/module/attendance',        name: 'attendance',       component: () => import('@/views/modules/AttendanceModule.vue'),   meta: { title: '查课考勤' } },
+  { path: '/ai-warnings',              name: 'aiWarnings',       component: () => import('@/views/AIWarningPage.vue'),              meta: { title: 'AI 智能预警' } },
   { path: '/system',           name: 'system',           component: () => import('@/views/SystemSettings.vue'),     meta: { title: '系统设置' } },
 
   { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
@@ -53,7 +54,7 @@ const router = createRouter({
 })
 
 router.afterEach((to) => {
-  document.title = `${to.meta?.title || '辅导员工作平台'} · V6.10`
+  document.title = `${to.meta?.title || '辅导员工作平台'} · V6.11`
 })
 
 export default router

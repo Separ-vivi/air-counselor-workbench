@@ -743,6 +743,9 @@ class StudentInterview(Base):
     status = Column(String(20), default='已完成')  # 待进行/已完成/需跟进
     remind_date = Column(String(20), default='')  # 提醒日期（用于跟进）
     
+    # V6.10: AI 摘要缓存
+    ai_summary = Column(Text, default='')  # AI 生成的摘要 JSON
+    
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     
