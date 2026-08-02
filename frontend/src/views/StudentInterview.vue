@@ -3,6 +3,9 @@
     <div class="page-header">
       <h2>学生访谈管理</h2>
       <div class="page-actions">
+        <el-button type="success" @click="batchGenerateAi" :loading="batchAiLoading" :disabled="!pendingAiRows.length">
+          ✨ 批量 AI 分析 ({{ pendingAiRows.length }})
+        </el-button>
         <el-button type="primary" @click="showAddDialog">新增记录</el-button>
       </div>
     </div>
@@ -102,9 +105,20 @@
             <el-tag :type="getStatusTagType(row.status)" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="AI 状态" width="100" align="center">
           <template #default="{ row }">
-            <el-button size="small" @click="showDetailDialog(row)">详情</el-button>
+            <template v-if="row.ai_summary">
+              <el-tag type="success" size="small" effect="plain" round>
+                {{ getAiEmotion(row.ai_summary) }}
+              </el-tag>
+            </template>
+            <span v-else class="ai-pending-tag">待分析</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="220" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" @click="showDetailDialog(row)">🔍 详情</el-button>
+            <el-button v-if="row.content || row.topic" size="small" :loading="row._aiLoading" @click="quickAiSummary(row)" class="ai-quick-btn">✨ AI</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -196,12 +210,14 @@
             AI 智能摘要
           </span>
           <el-button 
+            class="ai-gen-btn"
             type="primary" 
             :loading="aiSummaryLoading"
             @click="generateAiSummary"
             :disabled="!detailData.content && !detailData.topic"
           >
-            {{ aiSummaryData ? '🔄 重新生成' : '✨ 生成 AI 摘要' }}
+            <span v-if="!aiSummaryLoading" class="btn-spark">✨</span>
+            {{ aiSummaryData ? '🔄 重新生成 AI 摘要' : '✨ 生成 AI 摘要' }}
           </el-button>
         </div>
         
@@ -433,7 +449,7 @@ const initCharts = () => {
         radius: ['40%', '65%'],
         center: ['50%', '45%'],
         avoidLabelOverlap: true,
-        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+        itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
         label: { show: false },
         emphasis: { label: { show: true, fontSize: 13, fontWeight: 'bold' } },
         data: typeData.length ? typeData : [{ name: '暂无数据', value: 0 }]
@@ -632,6 +648,57 @@ const generateAiSummary = async () => {
   }
 }
 
+// V6.12: AI 状态辅助函数
+const batchAiLoading = ref(false)
+
+const getAiEmotion = (aiSummaryStr) => {
+  try {
+    const data = typeof aiSummaryStr === 'string' ? JSON.parse(aiSummaryStr) : aiSummaryStr
+    return data?.emotion || '已分析'
+  } catch { return '已分析' }
+}
+
+const pendingAiRows = computed(() => {
+  return filteredData.value.filter(r => !r.ai_summary && (r.content || r.topic))
+})
+
+const quickAiSummary = async (row) => {
+  if (!row.id) return
+  row._aiLoading = true
+  try {
+    const res = await interviewApi.aiSummary(row.id)
+    if (res && !res.error) {
+      row.ai_summary = JSON.stringify(res)
+      ElMessage.success(`${row.student_name} AI 摘要生成成功`)
+    } else {
+      ElMessage.warning(res?.message || 'AI 分析失败')
+    }
+  } catch (e) {
+    ElMessage.error('AI 服务暂时不可用')
+  } finally {
+    row._aiLoading = false
+  }
+}
+
+const batchGenerateAi = async () => {
+  const rows = pendingAiRows.value.slice(0, 10) // 最多批量10条
+  if (!rows.length) { ElMessage.info('没有需要分析的访谈记录'); return }
+  batchAiLoading.value = true
+  let success = 0
+  for (const row of rows) {
+    try {
+      row._aiLoading = true
+      const res = await interviewApi.aiSummary(row.id)
+      if (res && !res.error) {
+        row.ai_summary = JSON.stringify(res)
+        success++
+      }
+    } catch {} finally { row._aiLoading = false }
+  }
+  batchAiLoading.value = false
+  ElMessage.success(`批量 AI 分析完成：${success}/${rows.length} 条成功`)
+}
+
 const getEmotionTagType = (emotion) => {
   const map = {
     '平静': 'success', '积极': 'success',
@@ -673,22 +740,64 @@ const handleChartResize = () => {
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .page-header h2 { margin: 0; color: var(--text-primary); }
 .page-actions { display: flex; align-items: center; }
-.stats-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 20px; }
-.stat-card { background: #fff; border-radius: var(--radius-md); padding: 20px; text-align: center; box-shadow: var(--shadow-sm); }
-.stat-label { font-size: 13px; color: #7F8C8D; margin-bottom: 8px; }
-.stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+/* V6.12 统一规范 */
+.stats-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 16px; }
+.stat-card {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F3F8FE 100%);
+  border: 1px solid rgba(200, 215, 235, 0.55);
+  border-radius: 12px;
+  padding: 18px 14px;
+  text-align: center;
+  transition: all 0.25s;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(91,146,229,0.12); }
+.stat-label { font-size: 12px; color: #7F8C8D; margin-bottom: 4px; font-weight: 500; }
+.stat-value { font-size: 24px; font-weight: 800; line-height: 1.2; color: #2C3E50; font-family: -apple-system, 'SF Pro Display', 'PingFang SC', sans-serif; }
 .stat-value.pending { color: #E6A23C; }
 .stat-value.done { color: #67C23A; }
 .stat-value.follow { color: #F56C6C; }
 .stat-value.coverage { color: var(--color-primary); }
 .stat-sub { font-size: 11px; color: #7F8C8D; margin-top: 4px; }
-.table-container { background: #fff; border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm); }
-.charts-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
-.chart-card { background: #fff; border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow-sm); }
-.chart-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+/* V6.12 统一表格容器 */
+.table-container {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F6FAFE 100%);
+  border: 1px solid rgba(200, 215, 235, 0.55);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.05);
+}
+/* V6.12 统一图表 */
+.charts-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+.chart-card {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F6FAFE 100%);
+  border: 1px solid rgba(200, 215, 235, 0.55);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.05);
+}
+.chart-title { font-size: 14px; font-weight: 600; color: #2E5A7F; margin-bottom: 10px; letter-spacing: 0.3px; }
 .chart-body { width: 100%; height: 260px; }
 
 /* V6.11: AI 摘要样式 — 增强可见性 */
+.ai-gen-btn {
+  background: linear-gradient(135deg, #5B92E5 0%, #7BCFCB 100%) !important;
+  border: none !important;
+  border-radius: 20px !important;
+  padding: 10px 24px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 14px rgba(91, 146, 229, 0.35) !important;
+  transition: all 0.3s ease !important;
+}
+.ai-gen-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(91, 146, 229, 0.45) !important;
+}
+.btn-spark {
+  display: inline-block;
+  animation: sparkle 1.5s ease-in-out infinite;
+}
 .ai-summary-section {
   margin-top: 18px;
   padding: 18px;
@@ -822,5 +931,26 @@ const handleChartResize = () => {
 .ai-empty-desc {
   font-size: 12px;
   color: #95A5A6;
+}
+/* V6.12: AI 列表状态标签 */
+.ai-pending-tag {
+  font-size: 11px;
+  color: #AAB5C0;
+  background: rgba(170, 181, 192, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.ai-quick-btn {
+  background: linear-gradient(135deg, #5B92E5 0%, #7BCFCB 100%) !important;
+  border: none !important;
+  color: #fff !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  padding: 5px 10px !important;
+}
+.ai-quick-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 </style>

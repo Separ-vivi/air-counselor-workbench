@@ -297,7 +297,7 @@ const initCharts = () => {
       series: [{
         type: 'bar', barWidth: '50%',
         data: grantData.map(i => i.amount),
-        itemStyle: { borderRadius: [4, 4, 0, 0] },
+        itemStyle: { borderRadius: 8 },
         label: { show: true, position: 'top', formatter: p => p.value > 0 ? '¥' + (p.value >= 10000 ? (p.value / 10000).toFixed(1) + '万' : p.value) : '' },
       }],
     })
@@ -412,7 +412,8 @@ onBeforeUnmount(() => {
 }
 
 /* 统计卡片 */
-.stats-cards { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 16px; }
+/* V6.12 统一规范：6卡片分两行3+3 */
+.stats-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
 .stat-card {
   background: #fff; border-radius: var(--radius-md); padding: 16px 18px;
   display: flex; align-items: center; gap: 12px;

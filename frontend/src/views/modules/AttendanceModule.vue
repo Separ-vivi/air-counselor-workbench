@@ -334,7 +334,7 @@ const renderPieChart = () => {
       radius: ['40%', '68%'],
       center: ['50%', '45%'],
       avoidLabelOverlap: true,
-      itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+      itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
       label: { show: false },
       emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
       data
@@ -513,8 +513,12 @@ onBeforeUnmount(() => {
 .page-actions { display: flex; gap: 8px; }
 
 /* 统计卡片 */
+/* V6.12 统一规范 */
 .stats-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
 .stat-card {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F3F8FE 100%);
+  border: 1px solid rgba(200, 215, 235, 0.55);
+  border-radius: 12px;
   background: #fff; border-radius: var(--radius-md); padding: 18px 20px;
   display: flex; align-items: center; gap: 14px;
   box-shadow: var(--shadow-sm);

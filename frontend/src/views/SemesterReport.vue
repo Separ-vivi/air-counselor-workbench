@@ -413,7 +413,7 @@ const renderWarningChart = () => {
       data: data.map(d => ({
         name: d.level_label,
         value: d.count,
-        itemStyle: { color: colorMap[d.level] || '#95A5A6' }
+        itemStyle: { color: colorMap[d.level] || '#95A5A6', borderRadius: 8, borderColor: '#fff', borderWidth: 2 }
       }))
     }]
   })
@@ -438,7 +438,7 @@ const renderAttendanceTypeChart = () => {
       data: Object.entries(data).map(([name, value]) => ({
         name,
         value,
-        itemStyle: { color: colorMap[name] || '#5B92E5' }
+        itemStyle: { color: colorMap[name] || '#5B92E5', borderRadius: 8, borderColor: '#fff', borderWidth: 2 }
       }))
     }]
   })

@@ -240,7 +240,7 @@ const initLevelDist = (data) => {
       radius: ['40%', '70%'],
       center: ['40%', '50%'],
       avoidLabelOverlap: true,
-      itemStyle: { borderRadius: 6, borderColor: '#ECF1F7', borderWidth: 2 },
+      itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
       label: { show: true, formatter: '{b}\n{c}人', color: '#5A6B80', fontSize: 11 },
       labelLine: { lineStyle: { color: '#B0C4DE' } },
       emphasis: {
@@ -646,9 +646,24 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
   padding-left: 4px;
 }
-.stat-card { border-radius: var(--radius-md); text-align: center; }
-.stat-card .stat-label { color: var(--text-muted); font-size: 13px; margin-bottom: 8px; }
-.stat-card .stat-value { font-size: 24px; font-weight: 600; }
+/* V6.12 统一规范 */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F3F8FE 100%);
+  border: 1px solid rgba(200, 215, 235, 0.55);
+  border-radius: 12px;
+  padding: 16px 10px;
+  text-align: center;
+  transition: all 0.25s;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(91,146,229,0.12); }
+.stat-label { font-size: 12px; color: #7F8C8D; margin-bottom: 4px; font-weight: 500; }
+.stat-value { font-size: 24px; font-weight: 800; line-height: 1.2; font-family: -apple-system, 'SF Pro Display', 'PingFang SC', sans-serif; }
 .chart-container {
   width: 100%;
   height: 220px;

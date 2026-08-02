@@ -154,7 +154,7 @@ function renderCharts() {
       series: [{
         type: 'pie', radius: ['55%', '78%'], center: ['50%', '45%'],
         avoidLabelOverlap: false,
-        itemStyle: { borderRadius: 6, borderColor: '#FFFFFF', borderWidth: 2 },
+        itemStyle: { borderRadius: 8, borderColor: '#FFFFFF', borderWidth: 2 },
         label: { show: true, position: 'center', formatter: () => `{a|${props.dash.total_students}}\n{b|全体学生}`, rich: { a:{fontSize:28,fontWeight:700,color:'#2E5A7F'}, b:{fontSize:12,color:'#8FA9E5',padding:[4,0,0,0]} } },
         labelLine: { show: false },
         data: [
@@ -176,7 +176,7 @@ function renderCharts() {
       series: [{
         type: 'pie', radius: ['55%', '78%'], center: ['50%', '45%'],
         avoidLabelOverlap: false,
-        itemStyle: { borderRadius: 6, borderColor: '#FFFFFF', borderWidth: 2 },
+        itemStyle: { borderRadius: 8, borderColor: '#FFFFFF', borderWidth: 2 },
         label: { show: true, position: 'center', formatter: () => `{a|${md.length}}\n{b|专业数}`, rich: { a:{fontSize:28,fontWeight:700,color:'#2E5A7F'}, b:{fontSize:12,color:'#8FA9E5',padding:[4,0,0,0]} } },
         labelLine: { show: false },
         data: md.map((x, i) => ({ value: x.value, name: x.name, itemStyle: { color: iceMintColors[i % iceMintColors.length] } }))

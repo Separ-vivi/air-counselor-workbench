@@ -268,7 +268,7 @@ const renderCharts = () => {
       series: [{
         type: 'pie', radius: ['40%', '68%'], center: ['50%', '45%'],
         avoidLabelOverlap: true,
-        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+        itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
         label: { show: false },
         emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
         data
@@ -525,9 +525,24 @@ onBeforeUnmount(() => {
 .module-page { padding: 4px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
-.stat-card { border-radius: var(--radius-md); text-align: center; }
-.stat-label { color: var(--text-muted); font-size: 13px; margin-bottom: 8px; }
-.stat-value { font-size: 26px; font-weight: 600; }
+/* V6.12 统一规范 */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F3F8FE 100%);
+  border: 1px solid rgba(200, 215, 235, 0.55);
+  border-radius: 12px;
+  padding: 16px 10px;
+  text-align: center;
+  transition: all 0.25s;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(91,146,229,0.12); }
+.stat-label { font-size: 12px; color: #7F8C8D; margin-bottom: 4px; font-weight: 500; }
+.stat-value { font-size: 24px; font-weight: 800; line-height: 1.2; font-family: -apple-system, 'SF Pro Display', 'PingFang SC', sans-serif; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
 
 /* 图表区域 */

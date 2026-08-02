@@ -11,7 +11,7 @@
         <el-tag v-if="llmEnhanced" type="success" size="small" effect="plain" round>AI 增强分析</el-tag>
       </div>
       <div class="header-right">
-        <el-button @click="refreshWarnings" :loading="loading" :icon="Refresh">刷新分析</el-button>
+        <el-button @click="refreshWarnings(true)" :loading="loading" :icon="Refresh">刷新分析</el-button>
         <el-button type="primary" :icon="Download" @click="exportCSV" :disabled="!filteredWarnings.length">导出 CSV</el-button>
       </div>
     </div>
@@ -249,19 +249,21 @@ const goStudent = (sid) => {
   if (sid) router.push(`/students/${sid}`)
 }
 
-const refreshWarnings = async () => {
+const refreshWarnings = async (force = false) => {
   loading.value = true
   error.value = ''
   try {
-    const res = await aiWarnings()
-    warnings.value = res?.warnings || []
-    highCount.value = res?.high_count || 0
-    mediumCount.value = res?.medium_count || 0
-    lowCount.value = res?.low_count || 0
-    totalCount.value = res?.total || 0
-    llmEnhanced.value = res?.llm_enhanced || false
-    aiAdvice.value = res?.ai_advice || ''
-    topPriority.value = res?.top_priority || []
+    const res = await aiWarnings(force)
+    // V6.11hotfix: 兼容缓存和非缓存两种返回结构
+    const data = res?.warnings && !Array.isArray(res.warnings) ? res.warnings : res
+    warnings.value = Array.isArray(data?.warnings) ? data.warnings : []
+    highCount.value = data?.high_count || 0
+    mediumCount.value = data?.medium_count || 0
+    lowCount.value = data?.low_count || 0
+    totalCount.value = data?.total || 0
+    llmEnhanced.value = data?.llm_enhanced || false
+    aiAdvice.value = data?.ai_advice || ''
+    topPriority.value = data?.top_priority || []
   } catch (e) {
     error.value = 'AI 预警服务暂时不可用'
     warnings.value = []
@@ -294,7 +296,7 @@ const exportCSV = () => {
 }
 
 onMounted(() => {
-  refreshWarnings()
+  refreshWarnings(true)  // V6.11hotfix: 首次加载强制刷新
 })
 </script>
 
@@ -355,6 +357,7 @@ onMounted(() => {
   gap: 12px;
   margin-bottom: 16px;
 }
+/* V6.12 统一规范 */
 .stat-card {
   flex: 1;
   text-align: center;
@@ -376,8 +379,9 @@ onMounted(() => {
 .stat-card.low { border-left: 3px solid #67C23A; }
 .stat-card.total { border-left: 3px solid #5B92E5; }
 .sc-icon { font-size: 18px; margin-bottom: 4px; }
+/* V6.12 统一数字字体 */
 .sc-num {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 800;
   line-height: 1.2;
   font-family: -apple-system, 'SF Pro Display', 'PingFang SC', sans-serif;

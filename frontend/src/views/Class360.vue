@@ -212,7 +212,7 @@ const cardList = computed(() => {
     },
     {
       key: 'students', label: '班级花名册', icon: '👥',
-      navigate: { name: 'students', query: { class_id: cid.value } },
+      navigate: cid.value ? { name: 'students', query: { class_id: cid.value } } : null,
       accent: '#8FA9E5',
       stats: [
         { label: '总人数', value: stuCount || 0 },

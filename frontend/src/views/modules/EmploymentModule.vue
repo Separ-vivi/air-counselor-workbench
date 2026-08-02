@@ -272,7 +272,9 @@ onMounted(reload)
 .module-page { padding: 4px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 22px; color: #303133; }
-.stat-card { border-radius: var(--radius-md); text-align: center; }
-.stat-label { color: var(--text-muted); font-size: 13px; margin-bottom: 6px; }
-.stat-value { font-size: 22px; font-weight: 600; }
+/* V6.12 统一规范 */
+.stat-card { border-radius: 12px !important; }
+.stat-card :deep(.el-card__body) { padding: 16px !important; text-align: center; }
+.stat-label { font-size: 12px; color: #7F8C8D; margin-bottom: 4px; font-weight: 500; }
+.stat-value { font-size: 24px; font-weight: 800; line-height: 1.2; font-family: -apple-system, 'SF Pro Display', 'PingFang SC', sans-serif; }
 </style>

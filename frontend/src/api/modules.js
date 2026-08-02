@@ -144,7 +144,7 @@ export const classTeachers = {
 /** 驾驶舱 */
 export const dashboard = () => http.get('/dashboard')
 /** V6.10: AI 智能预警 */
-export const aiWarnings = () => http.get('/dashboard/ai-warnings', { timeout: 30000 })
+export const aiWarnings = (force = false) => http.get('/dashboard/ai-warnings', { params: { force: force ? 1 : undefined }, timeout: 30000 })
 
 /** 全局设置 */
 export const settings = {

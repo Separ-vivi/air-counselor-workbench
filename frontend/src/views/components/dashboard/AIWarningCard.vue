@@ -9,7 +9,7 @@
       </span>
       <div class="awc-actions">
         <el-tag v-if="llmEnhanced" type="success" size="small" effect="plain" round>AI 增强</el-tag>
-        <el-button text type="primary" size="small" @click="refreshWarnings" :loading="loading">
+        <el-button text type="primary" size="small" @click="refreshWarnings(true)" :loading="loading">
           {{ loading ? '分析中...' : '刷新' }}
         </el-button>
         <el-button text type="primary" size="small" @click="$router.push('/ai-warnings')">
@@ -33,7 +33,10 @@
     <!-- Empty -->
     <div v-else-if="!totalCount" class="ai-empty">
       <span class="empty-icon">✅</span>
-      <span>暂无预警，所有学生状态良好</span>
+      <div class="ai-empty-text">
+        <span>暂无预警，所有学生状态良好</span>
+        <span class="ai-empty-hint">AI 将持续监控学业、考勤、心理等数据</span>
+      </div>
     </div>
 
     <!-- Summary Stats -->
@@ -105,18 +108,20 @@ const goStudent = (sid) => {
   if (sid) router.push(`/students/${sid}`)
 }
 
-const refreshWarnings = async () => {
+const refreshWarnings = async (force = false) => {
   loading.value = true
   error.value = ''
   try {
-    const res = await aiWarnings()
-    warnings.value = res?.warnings || []
-    highCount.value = res?.high_count || 0
-    mediumCount.value = res?.medium_count || 0
-    lowCount.value = res?.low_count || 0
-    totalCount.value = res?.total || 0
-    llmEnhanced.value = res?.llm_enhanced || false
-    aiAdvice.value = res?.ai_advice || ''
+    const res = await aiWarnings(force)
+    // V6.11hotfix: 兼容缓存和非缓存两种返回结构
+    const data = res?.warnings && !Array.isArray(res.warnings) ? res.warnings : res
+    warnings.value = Array.isArray(data?.warnings) ? data.warnings : []
+    highCount.value = data?.high_count || 0
+    mediumCount.value = data?.medium_count || 0
+    lowCount.value = data?.low_count || 0
+    totalCount.value = data?.total || 0
+    llmEnhanced.value = data?.llm_enhanced || false
+    aiAdvice.value = data?.ai_advice || ''
   } catch (e) {
     error.value = 'AI 预警服务暂时不可用'
     warnings.value = []
@@ -126,7 +131,7 @@ const refreshWarnings = async () => {
 }
 
 onMounted(() => {
-  refreshWarnings()
+  refreshWarnings(true)  // V6.11hotfix: 首次加载强制刷新
 })
 
 defineExpose({ refreshWarnings })
@@ -197,6 +202,15 @@ defineExpose({ refreshWarnings })
   justify-content: center;
 }
 .empty-icon { font-size: 24px; }
+.ai-empty-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ai-empty-hint {
+  font-size: 11px;
+  color: #AAB5C0;
+}
 
 /* AI Advice */
 .ai-advice {
