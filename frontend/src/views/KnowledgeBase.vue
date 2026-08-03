@@ -53,30 +53,52 @@
           <div class="col-chat">
             <div class="col-head">
               <span class="col-title">AI 助手</span>
-              <el-button size="small" text @click="chatList = []">清空</el-button>
+              <div class="col-head-actions">
+                <el-tag v-if="chatList.length" size="small" round type="info">{{ chatList.filter(m => m.role === 'user').length }} 轮对话</el-tag>
+                <el-button size="small" text @click="chatList = []">清空</el-button>
+              </div>
             </div>
 
-            <div v-loading="chatLoading" class="chat-area">
+            <div v-loading="chatLoading" class="chat-area" ref="chatAreaRef">
               <div v-if="chatList.length === 0" class="chat-empty">
-                <div class="empty-icon" style="font-size:28px;color: var(--color-primary)">?</div>
-                <div>试试提问：</div>
-                <div class="empty-suggest" v-for="q in suggestions" :key="q" @click="onAsk(q)">"{{ q }}"</div>
-              </div>
-              <div v-for="(m, i) in chatList" :key="i" class="chat-msg" :class="m.role">
-                <div class="msg-role">{{ m.role === 'user' ? '你' : 'AI' }}</div>
-                <div class="msg-body">
-                  <div class="msg-text">{{ m.content }}</div>
-                  <div v-if="m.sources?.length" class="msg-sources">
-                    <div class="src-label">引用来源：</div>
-                    <div v-for="(s, si) in m.sources" :key="si" class="src-item" @click="jumpToChunk(s)">
-                      · {{ s.doc_title }} <span class="src-snippet">…{{ s.snippet?.slice(0, 60) }}…</span>
-                    </div>
+                <div class="empty-icon-big">🤖</div>
+                <div class="empty-title">AI 知识库助手</div>
+                <div class="empty-desc">基于上传的文档进行智能问答</div>
+                <div class="empty-suggests">
+                  <div class="empty-suggest" v-for="q in suggestions" :key="q" @click="onAsk(q)">
+                    <span class="suggest-icon">💡</span>
+                    <span>{{ q }}</span>
                   </div>
                 </div>
               </div>
+              <div v-for="(m, i) in chatList" :key="i" class="chat-msg" :class="m.role">
+                <div class="msg-avatar">
+                  <span v-if="m.role === 'user'">👤</span>
+                  <span v-else>🤖</span>
+                </div>
+                <div class="msg-body">
+                  <div class="msg-text" v-html="formatMsg(m.content)"></div>
+                  <div v-if="m.sources?.length" class="msg-sources">
+                    <div class="src-label">📎 引用来源：</div>
+                    <div v-for="(s, si) in m.sources" :key="si" class="src-item" @click="jumpToChunk(s)">
+                      <span class="src-icon">📄</span>
+                      <span class="src-title">{{ s.doc_title }}</span>
+                      <span class="src-snippet">…{{ s.snippet?.slice(0, 40) }}…</span>
+                    </div>
+                  </div>
+                  <div class="msg-time">{{ m.time || '' }}</div>
+                </div>
+              </div>
               <div v-if="chatLoading" class="chat-msg assistant typing">
-                <div class="msg-role">AI</div>
-                <div class="msg-body"><span class="typing-dots">思考中...</span></div>
+                <div class="msg-avatar"><span>🤖</span></div>
+                <div class="msg-body">
+                  <div class="typing-indicator">
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                    <span class="typing-text">AI 思考中...</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -256,6 +278,30 @@ const chatList = ref([])
 const chatLoading = ref(false)
 const highlightChunk = ref(null)
 const expandedChunks = ref(new Set())
+const chatAreaRef = ref(null)
+
+// V6.14: 格式化消息内容（简单markdown支持）
+function formatMsg(text) {
+  if (!text) return ''
+  let html = text
+    // 转义HTML
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // 粗体
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // 斜体
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // 代码
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    // 换行
+    .replace(/\n/g, '<br>')
+  return html
+}
+
+// V6.14: 时间格式化
+function getTimeStr() {
+  const now = new Date()
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+}
 
 function toggleChunkExpand(id) {
   const s = new Set(expandedChunks.value)
@@ -359,21 +405,22 @@ async function onAsk(q) {
 async function onSend() {
   const q = question.value.trim()
   if (!q) return
-  chatList.value.push({ role: 'user', content: q })
+  chatList.value.push({ role: 'user', content: q, time: getTimeStr() })
   question.value = ''
   chatLoading.value = true
+  await nextTick()
+  scrollChatBottom()
   try {
     const res = await chatApi.ask(q)
     chatList.value.push({
       role: 'assistant',
       content: res.answer || '(AI 未返回回答)',
       sources: res.sources || [],
+      time: getTimeStr(),
     })
-    await nextTick()
-    scrollChatBottom()
   } catch (e) {
     const msg = e?.response?.data?.detail || e?.message || '问答失败'
-    chatList.value.push({ role: 'assistant', content: `❌ ${msg}` })
+    chatList.value.push({ role: 'assistant', content: `❌ ${msg}`, time: getTimeStr() })
   } finally {
     chatLoading.value = false
     await nextTick()
@@ -570,61 +617,117 @@ onMounted(() => {
 .doc-row3 { display: flex; justify-content: space-between; align-items: center; }
 .doc-time { font-size: 11px; color: #C0C4CC; }
 
-/* 中：对话 */
+/* 中：对话 - V6.14 优化 */
 .chat-area { flex: 1; overflow-y: auto; padding: 14px; background: #FAFBFC; }
 .chat-empty {
-  text-align: center; padding: 40px 20px; color: var(--text-muted);
+  text-align: center; padding: 30px 16px; color: var(--text-muted);
 }
-.empty-icon { font-size: 40px; margin-bottom: 10px; }
+.empty-icon-big { font-size: 48px; margin-bottom: 10px; }
+.empty-title { font-size: 16px; font-weight: 700; color: #2E5A7F; margin-bottom: 4px; }
+.empty-desc { font-size: 12px; color: #95A5A6; margin-bottom: 16px; }
+.empty-suggests { display: flex; flex-direction: column; gap: 8px; }
 .empty-suggest {
-  margin-top: 8px; padding: 8px 12px;
-  background: #fff; border: 1px solid #E4E7ED; border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  background: #fff; border: 1px solid #E4E7ED; border-radius: 10px;
   cursor: pointer; font-size: 13px;
   transition: all .18s;
+  display: flex; align-items: center; gap: 8px;
+  text-align: left;
 }
 .empty-suggest:hover {
   border-color: var(--color-primary); color: var(--color-primary); background: #EEF4FD;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(91, 146, 229, 0.1);
 }
+.suggest-icon { flex-shrink: 0; }
+.col-head-actions { display: flex; align-items: center; gap: 6px; }
+
 .chat-msg {
   display: flex; gap: 10px; margin-bottom: 14px;
+  animation: msgFadeIn 0.3s ease;
+}
+@keyframes msgFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .chat-msg.user { flex-direction: row-reverse; }
-.msg-role {
-  flex-shrink: 0; width: 32px; height: 32px;
+.msg-avatar {
+  flex-shrink: 0; width: 36px; height: 36px;
   border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600; color: #fff;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-mint));
+  font-size: 18px;
+  background: linear-gradient(135deg, #EEF4FD, #E8F7F3);
+  border: 1px solid rgba(91, 146, 229, 0.15);
 }
-.chat-msg.user .msg-role { background: linear-gradient(135deg, var(--color-accent), var(--color-secondary)); }
+.chat-msg.user .msg-avatar {
+  background: linear-gradient(135deg, #EEF4FD, #F0E8FD);
+}
 .msg-body {
-  max-width: 75%;
+  max-width: 78%;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 14px; line-height: 1.7;
 }
 .chat-msg.user .msg-body {
   background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
   color: #fff;
+  border-bottom-right-radius: 4px;
 }
 .chat-msg.assistant .msg-body {
   background: #fff;
   border: 1px solid #E4E7ED;
   color: #303133;
+  border-bottom-left-radius: 4px;
 }
 .msg-text { white-space: pre-wrap; word-break: break-word; }
+.msg-text :deep(code) {
+  background: rgba(91, 146, 229, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'SF Mono', Menlo, monospace;
+}
+.msg-text :deep(strong) { color: #2E5A7F; }
 .msg-sources {
   margin-top: 8px; padding-top: 8px; border-top: 1px dashed #E4E7ED;
   font-size: 12px;
 }
 .src-label { color: var(--text-muted); margin-bottom: 4px; }
 .src-item {
-  padding: 4px 8px; margin: 3px 0;
-  background: #F6F9FD; border-radius: 4px;
+  padding: 5px 10px; margin: 3px 0;
+  background: #F6F9FD; border-radius: 6px;
   cursor: pointer; color: var(--color-primary);
+  display: flex; align-items: center; gap: 6px;
+  transition: background .15s;
 }
 .src-item:hover { background: #EEF4FD; }
-.src-snippet { color: var(--text-muted); margin-left: 4px; }
-.typing-dots { color: var(--text-muted); font-style: italic; }
+.src-icon { flex-shrink: 0; font-size: 12px; }
+.src-title { font-weight: 500; white-space: nowrap; }
+.src-snippet { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-time {
+  font-size: 10px; color: #C0C4CC; margin-top: 4px;
+  text-align: right;
+}
+.chat-msg.user .msg-time { color: rgba(255,255,255,0.6); }
+
+/* V6.14: 打字动画 */
+.typing-indicator {
+  display: flex; align-items: center; gap: 4px;
+}
+.typing-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  animation: typingBounce 1.2s infinite ease-in-out;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+.typing-text {
+  margin-left: 6px; color: var(--text-muted); font-size: 12px;
+}
 .chat-input {
   padding: 10px; border-top: 1px solid #EBEEF5;
   display: flex; gap: 8px; align-items: flex-end;

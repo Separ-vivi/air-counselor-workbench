@@ -134,8 +134,43 @@
       />
     </div>
 
-    <!-- V6.13: 新增/编辑对话框 - AI 自动填表助手 -->
+    <!-- V6.14: 新增/编辑对话框 - AI 自动填表助手 + 音频上传 -->
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑访谈' : '新增访谈'" width="720px" top="5vh">
+      <!-- V6.14: 音频上传区 -->
+      <div class="audio-upload-section">
+        <div class="audio-upload-header">
+          <span class="audio-upload-title">
+            🎙️ 访谈录音
+          </span>
+          <span class="audio-upload-hint">上传录音文件，或粘贴转写文字</span>
+        </div>
+        <div class="audio-upload-area">
+          <el-upload
+            ref="audioUploadRef"
+            :auto-upload="false"
+            :show-file-list="false"
+            :on-change="onAudioFileChange"
+            accept=".mp3,.wav,.m4a,.ogg,.webm,.flac,.aac,.wma"
+            class="audio-upload-btn"
+          >
+            <el-button :loading="audioUploading" :icon="Upload">
+              {{ audioUploading ? '上传中...' : '选择音频文件' }}
+            </el-button>
+          </el-upload>
+          <div v-if="audioFile" class="audio-file-info">
+            <span class="audio-file-name">🎵 {{ audioFile.name }}</span>
+            <span class="audio-file-size">{{ (audioFile.size / 1024 / 1024).toFixed(1) }}MB</span>
+            <el-button text type="danger" size="small" @click="audioFile = null; audioUrl = ''">移除</el-button>
+          </div>
+          <div v-if="audioUrl" class="audio-player-wrapper">
+            <audio :src="audioUrl" controls style="width: 100%; margin-top: 6px;"></audio>
+          </div>
+          <div class="audio-formats-hint">
+            支持格式：MP3、WAV、M4A、OGG、WebM、FLAC，最大 100MB
+          </div>
+        </div>
+      </div>
+
       <!-- AI 分析输入区 -->
       <div class="ai-analyze-section">
         <div class="ai-analyze-header">
@@ -330,6 +365,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Upload } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import { interview as interviewApi, students as studentsApi, semesterReport } from '@/api/modules'
 // V6.10: AI 摘要通过 interviewApi.aiSummary 调用
@@ -609,11 +645,48 @@ const loadTotalStudents = async () => {
   }
 }
 
+// V6.14: 音频上传相关
+const audioFile = ref(null)
+const audioUrl = ref('')
+const audioUploading = ref(false)
+const audioUploadRef = ref(null)
+
+const onAudioFileChange = async (uploadFile) => {
+  const file = uploadFile.raw
+  if (!file) return
+  // 检查文件大小
+  if (file.size > 100 * 1024 * 1024) {
+    ElMessage.error('文件过大，最大支持 100MB')
+    return
+  }
+  audioFile.value = file
+  audioUploading.value = true
+  try {
+    const res = await interviewApi.uploadAudio(file)
+    if (res?.url) {
+      audioUrl.value = res.url
+      // 将音频信息存入 content 字段（备注）
+      const audioNote = `\n[录音文件: ${res.original_name}]`
+      if (!form.value.content.includes(audioNote)) {
+        form.value.content += audioNote
+      }
+      ElMessage.success(`录音文件 "${res.original_name}" 上传成功`)
+    }
+  } catch (e) {
+    ElMessage.error('音频上传失败: ' + (e?.response?.data?.detail || e?.message || '未知错误'))
+    audioFile.value = null
+  } finally {
+    audioUploading.value = false
+  }
+}
+
 const showAddDialog = () => {
   isEdit.value = false
   editId.value = null
   aiRawText.value = ''
   aiAnalyzeResult.value = null
+  audioFile.value = null
+  audioUrl.value = ''
   form.value = {
     student_id: null,
     interview_date: '',
@@ -1062,6 +1135,62 @@ const handleChartResize = () => {
   border-radius: 14px;
   padding: 16px 18px;
   margin-bottom: 4px;
+}
+
+/* V6.14: 音频上传区样式 */
+.audio-upload-section {
+  background: linear-gradient(135deg, rgba(123, 207, 203, 0.06) 0%, rgba(91, 146, 229, 0.04) 100%);
+  border: 1.5px solid rgba(123, 207, 203, 0.25);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+}
+.audio-upload-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.audio-upload-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2E5A7F;
+}
+.audio-upload-hint {
+  font-size: 12px;
+  color: #909399;
+}
+.audio-upload-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.audio-upload-btn {
+  align-self: flex-start;
+}
+.audio-file-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: rgba(91, 146, 229, 0.06);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.audio-file-name {
+  color: #2E5A7F;
+  font-weight: 500;
+}
+.audio-file-size {
+  color: #909399;
+  font-size: 12px;
+}
+.audio-player-wrapper {
+  margin-top: 4px;
+}
+.audio-formats-hint {
+  font-size: 11px;
+  color: #C0C4CC;
 }
 .ai-analyze-header {
   display: flex;

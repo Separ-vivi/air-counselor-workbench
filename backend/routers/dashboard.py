@@ -188,48 +188,80 @@ def get_ai_warnings(
 
     # ===== 规则引擎：快速筛选 =====
 
-    # 1. 成绩预警 - 有 red 类型预警记录的学生
+    # 1. 成绩预警 - 有 red 类型预警记录的学生（V6.14: 附带详细信息）
     red_warnings = db.query(WarningRecord).filter(WarningRecord.warning_type == 'red').all()
     red_student_ids = set(w.student_id for w in red_warnings)
     for sid in red_student_ids:
         student = db.query(Student).filter(Student.id == sid).first()
         if student:
+            # V6.14: 收集该学生所有red预警的详细信息
+            student_red = [w for w in red_warnings if w.student_id == sid]
+            details = []
+            for rw in student_red:
+                details.append({
+                    'date': rw.created_at.strftime('%Y-%m-%d') if rw.created_at else '',
+                    'info': rw.description or '红色预警',
+                    'type': 'red'
+                })
             warnings.append({
                 'student_id': student.id,
                 'name': student.name,
                 'student_no': student.student_no,
                 'class_name': student.class_name,
                 'warning_type': '成绩预警',
-                'reason': '存在红色学业预警，多门课程不及格',
+                'reason': f'存在 {len(student_red)} 条红色学业预警',
                 'severity': 'high',
-                'source': 'rule'
+                'source': 'rule',
+                'details': details[:5]  # V6.14: 最多5条
             })
 
-    # 2. 缺勤过多 - 考勤异常>=1次（V6.11: 降低阈值，确保预警可见）
+    # 2. 缺勤过多 - 考勤异常>=1次（V6.14: 附带具体日期和课程名）
     from sqlalchemy import func as sa_func
     absence_rows = db.query(
         StudentAttendanceException.student_id,
         sa_func.count(StudentAttendanceException.id).label('cnt')
     ).group_by(StudentAttendanceException.student_id).having(sa_func.count(StudentAttendanceException.id) >= 1).all()
 
+    # V6.14: 预加载所有考勤异常记录用于生成详细信息
+    all_absence_records = db.query(StudentAttendanceException).filter(
+        StudentAttendanceException.student_id.in_([r[0] for r in absence_rows])
+    ).order_by(StudentAttendanceException.exception_date.desc()).all()
+    absence_by_student = {}
+    for rec in all_absence_records:
+        absence_by_student.setdefault(rec.student_id, []).append(rec)
+
     for sid, cnt in absence_rows:
-        # 避免重复
         if any(w['student_id'] == sid for w in warnings):
             continue
         student = db.query(Student).filter(Student.id == sid).first()
         if student:
+            # V6.14: 构建详细信息
+            student_absences = absence_by_student.get(sid, [])
+            details = []
+            for a in student_absences[:5]:
+                details.append({
+                    'date': a.exception_date or '',
+                    'course': a.course_name or '',
+                    'type': a.exception_type or ''
+                })
+            # 构建更具体的原因描述
+            types_set = set(a.exception_type for a in student_absences if a.exception_type)
+            type_str = '/'.join(types_set) if types_set else '异常'
+            recent_dates = [a.exception_date for a in student_absences[:3] if a.exception_date]
+            date_str = f"（最近：{', '.join(recent_dates)}）" if recent_dates else ""
             warnings.append({
                 'student_id': student.id,
                 'name': student.name,
                 'student_no': student.student_no,
                 'class_name': student.class_name,
                 'warning_type': '缺勤过多',
-                'reason': f'考勤异常 {cnt} 次（迟到/早退/旷课）',
+                'reason': f'考勤异常 {cnt} 次（{type_str}）{date_str}',
                 'severity': 'medium' if cnt < 5 else 'high',
-                'source': 'rule'
+                'source': 'rule',
+                'details': details
             })
 
-    # 3. 心理关注 - 有一级/二级关注等级的学生
+    # 3. 心理关注 - 有一级/二级关注等级的学生（V6.14: 附带详细信息）
     psych_high = db.query(PsychologyRecord).filter(
         PsychologyRecord.attention_level.in_(['一级关注', '二级关注'])
     ).all()
@@ -242,18 +274,28 @@ def get_ai_warnings(
             continue
         student = db.query(Student).filter(Student.id == rec.student_id).first()
         if student:
+            # V6.14: 收集该学生所有心理记录
+            student_psych = [p for p in psych_high if p.student_id == rec.student_id]
+            details = []
+            for p in student_psych[:5]:
+                details.append({
+                    'date': p.record_date or '',
+                    'info': f"{p.attention_level} - {p.topic or '心理记录'}",
+                    'type': p.attention_level
+                })
             warnings.append({
                 'student_id': student.id,
                 'name': student.name,
                 'student_no': student.student_no,
                 'class_name': student.class_name,
                 'warning_type': '心理关注',
-                'reason': f'心理关注等级：{rec.attention_level}',
+                'reason': f'心理关注等级：{rec.attention_level}（{len(student_psych)}条记录）',
                 'severity': 'high' if rec.attention_level == '一级关注' else 'medium',
-                'source': 'rule'
+                'source': 'rule',
+                'details': details
             })
 
-    # 4. 纪律处分
+    # 4. 纪律处分（V6.14: 附带详细信息）
     discipline_records = db.query(StudentDiscipline).all()
     disc_student_ids = set()
     for rec in discipline_records:
@@ -264,18 +306,28 @@ def get_ai_warnings(
             continue
         student = db.query(Student).filter(Student.id == rec.student_id).first()
         if student:
+            # V6.14: 收集该学生所有处分记录
+            student_disc = [d for d in discipline_records if d.student_id == rec.student_id]
+            details = []
+            for d in student_disc[:5]:
+                details.append({
+                    'date': d.discipline_date or '',
+                    'info': f"{d.discipline_type} - {d.reason or '违纪'}",
+                    'type': d.discipline_type or ''
+                })
             warnings.append({
                 'student_id': student.id,
                 'name': student.name,
                 'student_no': student.student_no,
                 'class_name': student.class_name,
                 'warning_type': '纪律处分',
-                'reason': f'处分类型：{getattr(rec, "discipline_type", "未知")}',
+                'reason': f'处分类型：{getattr(rec, "discipline_type", "未知")}（{len(student_disc)}条）',
                 'severity': 'medium',
-                'source': 'rule'
+                'source': 'rule',
+                'details': details
             })
 
-    # 5. 访谈标记"需跟进"的学生
+    # 5. 访谈标记"需跟进"的学生（V6.14: 附带详细信息）
     follow_up_interviews = db.query(StudentInterview).filter(StudentInterview.status == '需跟进').all()
     for item in follow_up_interviews:
         if any(w['student_id'] == item.student_id for w in warnings):
@@ -288,9 +340,14 @@ def get_ai_warnings(
                 'student_no': student.student_no,
                 'class_name': student.class_name,
                 'warning_type': '访谈待跟进',
-                'reason': f'访谈"{item.topic}"标记为需跟进',
+                'reason': f'访谈"{item.topic or "未命名"}"标记为需跟进（{item.interview_date}）',
                 'severity': 'medium',
-                'source': 'rule'
+                'source': 'rule',
+                'details': [{
+                    'date': item.interview_date or '',
+                    'info': f"访谈主题：{item.topic or '未命名'}",
+                    'type': '跟进'
+                }]
             })
 
     # ===== LLM 增强分析（可选）=====

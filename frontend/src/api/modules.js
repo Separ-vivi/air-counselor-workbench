@@ -223,7 +223,16 @@ export const interview = {
   // V6.10: AI 摘要
   aiSummary: (id) => http.post(`/interview/${id}/ai-summary`, null, { timeout: 30000 }),
   // V6.13: AI 谈心分析（原始文本 → 结构化数据）
-  aiAnalyze: (text) => http.post('/interview/ai-analyze', { text }, { timeout: 60000 })
+  aiAnalyze: (text) => http.post('/interview/ai-analyze', { text }, { timeout: 60000 }),
+  // V6.14: 音频上传
+  uploadAudio: (file) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return http.post('/interview/upload-audio', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000
+    })
+  }
 }
 
 /** 学生（公共） */

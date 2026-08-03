@@ -5,7 +5,7 @@
     </template>
     <div class="shortcuts">
       <div class="sc-item" v-for="s in shortcuts" :key="s.to" @click="$router.push(s.to)">
-        <div class="sc-icon" :style="{ background: s.bg, color: s.color }"><el-icon :size="24"><component :is="s.icon" /></el-icon></div>
+        <div class="sc-icon" :style="{ background: s.bg, color: s.color }"><el-icon :size="20"><component :is="s.icon" /></el-icon></div>
         <div class="sc-label">{{ s.label }}</div>
       </div>
     </div>
@@ -43,13 +43,14 @@ const shortcuts = [
   color: #2E5A7F;
   letter-spacing: 0.4px;
 }
+/* V6.14: 一行显示12个，紧凑排列 */
 .shortcuts {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 6px;
 }
 .sc-item {
-  padding: 14px 6px;
+  padding: 10px 4px;
   text-align: center;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -57,13 +58,13 @@ const shortcuts = [
 }
 .sc-item:hover { background: var(--color-primary-light); }
 .sc-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s;
   box-shadow: 0 2px 6px var(--shadow-md);
 }
@@ -72,8 +73,17 @@ const shortcuts = [
   box-shadow: var(--shadow-hover);
 }
 .sc-label {
-  font-size: 13px;
+  font-size: 11px;
   color: #303133;
   font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 响应式：中屏6列，小屏4列 */
+@media (max-width: 1200px) {
+  .shortcuts { grid-template-columns: repeat(6, 1fr); }
+}
+@media (max-width: 768px) {
+  .shortcuts { grid-template-columns: repeat(4, 1fr); }
 }
 </style>

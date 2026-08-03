@@ -78,6 +78,7 @@
       </el-button>
       <span class="filter-result-count">
         共 {{ filteredWarnings.length }} 条
+        <span v-if="selectedRows.length">| 已选 {{ selectedRows.length }} 条</span>
         <span v-if="filteredWarnings.length !== totalCount">（已筛选）</span>
       </span>
     </div>
@@ -102,17 +103,33 @@
       </el-empty>
     </div>
 
-    <!-- Warning List -->
+    <!-- V6.14: Warning Table - 支持多选、分页、排序 -->
     <div v-else class="warning-table">
-      <el-table :data="filteredWarnings" stripe :default-sort="{ prop: 'severity', order: 'ascending' }" @sort-change="handleSortChange">
-        <el-table-column label="风险" width="80" sortable="custom" prop="severity">
+      <!-- 批量操作栏 -->
+      <div v-if="selectedRows.length" class="batch-actions">
+        <span>已选 {{ selectedRows.length }} 条</span>
+        <el-button size="small" type="primary" text @click="exportSelectedCSV">导出选中</el-button>
+        <el-button size="small" type="danger" text @click="selectedRows = []">取消选择</el-button>
+      </div>
+
+      <el-table
+        :data="paginatedWarnings"
+        stripe
+        @selection-change="handleSelectionChange"
+        @sort-change="handleSortChange"
+        :default-sort="{ prop: 'severity', order: 'ascending' }"
+        row-key="rowKey"
+      >
+        <!-- V6.14: 多选 checkbox -->
+        <el-table-column type="selection" width="45" fixed="left" />
+        <el-table-column label="风险" width="70" sortable="custom" prop="severity" align="center">
           <template #default="{ row }">
             <span class="sev-badge" :class="row.severity">
               {{ row.severity === 'high' ? '高' : row.severity === 'medium' ? '中' : '低' }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="学生" min-width="160" sortable="custom" prop="name">
+        <el-table-column label="学生" min-width="150" sortable="custom" prop="name">
           <template #default="{ row }">
             <div class="cell-student-info">
               <el-link type="primary" @click="goStudent(row.student_id)" class="cell-student-name">{{ row.name }}</el-link>
@@ -120,19 +137,55 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="班级" prop="class_name" min-width="140" show-overflow-tooltip sortable="custom" />
-        <el-table-column label="预警类型" prop="warning_type" width="120" sortable="custom">
+        <el-table-column label="班级" prop="class_name" min-width="130" show-overflow-tooltip sortable="custom" />
+        <el-table-column label="预警类型" prop="warning_type" width="110" sortable="custom">
           <template #default="{ row }">
             <el-tag :type="getWarningTypeTag(row.warning_type)" size="small" effect="plain" round>{{ row.warning_type }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="原因" prop="reason" min-width="240" show-overflow-tooltip />
-        <el-table-column label="操作" width="100" fixed="right">
+        <!-- V6.14: 详细信息列 - 显示具体日期、课程等 -->
+        <el-table-column label="详细原因" min-width="280" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-button type="primary" text size="small" @click="goStudent(row.student_id)">查看360</el-button>
+            <div class="cell-detail">
+              <div class="cell-detail-main">{{ row.reason }}</div>
+              <div v-if="row.details && row.details.length" class="cell-detail-extra">
+                <el-popover placement="bottom" :width="360" trigger="click">
+                  <template #reference>
+                    <el-button text size="small" type="primary">查看详情 ({{ row.details.length }})</el-button>
+                  </template>
+                  <div class="detail-popover">
+                    <div v-for="(d, i) in row.details" :key="i" class="detail-item">
+                      <span v-if="d.date" class="detail-date">{{ d.date }}</span>
+                      <span v-if="d.course" class="detail-course">{{ d.course }}</span>
+                      <span v-if="d.type" class="detail-type">{{ d.type }}</span>
+                      <span v-if="d.info" class="detail-info">{{ d.info }}</span>
+                    </div>
+                  </div>
+                </el-popover>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+        <!-- V6.14: 操作列去掉"查看360"，点击名字即可跳转 -->
+        <el-table-column label="操作" width="80" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button type="primary" text size="small" @click="goStudent(row.student_id)">详情</el-button>
           </template>
         </el-table-column>
       </el-table>
+
+      <!-- V6.14: 分页 -->
+      <div class="pagination-bar">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :total="filteredWarnings.length"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+          small
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -155,6 +208,12 @@ const llmEnhanced = ref(false)
 const aiAdvice = ref('')
 const topPriority = ref([])
 
+// V6.14: 分页
+const currentPage = ref(1)
+const pageSize = ref(20)
+// V6.14: 多选
+const selectedRows = ref([])
+
 // Filters
 const searchText = ref('')
 const filterSeverity = ref('')
@@ -170,17 +229,12 @@ const warningTypes = computed(() => {
 const filteredWarnings = computed(() => {
   let list = [...warnings.value]
   
-  // Filter by severity
   if (filterSeverity.value) {
     list = list.filter(w => w.severity === filterSeverity.value)
   }
-  
-  // Filter by type
   if (filterType.value) {
     list = list.filter(w => w.warning_type === filterType.value)
   }
-  
-  // Search
   if (searchText.value) {
     const q = searchText.value.toLowerCase()
     list = list.filter(w =>
@@ -221,11 +275,22 @@ const filteredWarnings = computed(() => {
   return list
 })
 
+// V6.14: 分页数据
+const paginatedWarnings = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredWarnings.value.slice(start, start + pageSize.value)
+})
+
 const handleSortChange = ({ prop, order }) => {
   if (prop) {
     sortBy.value = prop
     sortOrder.value = order || 'ascending'
   }
+}
+
+// V6.14: 多选处理
+const handleSelectionChange = (selection) => {
+  selectedRows.value = selection
 }
 
 const resetFilters = () => {
@@ -234,6 +299,7 @@ const resetFilters = () => {
   filterType.value = ''
   sortBy.value = 'severity'
   sortOrder.value = 'ascending'
+  currentPage.value = 1
 }
 
 const getWarningTypeTag = (type) => {
@@ -256,9 +322,13 @@ const refreshWarnings = async (force = false) => {
   error.value = ''
   try {
     const res = await aiWarnings(force)
-    // V6.11hotfix: 兼容缓存和非缓存两种返回结构
     const data = res?.warnings && !Array.isArray(res.warnings) ? res.warnings : res
-    warnings.value = Array.isArray(data?.warnings) ? data.warnings : []
+    const rawWarnings = Array.isArray(data?.warnings) ? data.warnings : []
+    // V6.14: 为每行添加唯一key
+    warnings.value = rawWarnings.map((w, i) => ({
+      ...w,
+      rowKey: `${w.student_id}-${w.warning_type}-${i}`
+    }))
     highCount.value = data?.high_count || 0
     mediumCount.value = data?.medium_count || 0
     lowCount.value = data?.low_count || 0
@@ -285,20 +355,38 @@ const exportCSV = () => {
     w.warning_type,
     w.reason
   ])
-  
+  downloadCSV(rows, headers, 'AI智能预警')
+}
+
+// V6.14: 导出选中
+const exportSelectedCSV = () => {
+  const headers = ['风险等级', '姓名', '学号', '班级', '预警类型', '原因']
+  const severityLabel = { high: '高风险', medium: '中风险', low: '低风险' }
+  const rows = selectedRows.value.map(w => [
+    severityLabel[w.severity] || w.severity,
+    w.name,
+    w.student_no,
+    w.class_name,
+    w.warning_type,
+    w.reason
+  ])
+  downloadCSV(rows, headers, 'AI智能预警_选中')
+}
+
+const downloadCSV = (rows, headers, filename) => {
   const BOM = '\uFEFF'
   const csv = BOM + [headers, ...rows].map(r => r.map(c => `"${(c || '').replace(/"/g, '""')}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `AI智能预警_${new Date().toISOString().slice(0, 10)}.csv`
+  a.download = `${filename}_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }
 
 onMounted(() => {
-  refreshWarnings(true)  // V6.11hotfix: 首次加载强制刷新
+  refreshWarnings(true)
 })
 </script>
 
@@ -359,7 +447,6 @@ onMounted(() => {
   gap: 12px;
   margin-bottom: 16px;
 }
-/* V6.12 统一规范 */
 .stat-card {
   flex: 1;
   text-align: center;
@@ -381,7 +468,6 @@ onMounted(() => {
 .stat-card.low { border-left: 3px solid #67C23A; }
 .stat-card.total { border-left: 3px solid #5B92E5; }
 .sc-icon { font-size: 18px; margin-bottom: 4px; }
-/* V6.12 统一数字字体 */
 .sc-num {
   font-size: 28px;
   font-weight: 800;
@@ -416,6 +502,19 @@ onMounted(() => {
   font-size: 13px;
   color: #7F8C8D;
   margin-left: auto;
+}
+
+/* V6.14: 批量操作栏 */
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(91, 146, 229, 0.06);
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid rgba(91, 146, 229, 0.15);
+  font-size: 13px;
+  color: #2E5A7F;
 }
 
 /* Loading / Error / Empty */
@@ -463,7 +562,7 @@ onMounted(() => {
 .sev-badge.medium { background: linear-gradient(135deg, #E6A23C, #F5A76E); }
 .sev-badge.low { background: linear-gradient(135deg, #67C23A, #85CE61); }
 
-/* Cell styles - V6.13 姓名学号分行显示 */
+/* Cell styles */
 .cell-student-info {
   display: flex;
   flex-direction: column;
@@ -480,6 +579,57 @@ onMounted(() => {
   letter-spacing: 0.3px;
 }
 
+/* V6.14: 详细信息样式 */
+.cell-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cell-detail-main {
+  color: #2C3E50;
+  font-size: 13px;
+}
+.cell-detail-extra {
+  display: flex;
+  align-items: center;
+}
+
+/* 详情弹窗 */
+.detail-popover {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.detail-item {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dashed rgba(200, 215, 235, 0.4);
+  font-size: 12px;
+  align-items: center;
+}
+.detail-item:last-child { border-bottom: none; }
+.detail-date {
+  color: #5B92E5;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.detail-course {
+  color: #2C3E50;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detail-type {
+  color: #E6A23C;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.detail-info {
+  color: #7F8C8D;
+  font-size: 11px;
+}
+
 /* Table */
 .warning-table {
   border-radius: 12px;
@@ -494,5 +644,14 @@ onMounted(() => {
   color: #2E5A7F;
   font-weight: 600;
   font-size: 13px;
+}
+
+/* V6.14: 分页栏 */
+.pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, #F9FBFD 0%, #FFFFFF 100%);
+  border-top: 1px solid rgba(200, 215, 235, 0.3);
 }
 </style>
