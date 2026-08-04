@@ -166,10 +166,10 @@
             </div>
           </template>
         </el-table-column>
-        <!-- V6.14: 操作列去掉"查看360"，点击名字即可跳转 -->
-        <el-table-column label="操作" width="80" fixed="right" align="center">
+        <!-- V6.15: 操作列 - 发起谈心谈话，联动访谈页面 -->
+        <el-table-column label="操作" width="120" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" text size="small" @click="goStudent(row.student_id)">详情</el-button>
+            <el-button type="primary" size="small" @click="startInterview(row)">发起谈话</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -315,6 +315,27 @@ const getWarningTypeTag = (type) => {
 
 const goStudent = (sid) => {
   if (sid) router.push(`/students/${sid}`)
+}
+
+// V6.15: 发起谈心谈话 - 跳转到访谈页面并携带预警上下文
+const startInterview = (row) => {
+  // 序列化预警详情
+  const warningDetails = row.details && row.details.length
+    ? row.details.map(d => [d.date, d.course, d.type, d.info].filter(Boolean).join(' ')).join('; ')
+    : ''
+  router.push({
+    path: '/module/interview',
+    query: {
+      warning_student_id: row.student_id || '',
+      warning_student_name: row.name || '',
+      warning_student_no: row.student_no || '',
+      warning_class_name: row.class_name || '',
+      warning_type: row.warning_type || '',
+      warning_reason: row.reason || '',
+      warning_severity: row.severity || '',
+      warning_details: warningDetails
+    }
+  })
 }
 
 const refreshWarnings = async (force = false) => {

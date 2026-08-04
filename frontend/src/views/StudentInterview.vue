@@ -136,6 +136,31 @@
 
     <!-- V6.14: 新增/编辑对话框 - AI 自动填表助手 + 音频上传 -->
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑访谈' : '新增访谈'" width="720px" top="5vh">
+      <!-- V6.15: 预警背景信息 -->
+      <div v-if="warningContext" class="warning-context-banner">
+        <div class="warning-context-header">
+          <span class="warning-context-icon">⚠️</span>
+          <span class="warning-context-title">本次谈话背景：{{ warningContext.warning_type }}</span>
+          <el-tag :type="warningContext.warning_severity === 'high' ? 'danger' : warningContext.warning_severity === 'medium' ? 'warning' : 'success'" size="small" effect="plain" round>
+            {{ warningContext.warning_severity === 'high' ? '高风险' : warningContext.warning_severity === 'medium' ? '中风险' : '低风险' }}
+          </el-tag>
+        </div>
+        <div class="warning-context-body">
+          <div class="warning-context-row">
+            <span class="warning-context-label">学生：</span>
+            <span>{{ warningContext.student_name }}（{{ warningContext.student_no }}）{{ warningContext.class_name ? '· ' + warningContext.class_name : '' }}</span>
+          </div>
+          <div class="warning-context-row">
+            <span class="warning-context-label">预警原因：</span>
+            <span>{{ warningContext.warning_reason }}</span>
+          </div>
+          <div v-if="warningContext.warning_details" class="warning-context-row">
+            <span class="warning-context-label">详细记录：</span>
+            <span>{{ warningContext.warning_details }}</span>
+          </div>
+        </div>
+      </div>
+
       <!-- V6.14: 音频上传区 -->
       <div class="audio-upload-section">
         <div class="audio-upload-header">
@@ -364,6 +389,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
@@ -373,8 +399,12 @@ import { useOrgStore } from '@/stores/org'
 import StudentSelect from '@/components/StudentSelect.vue'
 
 const orgStore = useOrgStore()
+const route = useRoute()
 const loading = ref(false)
 const submitting = ref(false)
+
+// V6.15: 预警→访谈 联动上下文
+const warningContext = ref(null)
 const allData = ref([]) // 全量数据
 const students = ref([])
 const stats = ref({})
@@ -680,24 +710,28 @@ const onAudioFileChange = async (uploadFile) => {
   }
 }
 
-const showAddDialog = () => {
+const showAddDialog = (warning = null) => {
   isEdit.value = false
   editId.value = null
   aiRawText.value = ''
   aiAnalyzeResult.value = null
   audioFile.value = null
   audioUrl.value = ''
+
+  // V6.15: 如果有预警上下文，预填充表单
+  warningContext.value = warning
+  const warningType = warning?.warning_type || ''
   form.value = {
-    student_id: null,
-    interview_date: '',
-    interview_type: '常规访谈',
+    student_id: warning?.student_id || null,
+    interview_date: new Date().toISOString().slice(0, 10),
+    interview_type: warningType ? '预警访谈' : '常规访谈',
     interviewer: '',
     location: '',
-    topic: '',
+    topic: warningType ? `[预警] ${warningType} - ${warning?.warning_reason || ''}` : '',
     content: '',
     feedback: '',
     follow_up: '',
-    status: '已完成',
+    status: '待进行',
     remind_date: '',
     _aiFilled: {}
   }
@@ -893,6 +927,31 @@ onMounted(async () => {
   loadSemesters()
   loadTotalStudents()
   window.addEventListener('resize', handleChartResize)
+
+  // V6.15: 检查是否从预警页面跳转而来
+  const q = route.query
+  if (q.warning_student_id) {
+    // 先加载学生列表，确保 student_id 能被 select 组件识别
+    await loadStudents()
+    const studentExists = students.value.some(s => String(s.id) === String(q.warning_student_id))
+    const warning = {
+      student_id: studentExists ? q.warning_student_id : null,
+      student_name: q.warning_student_name || '',
+      student_no: q.warning_student_no || '',
+      class_name: q.warning_class_name || '',
+      warning_type: q.warning_type || '',
+      warning_reason: q.warning_reason || '',
+      warning_severity: q.warning_severity || '',
+      warning_details: q.warning_details || ''
+    }
+    // 设置学生筛选
+    if (warning.student_id) {
+      filterStudentId.value = warning.student_id
+    }
+    // 延迟打开新增对话框，等表格数据加载完
+    await nextTick()
+    showAddDialog(warning)
+  }
 })
 
 onBeforeUnmount(() => {
@@ -1251,3 +1310,42 @@ const handleChartResize = () => {
   border-radius: 12px;
 }
 </style>
+/* V6.15: 预警背景信息横幅 */
+.warning-context-banner {
+  background: linear-gradient(135deg, rgba(245, 108, 108, 0.06) 0%, rgba(230, 162, 60, 0.08) 100%);
+  border: 1.5px solid rgba(245, 108, 108, 0.25);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+.warning-context-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.warning-context-icon {
+  font-size: 18px;
+}
+.warning-context-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #E74C3C;
+  flex: 1;
+}
+.warning-context-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 26px;
+}
+.warning-context-row {
+  font-size: 13px;
+  color: #2C3E50;
+  line-height: 1.6;
+}
+.warning-context-label {
+  color: #7F8C8D;
+  font-weight: 500;
+  margin-right: 4px;
+}
