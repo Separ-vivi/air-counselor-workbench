@@ -219,6 +219,7 @@ from routers.interview import router as interview_router
 from routers.attendance import router as attendance_router
 from routers.financial_aid import router as financial_aid_router
 from routers.documents import router as documents_router
+from routers.calendar_sync import router as calendar_sync_router
 
 app.include_router(students_router)
 app.include_router(tags_router)
@@ -245,6 +246,7 @@ app.include_router(attendance_router)
 app.include_router(financial_aid_router)
 app.include_router(student_tag_router)
 app.include_router(documents_router)
+app.include_router(calendar_sync_router)
 
 
 @app.on_event('startup')

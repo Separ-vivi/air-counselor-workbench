@@ -767,3 +767,19 @@ class StudentInterview(Base):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     
     student = relationship('Student', backref='interviews')
+
+
+# ===== V6.16 校历同步 =====
+
+class AcademicCalendarEvent(Base):
+    """校历事件 - 从教务处官网同步"""
+    __tablename__ = 'academic_calendar_events'
+    id = Column(Integer, primary_key=True, index=True)
+    semester = Column(String(20), nullable=False, index=True)  # 如 202502, 202601
+    date = Column(String(20), nullable=False, index=True)  # YYYY-MM-DD
+    week_number = Column(Integer, default=0)  # 第几周，0=开学前
+    day_of_week = Column(Integer, default=0)  # 1=一 ... 7=日
+    event_type = Column(String(50), default='')  # 补考/注册/上课/考试/放假/假 等
+    event_description = Column(String(500), default='')  # 具体描述（如"学生补考"）
+    is_holiday = Column(Boolean, default=False)  # 是否放假
+    created_at = Column(DateTime, default=datetime.now)
