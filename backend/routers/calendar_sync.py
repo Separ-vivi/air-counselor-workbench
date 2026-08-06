@@ -1,10 +1,15 @@
-"""V6.16 校历同步 - 从教务处官网抓取校历并解析入库
+"""V6.17 校历同步 - 从教务处官网抓取校历并解析入库
 路由前缀 /api/calendar
+
+V6.17修复:
+- 从官网实际HTML获取当前学期和可用学期列表（不再硬编码推断）
+- 修复月份跨月边界解析错误
+- 增强HTML解析容错
 """
 import re
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import delete as sa_delete
@@ -15,9 +20,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/api/calendar', tags=['V6.16 校历同步'])
 
-# 官方校历 URL 模板
-# 默认学期(当前): https://jwch.fzu.edu.cn/ggfw/xnxl.htm
-# 指定学期:       https://jwch.fzu.edu.cn/ggfw/xnxl/{semester}.htm
+# 官方校历 URL
 CALENDAR_BASE_URL = 'https://jwch.fzu.edu.cn/ggfw/xnxl.htm'
 
 # 事件类型关键词 → event_type 映射
@@ -72,6 +75,57 @@ def _parse_semester_label(semester: str) -> str:
     return semester
 
 
+def _fetch_page(url: str) -> str:
+    """获取网页HTML，带重试"""
+    import requests
+    for attempt in range(2):
+        try:
+            resp = requests.get(url, timeout=30, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            })
+            resp.encoding = 'utf-8'
+            if resp.status_code == 200:
+                return resp.text
+            logger.warning(f'页面返回 {resp.status_code}: {url}')
+        except requests.RequestException as e:
+            logger.warning(f'请求失败(第{attempt+1}次): {e}')
+    return ''
+
+
+def _extract_semesters_from_html(html: str) -> tuple:
+    """从官网HTML中提取当前学期和可用学期列表
+    
+    Returns: (current_semester_code, [list_of_semester_codes])
+    """
+    current = ''
+    available = []
+    
+    # 提取当前学期: "当前学期：202502"
+    m = re.search(r'当前学期[：:]\s*(\d{6})', html)
+    if m:
+        current = m.group(1)
+    
+    # 提取可用学期列表
+    # 方式1: 从 <option> 元素中提取
+    options = re.findall(r'<option[^>]*value=["\']?(\d{6})["\']?[^>]*>', html)
+    if options:
+        available = list(dict.fromkeys(options))  # 去重保序
+    
+    # 方式2: 从 "请选择学年学期：" 后面的文本提取
+    if not available:
+        m = re.search(r'请选择学年学期.*?(\d{6}(?:\s*\d{6})*)', html, re.DOTALL)
+        if m:
+            codes = re.findall(r'\d{6}', m.group(1))
+            available = codes
+    
+    # 方式3: 如果都没找到，从全文提取所有6位数字学期码
+    if not available:
+        all_codes = re.findall(r'\b(20\d{4})\b', html)
+        available = list(dict.fromkeys(all_codes))
+    
+    return current, available
+
+
 def _parse_calendar_html(html: str, semester: str):
     """解析校历 HTML 表格，返回事件列表
 
@@ -80,6 +134,8 @@ def _parse_calendar_html(html: str, semester: str):
     - 月份行: colspan=8 的单元格，内容为"2026年3月份"
     - 每行 8 列: 周次 + 一~日
     - 单元格内容: "**23**" 或 "**2 正式上课<br>学生补考**"
+    
+    V6.17: 修复月份跨月边界问题
     """
     from html.parser import HTMLParser
 
@@ -120,11 +176,16 @@ def _parse_calendar_html(html: str, semester: str):
                 self.current_text += data
 
     parser = CalendarParser()
-    parser.feed(html)
+    try:
+        parser.feed(html)
+    except Exception as e:
+        logger.error(f'HTML解析异常: {e}')
+        return events
 
     # 解析行数据
-    current_month = None  # 当前月份信息，如 "2026年3月份"
+    current_month = None  # 当前月份信息
     current_year = None   # 当前年
+    prev_day_num = 0      # 上一个日期数字，用于检测跨月
 
     for row in parser.rows:
         if not row:
@@ -136,6 +197,7 @@ def _parse_calendar_html(html: str, semester: str):
             if month_match:
                 current_year = int(month_match.group(1))
                 current_month = int(month_match.group(2))
+                prev_day_num = 0  # 新月重置
             continue
 
         # 检测表头行（星期）
@@ -154,10 +216,8 @@ def _parse_calendar_html(html: str, semester: str):
             is_holiday_week = True
             week_number = 0
         elif not week_label:
-            # 开学前
             week_number = 0
         else:
-            # 提取周次数字
             m = re.search(r'(\d+)', week_label)
             if m:
                 week_number = int(m.group(1))
@@ -169,8 +229,6 @@ def _parse_calendar_html(html: str, semester: str):
             if not cell:
                 continue
 
-            # 提取日期数字和事件描述
-            # 格式: "23" 或 "2 正式上课\n学生补考"
             # 去掉 ** 标记
             cell = cell.replace('**', '').strip()
             lines = cell.split('\n')
@@ -192,10 +250,17 @@ def _parse_calendar_html(html: str, semester: str):
                 else:
                     event_text = extra
 
-            # 确定年份和月份
-            # 当日号小于上月末尾几天时，说明跨月了
+            # V6.17: 跨月检测 - 如果日期突然从大数变小（如31→1），说明跨月了
             cell_year = current_year
             cell_month = current_month
+            if cell_month and prev_day_num > 0 and day_num < prev_day_num - 10:
+                # 跨月了，月份+1
+                cell_month += 1
+                if cell_month > 12:
+                    cell_month = 1
+                    if cell_year:
+                        cell_year += 1
+            prev_day_num = day_num
 
             # 构建完整日期
             if cell_year and cell_month:
@@ -241,26 +306,41 @@ def sync_calendar(semester: str = '', db: Session = Depends(get_db)):
 
     semester: 学期代码，如 202502, 202601。空=当前学期
     """
-    import requests
-
+    # V6.17: 如果未指定学期，从官网获取当前学期
     if not semester:
-        semester = _get_current_semester()
+        try:
+            base_html = _fetch_page(CALENDAR_BASE_URL)
+            if base_html:
+                website_current, _ = _extract_semesters_from_html(base_html)
+                if website_current:
+                    semester = website_current
+                    logger.info(f'从官网获取到当前学期: {semester}')
+        except Exception as e:
+            logger.warning(f'获取官网当前学期失败: {e}')
+        
+        if not semester:
+            # 回退到本地推断
+            semester = _infer_current_semester()
+            logger.info(f'使用本地推断学期: {semester}')
 
     # 构建 URL
     url = CALENDAR_BASE_URL
-    if semester and semester != _get_current_semester():
+    # 获取官网当前学期，判断是否需要访问特定学期页面
+    website_current = ''
+    try:
+        base_html = _fetch_page(CALENDAR_BASE_URL)
+        if base_html:
+            website_current, _ = _extract_semesters_from_html(base_html)
+    except Exception:
+        pass
+    
+    if semester and semester != website_current:
         url = f'https://jwch.fzu.edu.cn/ggfw/xnxl/{semester}.htm'
 
-    try:
-        resp = requests.get(url, timeout=30, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        })
-        resp.encoding = 'utf-8'
-        if resp.status_code != 200:
-            raise HTTPException(502, f'教务处返回 {resp.status_code}')
-        html = resp.text
-    except requests.RequestException as e:
-        raise HTTPException(502, f'请求教务处失败: {e}')
+    # 获取目标页面
+    html = _fetch_page(url)
+    if not html:
+        raise HTTPException(502, f'无法获取校历页面，学期 {semester} 可能尚未发布或URL不可用')
 
     # 解析 HTML
     events = _parse_calendar_html(html, semester)
@@ -298,7 +378,7 @@ def list_calendar_events(
 ):
     """返回该学期所有校历事件"""
     if not semester:
-        semester = _get_current_semester()
+        semester = _infer_current_semester()
 
     events = db.query(AcademicCalendarEvent).filter(
         AcademicCalendarEvent.semester == semester
@@ -325,12 +405,37 @@ def list_calendar_events(
 
 @router.get('/semesters')
 def list_semesters():
-    """返回可用学期列表及当前学期"""
-    current = _get_current_semester()
+    """返回可用学期列表及当前学期
+    
+    V6.17: 优先从官网获取可用学期列表，避免生成不存在的"虚空学期"
+    """
+    # 尝试从官网获取
+    try:
+        html = _fetch_page(CALENDAR_BASE_URL)
+        if html:
+            website_current, available_codes = _extract_semesters_from_html(html)
+            if available_codes:
+                semesters = []
+                for code in available_codes:
+                    semesters.append({
+                        'code': code,
+                        'label': _parse_semester_label(code),
+                        'is_current': code == website_current,
+                    })
+                # 按学期代码降序排列
+                semesters.sort(key=lambda x: x['code'], reverse=True)
+                return {
+                    'current_semester': website_current or (semesters[0]['code'] if semesters else ''),
+                    'semesters': semesters,
+                }
+    except Exception as e:
+        logger.warning(f'从官网获取学期列表失败: {e}')
+
+    # 回退：本地生成（仅最近2年，避免虚空学期）
+    current = _infer_current_semester()
     semesters = []
-    # 生成最近5年的学期
     now = datetime.now()
-    for year_offset in range(-1, 3):
+    for year_offset in range(-1, 2):  # 只生成最近2年
         y = now.year + year_offset
         for part in [1, 2]:
             code = f'{y}{part:02d}'
@@ -339,7 +444,6 @@ def list_semesters():
                 'label': _parse_semester_label(code),
                 'is_current': code == current,
             })
-    # 按学期代码降序排列
     semesters.sort(key=lambda x: x['code'], reverse=True)
     return {
         'current_semester': current,
@@ -347,14 +451,17 @@ def list_semesters():
     }
 
 
-def _get_current_semester() -> str:
-    """根据当前日期推断当前学期代码"""
+def _infer_current_semester() -> str:
+    """根据当前日期推断当前学期代码（本地回退）
+    
+    修正: 8月仍属于上一学年的第二学期（暑假），新学年从9月开始
+    第一学期(01): 9月~次年1月
+    第二学期(02): 2月~8月（含暑假）
+    """
     now = datetime.now()
     year = now.year
     month = now.month
-    # 第一学期: 8月~次年1月 → YYYY01
-    # 第二学期: 2月~7月 → YYYY02 (这里的YYYY是学年结束年)
-    if month >= 8:
-        return f'{year}01'  # 如 2026年8月 → 202601
+    if month >= 9:
+        return f'{year}01'  # 如 2026年9月 → 202601
     else:
-        return f'{year - 1}02'  # 如 2026年3月 → 202502
+        return f'{year - 1}02'  # 如 2026年8月 → 202502

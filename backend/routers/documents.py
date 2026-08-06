@@ -322,25 +322,82 @@ def update_document(doc_id: int, data: dict, db: Session = Depends(get_db)):
 
 @router.delete('/docbox/{doc_id}')
 def delete_document(doc_id: int, db: Session = Depends(get_db)):
-    """删除文档及关联文件"""
+    """V6.17: 删除文档及关联文件（增强容错）"""
     doc = db.query(DocumentFile).get(doc_id)
     if not doc:
-        raise HTTPException(404, '文档不存在')
+        # V6.17: 即使记录不存在也返回成功（幂等删除）
+        return {'ok': True, 'message': '文档不存在或已被删除'}
     
-    # 删除文件
-    if doc.file_path and os.path.isfile(doc.file_path):
+    title = doc.title
+    
+    # 删除文件（多个可能的路径）
+    if doc.file_path:
         try:
-            os.remove(doc.file_path)
+            if os.path.isfile(doc.file_path):
+                os.remove(doc.file_path)
+                logger.info(f"已删除文件: {doc.file_path}")
         except Exception as e:
             logger.warning(f"删除文件失败: {e}")
     
-    db.delete(doc)
-    db.commit()
+    # 删除数据库记录
+    try:
+        db.delete(doc)
+        db.commit()
+    except Exception as e:
+        logger.error(f"删除数据库记录失败: {e}")
+        db.rollback()
+        # 重试一次
+        try:
+            doc = db.query(DocumentFile).get(doc_id)
+            if doc:
+                db.delete(doc)
+                db.commit()
+        except Exception as e2:
+            logger.error(f"重试删除仍失败: {e2}")
+            db.rollback()
+            raise HTTPException(500, f'删除失败: {str(e2)}')
     
-    # 重建FTS索引
-    _rebuild_docbox_fts(db)
+    # 重建FTS索引（忽略失败）
+    try:
+        _rebuild_docbox_fts(db)
+    except Exception as e:
+        logger.warning(f"FTS索引重建失败: {e}")
     
-    return {'ok': True}
+    return {'ok': True, 'message': f'「{title}」已删除'}
+
+
+# ===== V6.17: 清理脏数据 =====
+
+@router.post('/docbox/cleanup')
+def cleanup_orphaned_docs(db: Session = Depends(get_db)):
+    """V6.17: 清理上传失败但遗留的脏数据（文件不存在或full_text为空的记录）"""
+    docs = db.query(DocumentFile).all()
+    cleaned = 0
+    
+    for doc in docs:
+        should_delete = False
+        
+        # 检查1: 非链接类但文件不存在
+        if doc.doc_type != 'link' and doc.file_path and not os.path.isfile(doc.file_path):
+            should_delete = True
+        
+        # 检查2: 文件大小为0且没有全文
+        if doc.file_size == 0 and not doc.full_text and doc.doc_type != 'link':
+            should_delete = True
+        
+        if should_delete:
+            logger.info(f"清理脏数据: id={doc.id}, title={doc.title}")
+            db.delete(doc)
+            cleaned += 1
+    
+    if cleaned > 0:
+        db.commit()
+        try:
+            _rebuild_docbox_fts(db)
+        except Exception:
+            pass
+    
+    return {'cleaned': cleaned}
 
 
 # ===== FTS5 索引管理 =====

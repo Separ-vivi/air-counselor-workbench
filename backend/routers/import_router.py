@@ -1,0 +1,761 @@
+"""
+AI 智能数据导入 - 两步式：detect(预览) + confirm(确认写入)
+支持：学生花名册 / 成绩单 / 党团进度
+"""
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+import pandas as pd
+import io
+import re
+import logging
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix='/api/import', tags=['智能导入'])
+
+# ============ 列名同义词映射表 ============
+STUDENT_COLUMN_SYNONYMS = {
+    'student_no': ['学号', '学生编号', '学生号', '编号', 'student_no', 'student_id'],
+    'name': ['姓名', '学生姓名', '名字', '名', 'name', '学生名'],
+    'gender': ['性别', '男女', 'sex', 'gender'],
+    'major': ['专业', '所学专业', '专业名称', 'major', '院系', '学院'],
+    'class_name': ['班级', '所在班级', '班级号', '班级名称', 'class_name', '班名'],
+    'birth_date': ['出生日期', '出生年月', '生日', 'birth_date', 'birthday'],
+    'political_status': ['政治面貌', '政治身份', 'political_status'],
+    'phone': ['联系电话', '手机号', '电话', 'phone', 'tel', '手机号码'],
+    'parent_phone': ['家长电话', '紧急联系电话', '家庭联系方式', '家长联系方式', 'parent_phone'],
+    'email': ['邮箱', '电子邮箱', 'email', '邮件'],
+    'birth_source': ['生源地', '籍贯', '生源省份', '生源', 'birth_source'],
+    'id_card': ['身份证', '身份证号', '身份证号码', '证件号', 'id_card', 'idcard', 'id_number'],
+    'campus': ['校区', 'campus'],
+    'dorm_building': ['宿舍楼', '宿舍', '楼栋', 'dorm_building'],
+    'dorm_room': ['宿舍号', '房间号', '寝室号', '门牌号', 'dorm_room', 'room'],
+    'is_off_campus': ['是否外宿', '外宿', 'off_campus', 'is_off_campus'],
+    'off_campus_address': ['外宿地址', '校外住址', 'off_campus_address'],
+    'notes': ['备注', '说明', 'notes', 'remark'],
+}
+
+GRADE_COLUMN_SYNONYMS = {
+    'student_no': ['学号', '学生编号', '学生号', '编号', 'student_no'],
+    'name': ['姓名', '学生姓名', '名字', 'name'],
+    'semester': ['学期', '开课学期', '学年学期', 'semester', 'term'],
+    'course_name': ['课程名', '课程名称', '课程', '科目', '科目名称', '课名', 'course', 'course_name'],
+    'score': ['分数', '成绩', '得分', '总分', '考试成绩', 'score', 'total_score'],
+    'gpa': ['绩点', 'GPA', 'gpa', '学分绩点'],
+    'credit': ['学分', 'credit', 'credits'],
+    'is_repair': ['重修', '是否重修', 'is_repair', 'is_makeup', '补修', '是否补修'],
+}
+
+PARTY_COLUMN_SYNONYMS = {
+    'student_no': ['学号', '学生编号', '编号', 'student_no'],
+    'name': ['姓名', '学生姓名', '名字', 'name'],
+    'class_name': ['班级', '所在班级', 'class_name'],
+    'stage': ['阶段', '发展', '当前阶段', 'stage'],
+    'stage_date': ['阶段日期', '日期', 'stage_date'],
+    'contact_person': ['联系人', '经办人', '培养联系人', 'contact_person'],
+    'notes': ['备注', '说明', 'notes'],
+}
+
+COMPREHENSIVE_COLUMN_SYNONYMS = {
+    'student_no': ['学号', '学生编号', '编号', 'student_no'],
+    'name': ['姓名', '学生姓名', '名字', 'name'],
+    'class_name': ['班级', '所在班级', 'class_name'],
+    'semester': ['学期', '开课学期', '学年学期', 'semester'],
+    'moral_score': ['德育', '德育分', 'moral', 'moral_score'],
+    'academic_score': ['智育', '智育分', '学业', 'academic', 'academic_score'],
+    'physical_score': ['体育', '体育分', 'physical', 'physical_score'],
+    'aesthetic_score': ['美育', '美育分', 'aesthetic', 'aesthetic_score'],
+    'labor_score': ['劳育', '劳育分', 'labor', 'labor_score'],
+    'notes': ['备注', '说明', 'notes'],
+}
+
+INTERVIEW_COLUMN_SYNONYMS = {
+    'student_no': ['学号', '学生编号', '编号', 'student_no'],
+    'name': ['姓名', '学生姓名', '名字', 'name'],
+    'interview_date': ['访谈日期', '日期', 'interview_date', 'date'],
+    'interview_type': ['访谈类型', '类型', 'interview_type', 'type'],
+    'interviewer': ['访谈人', '访谈教师', 'interviewer', 'teacher'],
+    'location': ['地点', '访谈地点', 'location', 'place'],
+    'topic': ['主题', '访谈主题', 'topic', 'subject'],
+    'content': ['内容', '访谈内容', 'content', 'detail'],
+    'feedback': ['学生反馈', '反馈', 'feedback'],
+    'follow_up': ['后续跟进', '跟进', 'follow_up', 'follow'],
+    'status': ['状态', 'status'],
+    'remind_date': ['提醒日期', 'remind_date', 'remind'],
+}
+
+# 数据库字段中文名（用于展示）
+DB_FIELD_NAMES = {
+    'student_no': '学号', 'name': '姓名', 'gender': '性别', 'major': '专业',
+    'class_name': '班级', 'birth_date': '出生日期', 'political_status': '政治面貌',
+    'phone': '联系电话', 'parent_phone': '家长电话', 'email': '邮箱',
+    'birth_source': '生源地', 'notes': '备注',
+    'id_card': '身份证号', 'campus': '校区', 'dorm_building': '宿舍楼',
+    'dorm_room': '房间号', 'is_off_campus': '是否外宿', 'off_campus_address': '外宿地址',
+    'semester': '学期', 'course_name': '课程名', 'score': '分数', 'gpa': '绩点', 'credit': '学分',
+    'is_repair': '是否重修',
+    'stage': '阶段', 'stage_date': '阶段日期', 'contact_person': '联系人',
+}
+
+
+def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """清洗 DataFrame：跳过说明行、空行、汇总行"""
+    # 1. 找到真正的列名行（包含最多非空字符串的行）
+    best_row_idx = 0
+    best_score = 0
+    for i in range(min(10, len(df))):  # 只检查前10行
+        row = df.iloc[i]
+        # 计算该行中非空且非数字的字符串数量
+        score = sum(1 for v in row if isinstance(v, str) and len(v.strip()) > 1 and not v.strip().isdigit())
+        if score > best_score:
+            best_score = score
+            best_row_idx = i
+
+    # 2. 用找到的行作为列名
+    header_row = df.iloc[best_row_idx]
+    df = df.iloc[best_row_idx + 1:].reset_index(drop=True)
+    df.columns = [str(h).strip() for h in header_row.values]
+
+    # 3. 删除全空行
+    df = df.dropna(how='all')
+    df = df[df.apply(lambda row: any(str(v).strip() != '' for v in row), axis=1)]
+
+    # 4. 删除汇总行（包含"合计"、"总计"、"汇总"等关键词的行）
+    summary_keywords = ['合计', '总计', '汇总', '统计', '小计', '平均']
+    mask = df.apply(lambda row: not any(
+        kw in str(v) for v in row for kw in summary_keywords
+    ), axis=1)
+    df = df[mask].reset_index(drop=True)
+
+    return df
+
+
+def map_columns(columns: List[str], synonyms: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+    """列名映射：同义词匹配"""
+    mapping = []
+    used_db_fields = set()
+    for col in columns:
+        col_clean = str(col).strip()
+        matched_db_field = None
+        best_alias_len = 0
+        for db_field, alias_list in synonyms.items():
+            if db_field in used_db_fields:
+                continue
+            for alias in alias_list:
+                # 精确匹配优先
+                if col_clean == alias:
+                    matched_db_field = db_field
+                    best_alias_len = len(alias)
+                    break
+                # 模糊匹配：取最长别名匹配，避免短别名误匹配
+                elif (alias in col_clean or col_clean in alias) and len(alias) > best_alias_len:
+                    matched_db_field = db_field
+                    best_alias_len = len(alias)
+            if matched_db_field and best_alias_len == len(col_clean):
+                break
+        mapping.append({
+            'file_column': col_clean,
+            'db_column': matched_db_field,
+            'db_field_name': DB_FIELD_NAMES.get(matched_db_field, '') if matched_db_field else '',
+        })
+        if matched_db_field:
+            used_db_fields.add(matched_db_field)
+    return mapping
+
+
+def detect_file_type(df: pd.DataFrame, mapping: List[Dict]) -> str:
+    """自动识别文件类型"""
+    mapped_fields = {m['db_column'] for m in mapping if m['db_column']}
+
+    # 综测特征：有德育/智育/体育等字段
+    comprehensive_keywords = ['德育', '智育', '体育', '美育', '劳育', 'moral', 'academic', 'physical']
+    for col in df.columns:
+        if any(kw in str(col) for kw in comprehensive_keywords):
+            return 'comprehensive'
+    if 'moral_score' in mapped_fields or 'academic_score' in mapped_fields:
+        return 'comprehensive'
+
+    # 访谈特征：有访谈日期/访谈类型等字段
+    interview_keywords = ['访谈日期', '访谈类型', '访谈人', '访谈主题', 'interview_date', 'interview_type']
+    for col in df.columns:
+        if any(kw in str(col) for kw in interview_keywords):
+            return 'interview'
+    if 'interview_date' in mapped_fields:
+        return 'interview'
+
+    # 成绩单特征：有学号+姓名+多个未映射列（课程名）
+    if 'student_no' in mapped_fields and 'name' in mapped_fields:
+        unmapped_cols = [m['file_column'] for m in mapping if not m['db_column']]
+        if len(unmapped_cols) >= 3:
+            # 检查未映射列是否像课程名（包含数字成绩值）
+            numeric_count = 0
+            for col in unmapped_cols:
+                if col in df.columns:
+                    try:
+                        vals = pd.to_numeric(df[col], errors='coerce')
+                        if vals.notna().sum() > 0:
+                            numeric_count += 1
+                    except:
+                        pass
+            if numeric_count >= 3:
+                return 'grades'
+
+    # 党团发展表特征：有阶段相关字段
+    party_keywords = ['阶段', '发展', '积极分子', '预备党员', '中共预备党员', '中共党员', '党员', '团员']
+    for col in df.columns:
+        if any(kw in str(col) for kw in party_keywords):
+            return 'party'
+    if 'stage' in mapped_fields:
+        return 'party'
+
+    return 'students'
+
+
+# ============ 存储待确认的导入数据（内存） ============
+_pending_imports: Dict[str, Dict[str, Any]] = {}
+
+
+class ConfirmRequest(BaseModel):
+    data_type: str
+    mapping: List[Dict[str, Any]]
+    conflict_strategy: str = 'skip'  # skip / overwrite / keep_both
+    import_id: Optional[str] = None
+
+
+@router.post('/detect')
+async def detect_file(file: UploadFile = File(...)):
+    """第一步：上传文件，AI 识别类型 + 列名映射 + 数据预览"""
+    content = await file.read()
+    filename = file.filename or ''
+    logger.info(f"[导入检测] 文件名={filename}, 大小={len(content)} bytes")
+
+    # 解析文件（header=None 让 clean_dataframe 统一处理表头定位）
+    try:
+        if filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(content), dtype=str, header=None).fillna('')
+        else:
+            df = pd.read_excel(io.BytesIO(content), dtype=str, header=None).fillna('')
+    except Exception as e:
+        logger.exception(f"[导入检测] 文件解析失败: {e}")
+        raise HTTPException(400, f'文件解析失败: {str(e)}')
+
+    if len(df) == 0:
+        raise HTTPException(400, '文件为空')
+
+    # 清洗数据
+    df = clean_dataframe(df)
+
+    if len(df) == 0:
+        raise HTTPException(400, '清洗后无有效数据行')
+
+    # 列名映射
+    columns = list(df.columns)
+    mapping = map_columns(columns, STUDENT_COLUMN_SYNONYMS)
+
+    # 识别文件类型
+    data_type = detect_file_type(df, mapping)
+
+    # 如果是成绩单，用成绩同义词重新映射
+    if data_type == 'grades':
+        mapping = map_columns(columns, GRADE_COLUMN_SYNONYMS)
+        # 未映射的列视为课程名
+        for m in mapping:
+            if not m['db_column']:
+                m['db_column'] = f'course:{m["file_column"]}'
+                m['db_field_name'] = f'课程: {m["file_column"]}'
+    elif data_type == 'party':
+        mapping = map_columns(columns, PARTY_COLUMN_SYNONYMS)
+    elif data_type == 'comprehensive':
+        mapping = map_columns(columns, COMPREHENSIVE_COLUMN_SYNONYMS)
+    elif data_type == 'interview':
+        mapping = map_columns(columns, INTERVIEW_COLUMN_SYNONYMS)
+
+    # 生成导入 ID
+    import_id = f"import_{datetime.now().strftime('%Y%m%d%H%M%S')}_{id(df)}"
+
+    # 存储待确认数据
+    _pending_imports[import_id] = {
+        'dataframe': df,
+        'data_type': data_type,
+        'mapping': mapping,
+        'columns': columns,
+    }
+
+    # 构建预览数据
+    rows = []
+    for _, row in df.head(5).iterrows():
+        row_dict = {}
+        for col in columns:
+            row_dict[col] = str(row.get(col, ''))
+        rows.append(row_dict)
+
+    # 查重统计
+    duplicate_count = 0
+    if data_type == 'students':
+        from database import SessionLocal
+        from models import Student
+        db = SessionLocal()
+        try:
+            student_no_col = next((m['file_column'] for m in mapping if m.get('db_column') == 'student_no'), None)
+            if student_no_col:
+                student_nos = [str(x) for x in df[student_no_col].dropna().unique().tolist() if str(x).strip()]
+                if student_nos:
+                    existing_count = db.query(Student).filter(Student.student_no.in_(student_nos)).count()
+                    duplicate_count = existing_count
+        finally:
+            db.close()
+    elif data_type == 'grades':
+        from database import SessionLocal
+        from models import Student
+        db = SessionLocal()
+        try:
+            student_no_col = next((m['file_column'] for m in mapping if m.get('db_column') == 'student_no'), None)
+            if student_no_col:
+                student_nos = [str(x) for x in df[student_no_col].dropna().unique().tolist() if str(x).strip()]
+                if student_nos:
+                    # 统计学号存在于数据库中的记录数（这些是有效的，可以导入成绩）
+                    existing_count = db.query(Student).filter(Student.student_no.in_(student_nos)).count()
+                    duplicate_count = existing_count  # 这里表示"学号已存在"的数量
+        finally:
+            db.close()
+
+    # 供前端使用：source -> target 建议映射
+    suggested_mapping = {m['file_column']: m['db_column'] for m in mapping if m.get('db_column') and not m['db_column'].startswith('course:')}
+    # 供前端使用：每列的示例值
+    samples = {}
+    for col in columns:
+        try:
+            if col in df.columns and df[col].notna().any():
+                samples[col] = str(df[col].dropna().iloc[0])
+            else:
+                samples[col] = ''
+        except Exception:
+            samples[col] = ''
+
+    return {
+        'import_id': import_id,
+        'data_type': data_type,
+        'columns': columns,
+        'headers': columns,  # 前端兼容
+        'mapping': mapping,
+        'suggested_mapping': suggested_mapping,  # 前端兼容
+        'samples': samples,  # 前端兼容
+        'preview_data': rows,
+        'preview': rows,  # 前端兼容
+        'total_rows': len(df),
+        'valid_rows': len(df),
+        'duplicate_count': duplicate_count,
+        'warnings': [],
+    }
+
+
+@router.post('/confirm')
+async def confirm_import(req: ConfirmRequest):
+    """第二步：确认导入，写入数据库"""
+    from database import SessionLocal
+    from models import Student, GradeRecord, PartyProgress
+
+    import_id = req.import_id
+    if not import_id or import_id not in _pending_imports:
+        raise HTTPException(400, '导入数据已过期，请重新上传文件')
+
+    pending = _pending_imports.pop(import_id)
+    df = pending['dataframe']
+    data_type = pending['data_type']
+    mapping = req.mapping
+    logger.info(f"[导入确认] 开始, import_id={import_id}, 类型={data_type}, 数据行数={len(df)}")
+
+    # 构建列名映射字典
+    col_map = {}
+    course_columns = []
+    for m in mapping:
+        if m.get('db_column'):
+            if m['db_column'].startswith('course:'):
+                course_columns.append((m['file_column'], m['db_column'].replace('course:', '')))
+            else:
+                col_map[m['db_column']] = m['file_column']
+
+    # 成绩单智能兜底：未映射且是数值型的列，自动当作课程列（宽表→长表 melt）
+    if data_type == 'grades':
+        import pandas as pd
+        mapped_file_cols = {m['file_column'] for m in mapping if m.get('db_column')}
+        for col in df.columns:
+            if col in mapped_file_cols:
+                continue
+            # 判断是否为数值列（至少 3 个数值样本）
+            try:
+                vals = pd.to_numeric(df[col], errors='coerce')
+                if vals.notna().sum() >= 3:
+                    course_columns.append((col, str(col).strip()))
+                    logger.info(f'[导入] 自动识别课程列: {col}')
+            except Exception:
+                pass
+
+    db = SessionLocal()
+    created = 0
+    skipped = 0
+    updated = 0
+
+    try:
+        if data_type == 'students':
+            # ---------- Student 直属字段（不含 class_name / major / grade / family_situation） ----------
+            STUDENT_DIRECT_FIELDS = ['gender', 'birth_date', 'political_status',
+                                     'phone', 'parent_phone', 'email', 'birth_source', 'notes']
+
+            # ---------- class_name / major / grade 用于组织层级：找到或创建 ClassModel ----------
+            from models import Grade as GradeOrg, Major, ClassModel
+
+            def resolve_class_id(row):
+                """根据 class_name / major / grade 三层信息定位或创建 ClassModel，返回 class_id"""
+                cn = str(row.get(col_map.get('class_name', ''), '')).strip() if col_map.get('class_name') else ''
+                mj = str(row.get(col_map.get('major', ''), '')).strip() if col_map.get('major') else ''
+                gd = str(row.get(col_map.get('grade', ''), '')).strip() if col_map.get('grade') else ''
+                if not cn:
+                    return None
+                # class_name 全局唯一，先直接查
+                existing = db.query(ClassModel).filter(ClassModel.class_name == cn).first()
+                if existing:
+                    return existing.id
+                # 不存在则创建组织层级：Grade -> Major -> ClassModel
+                # 从班级名中尝试提取年级信息（e.g. "计科2401" -> 2024级）
+                if not gd:
+                    m = re.search(r'(\d{2})\d{2}', cn)
+                    if m:
+                        yy = int(m.group(1))
+                        year = 2000 + yy
+                        gd = f'{year}级'
+                if not gd:
+                    gd = '未分年级'
+                if not mj:
+                    mj = '未分专业'
+                # Grade
+                grade_obj = db.query(GradeOrg).filter(GradeOrg.grade_name == gd).first()
+                if not grade_obj:
+                    start_year = 2000
+                    m = re.search(r'(\d{4})', gd)
+                    if m:
+                        start_year = int(m.group(1))
+                    grade_obj = GradeOrg(grade_name=gd, start_year=start_year)
+                    db.add(grade_obj)
+                    db.flush()
+                # Major
+                major_obj = db.query(Major).filter(Major.major_name == mj, Major.grade_id == grade_obj.id).first()
+                if not major_obj:
+                    major_obj = Major(major_name=mj, grade_id=grade_obj.id)
+                    db.add(major_obj)
+                    db.flush()
+                # ClassModel
+                new_class = ClassModel(class_name=cn, major_id=major_obj.id)
+                db.add(new_class)
+                db.flush()
+                return new_class.id
+
+            for _, row in df.iterrows():
+                student_no = str(row.get(col_map.get('student_no', ''), '')).strip()
+                name = str(row.get(col_map.get('name', ''), '')).strip()
+                if not student_no or not name:
+                    skipped += 1
+                    continue
+
+                existing = db.query(Student).filter(Student.student_no == student_no).first()
+                if existing:
+                    if req.conflict_strategy == 'skip':
+                        skipped += 1
+                        continue
+                    elif req.conflict_strategy == 'overwrite':
+                        # name
+                        existing.name = name
+                        # 直属字段
+                        for field in STUDENT_DIRECT_FIELDS:
+                            col_name = col_map.get(field, '')
+                            if col_name and col_name in row.index:
+                                val = str(row[col_name]).strip()
+                                if val:
+                                    setattr(existing, field, val)
+                        # class_id
+                        cid = resolve_class_id(row)
+                        if cid:
+                            existing.class_id = cid
+                        updated += 1
+                    else:
+                        skipped += 1
+                else:
+                    student = Student(student_no=student_no, name=name)
+                    for field in STUDENT_DIRECT_FIELDS:
+                        col_name = col_map.get(field, '')
+                        if col_name and col_name in row.index:
+                            val = str(row[col_name]).strip()
+                            if val:
+                                setattr(student, field, val)
+                    cid = resolve_class_id(row)
+                    if cid:
+                        student.class_id = cid
+                    db.add(student)
+                    created += 1
+
+        elif data_type == 'grades':
+            semester_col = col_map.get('semester', '')
+            student_no_col = col_map.get('student_no', '')
+            name_col = col_map.get('name', '')
+
+            for _, row in df.iterrows():
+                student_no = str(row.get(student_no_col, '')).strip()
+                if not student_no:
+                    skipped += 1
+                    continue
+
+                student = db.query(Student).filter(Student.student_no == student_no).first()
+                if not student:
+                    skipped += 1
+                    continue
+
+                semester = str(row.get(semester_col, '')).strip() if semester_col else ''
+
+                for course_col, course_name in course_columns:
+                    score_val = row.get(course_col, '')
+                    try:
+                        score = float(score_val) if score_val != '' else None
+                    except (ValueError, TypeError):
+                        score = None
+
+                    if score is not None:
+                        grade = GradeRecord(
+                            student_id=student.id,
+                            semester=semester or '未指定学期',
+                            course_name=course_name,
+                            score=score,
+                            gpa=score / 25 if score <= 100 else None,
+                            credit=1.0,
+                        )
+                        db.add(grade)
+                        created += 1
+
+            # 导入成绩后重新计算预警
+            from routers.grades import recalculate_warnings
+            recalculate_warnings(db)
+
+        elif data_type == 'party':
+            for _, row in df.iterrows():
+                student_no = str(row.get(col_map.get('student_no', ''), '')).strip()
+                if not student_no:
+                    skipped += 1
+                    continue
+
+                student = db.query(Student).filter(Student.student_no == student_no).first()
+                if not student:
+                    skipped += 1
+                    continue
+
+                stage = str(row.get(col_map.get('stage', ''), '')).strip()
+                stage_date = str(row.get(col_map.get('stage_date', ''), '')).strip()
+                contact = str(row.get(col_map.get('contact_person', ''), '')).strip()
+                notes = str(row.get(col_map.get('notes', ''), '')).strip()
+
+                if stage:
+                    progress = PartyProgress(
+                        student_id=student.id,
+                        stage=stage,
+                        stage_date=stage_date or None,
+                        contact_person=contact,
+                        notes=notes,
+                    )
+                    db.add(progress)
+                    created += 1
+
+        elif data_type == 'comprehensive':
+            from models import ComprehensiveAssessment
+            for _, row in df.iterrows():
+                student_no = str(row.get(col_map.get('student_no', ''), '')).strip()
+                if not student_no:
+                    skipped += 1
+                    continue
+
+                student = db.query(Student).filter(Student.student_no == student_no).first()
+                if not student:
+                    skipped += 1
+                    continue
+
+                semester = str(row.get(col_map.get('semester', ''), '')).strip()
+                if not semester:
+                    skipped += 1
+                    continue
+
+                def get_float(field_name):
+                    val = str(row.get(col_map.get(field_name, ''), '')).strip()
+                    try:
+                        return float(val) if val else 0.0
+                    except:
+                        return 0.0
+
+                moral = get_float('moral_score')
+                academic = get_float('academic_score')
+                physical = get_float('physical_score')
+                aesthetic = get_float('aesthetic_score')
+                labor = get_float('labor_score')
+                total_score = (moral + academic + physical + aesthetic + labor) / 5
+                notes = str(row.get(col_map.get('notes', ''), '')).strip()
+
+                assessment = ComprehensiveAssessment(
+                    student_id=student.id,
+                    semester=semester,
+                    moral_score=moral,
+                    academic_score=academic,
+                    physical_score=physical,
+                    aesthetic_score=aesthetic,
+                    labor_score=labor,
+                    total_score=round(total_score, 2),
+                    notes=notes
+                )
+                db.add(assessment)
+                created += 1
+
+        elif data_type == 'interview':
+            from models import StudentInterview
+            for _, row in df.iterrows():
+                student_no = str(row.get(col_map.get('student_no', ''), '')).strip()
+                if not student_no:
+                    skipped += 1
+                    continue
+
+                student = db.query(Student).filter(Student.student_no == student_no).first()
+                if not student:
+                    skipped += 1
+                    continue
+
+                interview_date = str(row.get(col_map.get('interview_date', ''), '')).strip()
+                if not interview_date:
+                    skipped += 1
+                    continue
+
+                interview = StudentInterview(
+                    student_id=student.id,
+                    interview_date=interview_date,
+                    interview_type=str(row.get(col_map.get('interview_type', ''), '常规访谈')).strip(),
+                    interviewer=str(row.get(col_map.get('interviewer', ''), '')).strip(),
+                    location=str(row.get(col_map.get('location', ''), '')).strip(),
+                    topic=str(row.get(col_map.get('topic', ''), '')).strip(),
+                    content=str(row.get(col_map.get('content', ''), '')).strip(),
+                    feedback=str(row.get(col_map.get('feedback', ''), '')).strip(),
+                    follow_up=str(row.get(col_map.get('follow_up', ''), '')).strip(),
+                    status=str(row.get(col_map.get('status', ''), '已完成')).strip(),
+                    remind_date=str(row.get(col_map.get('remind_date', ''), '')).strip()
+                )
+                db.add(interview)
+                created += 1
+
+        db.commit()
+        logger.info(f"[导入确认] 类型={data_type}, 新增={created}, 跳过={skipped}, 更新={updated}")
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"[导入确认] 失败: {e}")
+        raise HTTPException(500, f'导入失败: {str(e)}')
+    finally:
+        db.close()
+
+    total = created + skipped + updated
+    return {
+        'success': True,
+        'created': created,
+        'skipped': skipped,
+        'updated': updated,
+        'data_type': data_type,
+        # 前端兼容字段
+        'total': total,
+        'total_rows': total,
+        'imported': created + updated,
+        'success_count': created + updated,
+        'failed': skipped,
+        'fail_count': skipped,
+        'errors': [],
+    }
+
+@router.get('/template')
+def download_template(type: str = 'students'):
+    """下载导入模板 xlsx"""
+    import io
+    import pandas as pd
+    from fastapi.responses import Response
+    from urllib.parse import quote
+    templates = {
+        'students': {
+            'sheet': '学生花名册模板',
+            'columns': ['学号','姓名','性别','班级','专业','年级','出生日期','政治面貌',
+                        '手机','邮箱','家长手机','生源地','身份证号','校区','宿舍楼',
+                        '房间号','是否外宿','外宿地址','备注'],
+            'example': ['20240101001','张三','男','计科2401','计算机科学与技术','2024 级',
+                        '2005-03-01','共青团员','13800000000','zhangsan@qq.com','13900000000',
+                        '福建省·福州市·鼓楼区','350102200503010001','铜盘校区','1号楼',
+                        '101','否','','示例行，请删除'],
+        },
+        'family': {
+            'sheet': '家庭档案模板',
+            'columns': ['学号','姓名','家长姓名','关系','家长电话','联系日期','联系方式','沟通主题','备注'],
+            'example': ['20240101001','张三','张建国','父亲','13900000001','2024-09-01','电话','开学沟通','家长配合度高'],
+        },
+        'grades': {
+            'sheet': '成绩单模板（长表）',
+            'columns': ['学号','姓名','学期','课程名','分数','学分'],
+            'example': ['20240101001','张三','2024-2025-1','高等数学A','85','4'],
+        },
+        'grades_wide': {
+            'sheet': '成绩单模板（宽表-推荐）',
+            'columns': ['学号','姓名','学期','高等数学A','大学英语I','程序设计基础','线性代数'],
+            'example': ['20240101001','张三','2024-2025-1','85','78','92','88'],
+        },
+        'party': {
+            'sheet': '党团发展模板',
+            'columns': ['学号','姓名','阶段','阶段日期','联系人','备注'],
+            'example': ['20240101001','张三','积极分子','2024-09-01','李老师','已递交入党申请书'],
+        },
+        'comprehensive': {
+            'sheet': '综测成绩模板',
+            'columns': ['学号','姓名','班级','学期','德育','智育','体育','美育','劳育','备注'],
+            'example': ['20240101001','张三','计科2401','2024-2025-1','85','90','88','82','80','示例行，请删除'],
+        },
+        'scholarship': {
+            'sheet': '奖学金模板',
+            'columns': ['学号','姓名','奖学金名称','等级','金额','学年','学期','备注'],
+            'example': ['20240101001','张三','国家奖学金','国家级','8000','2024-2025','1','品学兼优'],
+        },
+        'hardship': {
+            'sheet': '困难认定模板',
+            'columns': ['学号','姓名','困难等级','学年','家庭情况','家庭年收入','人均收入','困难类型','备注'],
+            'example': ['20240101001','张三','特别困难','2024-2025','低保家庭','20000','5000','建档立卡','母亲患病'],
+        },
+        'cadre': {
+            'sheet': '干部记录模板',
+            'columns': ['学号','姓名','职务','组织名称','任职开始日期','任职结束日期','状态','备注'],
+            'example': ['20240101001','张三','班长','计科2401班委','2024-09-01','2025-06-30','在职',''],
+        },
+        'activity': {
+            'sheet': '活动记录模板',
+            'columns': ['学号','姓名','活动名称','活动日期','参与角色','时长(小时)','备注'],
+            'example': ['20240101001','张三','迎新志愿者','2024-09-01','组长','8','表现积极'],
+        },
+        'employment': {
+            'sheet': '就业跟踪模板',
+            'columns': ['学号','姓名','单位名称','岗位','就业类型','签约日期','薪资','备注'],
+            'example': ['20240101001','张三','腾讯科技','前端开发工程师','正式','2024-10-15','15000','已签三方'],
+        },
+        'interview': {
+            'sheet': '学生访谈模板',
+            'columns': ['学号','姓名','访谈日期','访谈类型','访谈人','地点','主题','内容','学生反馈','后续跟进','状态','提醒日期'],
+            'example': ['20240101001','张三','2024-10-15','常规访谈','王老师','办公室A101','期中学习情况','了解期中学习状态','学习压力较大，需要调整方法','持续关注','已完成','2024-11-15'],
+        },
+    }
+    if type not in templates:
+        raise HTTPException(400, f'type 必须为: {list(templates.keys())}')
+    tpl = templates[type]
+    df = pd.DataFrame([tpl['example']], columns=tpl['columns'])
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as w:
+        df.to_excel(w, index=False, sheet_name=tpl['sheet'])
+    output.seek(0)
+    filename = f"{tpl['sheet']}.xlsx"
+    return Response(
+        content=output.getvalue(),
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f"attachment; filename*=UTF-8''{quote(filename)}"}
+    )
