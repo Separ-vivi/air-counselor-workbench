@@ -4,7 +4,7 @@
       <el-icon class="brand-icon"><School /></el-icon>
       <div class="brand-info">
         <div class="brand-text">辅导员工作平台</div>
-        <div class="brand-ver">V6.16-hotfix</div>
+        <div class="brand-ver">V6.13</div>
       </div>
     </div>
 
@@ -61,7 +61,7 @@
       <!-- 第5组 知识中心 -->
       <el-sub-menu index="knowledge-center">
         <template #title><el-icon><Reading /></el-icon><span>知识中心</span></template>
-        <el-menu-item index="/knowledge"><el-icon><Files /></el-icon><span>文档工具箱</span></el-menu-item>
+        <el-menu-item index="/knowledge"><el-icon><Files /></el-icon><span>知识库·AI助手</span></el-menu-item>
         <el-menu-item index="/templates"><el-icon><Document /></el-icon><span>文档模板</span></el-menu-item>
       </el-sub-menu>
 

@@ -549,26 +549,6 @@ def list_events(start: str = '', end: str = '', db: Session = Depends(get_db)):
                 'link': '/module/family',
             })
 
-    # 8) V6.16 校历事件（academic_calendar_events 表）
-    try:
-        from models import AcademicCalendarEvent
-        for ae in db.query(AcademicCalendarEvent).all():
-            if _in(ae.date):
-                color = 'red' if ae.is_holiday else ('orange' if ae.event_type in ('期末考试', '考试') else 'blue')
-                week_str = f'第{ae.week_number}周' if ae.week_number > 0 else ''
-                events.append({
-                    'id': f'ace-{ae.id}',
-                    'date': _to_dt(ae.date),
-                    'type': 'academic',
-                    'color': color,
-                    'title': f'📅 {ae.event_description or ae.event_type}',
-                    'meta': f'{ae.event_type}' + (f' · {week_str}' if week_str else ''),
-                    'description': f'{ae.event_type} · {ae.event_description}',
-                    'link': '/calendar',
-                })
-    except Exception:
-        pass  # 表可能尚未创建
-
     events.sort(key=lambda x: (x['date'], x['type']))
     return {'events': events, 'start': start, 'end': end, 'count': len(events)}
 

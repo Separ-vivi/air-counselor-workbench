@@ -134,68 +134,8 @@
       />
     </div>
 
-    <!-- V6.14: 新增/编辑对话框 - AI 自动填表助手 + 音频上传 -->
+    <!-- V6.13: 新增/编辑对话框 - AI 自动填表助手 -->
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑访谈' : '新增访谈'" width="720px" top="5vh">
-      <!-- V6.15: 预警背景信息 -->
-      <div v-if="warningContext" class="warning-context-banner">
-        <div class="warning-context-header">
-          <span class="warning-context-icon">⚠️</span>
-          <span class="warning-context-title">本次谈话背景：{{ warningContext.warning_type }}</span>
-          <el-tag :type="warningContext.warning_severity === 'high' ? 'danger' : warningContext.warning_severity === 'medium' ? 'warning' : 'success'" size="small" effect="plain" round>
-            {{ warningContext.warning_severity === 'high' ? '高风险' : warningContext.warning_severity === 'medium' ? '中风险' : '低风险' }}
-          </el-tag>
-        </div>
-        <div class="warning-context-body">
-          <div class="warning-context-row">
-            <span class="warning-context-label">学生：</span>
-            <span>{{ warningContext.student_name }}（{{ warningContext.student_no }}）{{ warningContext.class_name ? '· ' + warningContext.class_name : '' }}</span>
-          </div>
-          <div class="warning-context-row">
-            <span class="warning-context-label">预警原因：</span>
-            <span>{{ warningContext.warning_reason }}</span>
-          </div>
-          <div v-if="warningContext.warning_details" class="warning-context-row">
-            <span class="warning-context-label">详细记录：</span>
-            <span>{{ warningContext.warning_details }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- V6.14: 音频上传区 -->
-      <div class="audio-upload-section">
-        <div class="audio-upload-header">
-          <span class="audio-upload-title">
-            🎙️ 访谈录音
-          </span>
-          <span class="audio-upload-hint">上传录音文件，或粘贴转写文字</span>
-        </div>
-        <div class="audio-upload-area">
-          <el-upload
-            ref="audioUploadRef"
-            :auto-upload="false"
-            :show-file-list="false"
-            :on-change="onAudioFileChange"
-            accept=".mp3,.wav,.m4a,.ogg,.webm,.flac,.aac,.wma"
-            class="audio-upload-btn"
-          >
-            <el-button :loading="audioUploading" :icon="Upload">
-              {{ audioUploading ? '上传中...' : '选择音频文件' }}
-            </el-button>
-          </el-upload>
-          <div v-if="audioFile" class="audio-file-info">
-            <span class="audio-file-name">🎵 {{ audioFile.name }}</span>
-            <span class="audio-file-size">{{ (audioFile.size / 1024 / 1024).toFixed(1) }}MB</span>
-            <el-button text type="danger" size="small" @click="audioFile = null; audioUrl = ''">移除</el-button>
-          </div>
-          <div v-if="audioUrl" class="audio-player-wrapper">
-            <audio :src="audioUrl" controls style="width: 100%; margin-top: 6px;"></audio>
-          </div>
-          <div class="audio-formats-hint">
-            支持格式：MP3、WAV、M4A、OGG、WebM、FLAC，最大 100MB
-          </div>
-        </div>
-      </div>
-
       <!-- AI 分析输入区 -->
       <div class="ai-analyze-section">
         <div class="ai-analyze-header">
@@ -389,9 +329,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import { interview as interviewApi, students as studentsApi, semesterReport } from '@/api/modules'
 // V6.10: AI 摘要通过 interviewApi.aiSummary 调用
@@ -399,12 +337,8 @@ import { useOrgStore } from '@/stores/org'
 import StudentSelect from '@/components/StudentSelect.vue'
 
 const orgStore = useOrgStore()
-const route = useRoute()
 const loading = ref(false)
 const submitting = ref(false)
-
-// V6.15: 预警→访谈 联动上下文
-const warningContext = ref(null)
 const allData = ref([]) // 全量数据
 const students = ref([])
 const stats = ref({})
@@ -675,63 +609,22 @@ const loadTotalStudents = async () => {
   }
 }
 
-// V6.14: 音频上传相关
-const audioFile = ref(null)
-const audioUrl = ref('')
-const audioUploading = ref(false)
-const audioUploadRef = ref(null)
-
-const onAudioFileChange = async (uploadFile) => {
-  const file = uploadFile.raw
-  if (!file) return
-  // 检查文件大小
-  if (file.size > 100 * 1024 * 1024) {
-    ElMessage.error('文件过大，最大支持 100MB')
-    return
-  }
-  audioFile.value = file
-  audioUploading.value = true
-  try {
-    const res = await interviewApi.uploadAudio(file)
-    if (res?.url) {
-      audioUrl.value = res.url
-      // 将音频信息存入 content 字段（备注）
-      const audioNote = `\n[录音文件: ${res.original_name}]`
-      if (!form.value.content.includes(audioNote)) {
-        form.value.content += audioNote
-      }
-      ElMessage.success(`录音文件 "${res.original_name}" 上传成功`)
-    }
-  } catch (e) {
-    ElMessage.error('音频上传失败: ' + (e?.response?.data?.detail || e?.message || '未知错误'))
-    audioFile.value = null
-  } finally {
-    audioUploading.value = false
-  }
-}
-
-const showAddDialog = (warning = null) => {
+const showAddDialog = () => {
   isEdit.value = false
   editId.value = null
   aiRawText.value = ''
   aiAnalyzeResult.value = null
-  audioFile.value = null
-  audioUrl.value = ''
-
-  // V6.15: 如果有预警上下文，预填充表单
-  warningContext.value = warning
-  const warningType = warning?.warning_type || ''
   form.value = {
-    student_id: warning?.student_id || null,
-    interview_date: new Date().toISOString().slice(0, 10),
-    interview_type: warningType ? '预警访谈' : '常规访谈',
+    student_id: null,
+    interview_date: '',
+    interview_type: '常规访谈',
     interviewer: '',
     location: '',
-    topic: warningType ? `[预警] ${warningType} - ${warning?.warning_reason || ''}` : '',
+    topic: '',
     content: '',
     feedback: '',
     follow_up: '',
-    status: '待进行',
+    status: '已完成',
     remind_date: '',
     _aiFilled: {}
   }
@@ -927,33 +820,6 @@ onMounted(async () => {
   loadSemesters()
   loadTotalStudents()
   window.addEventListener('resize', handleChartResize)
-
-  // V6.15: 检查是否从预警页面跳转而来（V6.16-hotfix: 修复类型转换问题）
-  const q = route.query
-  if (q.warning_student_id) {
-    // 先加载学生列表，确保 student_id 能被 select 组件识别
-    await loadStudents()
-    // V6.16-hotfix: 将字符串类型的student_id转为数字，匹配select组件的value类型
-    const studentIdNum = Number(q.warning_student_id)
-    const studentExists = !isNaN(studentIdNum) && students.value.some(s => s.id === studentIdNum)
-    const warning = {
-      student_id: studentExists ? studentIdNum : null,
-      student_name: q.warning_student_name || '',
-      student_no: q.warning_student_no || '',
-      class_name: q.warning_class_name || '',
-      warning_type: q.warning_type || '',
-      warning_reason: q.warning_reason || '',
-      warning_severity: q.warning_severity || '',
-      warning_details: q.warning_details || ''
-    }
-    // 设置学生筛选
-    if (warning.student_id) {
-      filterStudentId.value = warning.student_id
-    }
-    // 延迟打开新增对话框，等表格数据加载完
-    await nextTick()
-    showAddDialog(warning)
-  }
 })
 
 onBeforeUnmount(() => {
@@ -1197,62 +1063,6 @@ const handleChartResize = () => {
   padding: 16px 18px;
   margin-bottom: 4px;
 }
-
-/* V6.14: 音频上传区样式 */
-.audio-upload-section {
-  background: linear-gradient(135deg, rgba(123, 207, 203, 0.06) 0%, rgba(91, 146, 229, 0.04) 100%);
-  border: 1.5px solid rgba(123, 207, 203, 0.25);
-  border-radius: 14px;
-  padding: 14px 18px;
-  margin-bottom: 12px;
-}
-.audio-upload-header {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-.audio-upload-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: #2E5A7F;
-}
-.audio-upload-hint {
-  font-size: 12px;
-  color: #909399;
-}
-.audio-upload-area {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.audio-upload-btn {
-  align-self: flex-start;
-}
-.audio-file-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 12px;
-  background: rgba(91, 146, 229, 0.06);
-  border-radius: 8px;
-  font-size: 13px;
-}
-.audio-file-name {
-  color: #2E5A7F;
-  font-weight: 500;
-}
-.audio-file-size {
-  color: #909399;
-  font-size: 12px;
-}
-.audio-player-wrapper {
-  margin-top: 4px;
-}
-.audio-formats-hint {
-  font-size: 11px;
-  color: #C0C4CC;
-}
 .ai-analyze-header {
   display: flex;
   align-items: baseline;
@@ -1312,42 +1122,3 @@ const handleChartResize = () => {
   border-radius: 12px;
 }
 </style>
-/* V6.15: 预警背景信息横幅 */
-.warning-context-banner {
-  background: linear-gradient(135deg, rgba(245, 108, 108, 0.06) 0%, rgba(230, 162, 60, 0.08) 100%);
-  border: 1.5px solid rgba(245, 108, 108, 0.25);
-  border-radius: 12px;
-  padding: 14px 18px;
-  margin-bottom: 16px;
-}
-.warning-context-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.warning-context-icon {
-  font-size: 18px;
-}
-.warning-context-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: #E74C3C;
-  flex: 1;
-}
-.warning-context-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-left: 26px;
-}
-.warning-context-row {
-  font-size: 13px;
-  color: #2C3E50;
-  line-height: 1.6;
-}
-.warning-context-label {
-  color: #7F8C8D;
-  font-weight: 500;
-  margin-right: 4px;
-}

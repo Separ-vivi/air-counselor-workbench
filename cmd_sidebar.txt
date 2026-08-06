@@ -1,0 +1,7 @@
+【只输出原始 shell 输出，不加评论/总结/括号说明/emoji】
+cd /workspace/projects
+git stash push -u -m "auto_$(date +%s)" 2>&1 | tail -1
+git pull --rebase 2>&1 | tail -3
+git log --oneline -2
+cd /workspace/projects/frontend && npm run build 2>&1 | tail -5
+echo "build_exit=$?"

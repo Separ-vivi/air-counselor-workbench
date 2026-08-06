@@ -1,0 +1,21 @@
+【只输出原始 shell 输出，不加评论/总结/括号说明/emoji】
+cd /workspace/projects
+git stash push -u -m "auto_$(date +%s)" 2>&1 | tail -1
+git pull --rebase 2>&1 | tail -3
+git log --oneline -3
+pkill -9 -f "python.*main.py" 2>/dev/null
+lsof -ti:5000 2>/dev/null | xargs -r kill -9
+sleep 2
+cd /workspace/projects/frontend && npm run build 2>&1 | tail -5
+cd /workspace/projects/backend && nohup python main.py > /tmp/be.log 2>&1 &
+sleep 7
+curl -s -o /dev/null -w "be5000=%{http_code}\n" http://127.0.0.1:5000/api/health
+COUNT=$(python3 -c "import sqlite3;c=sqlite3.connect('/workspace/projects/data/edu.db');print(c.execute('SELECT COUNT(*) FROM students').fetchone()[0])" 2>/dev/null || echo 0)
+echo "current_students=$COUNT"
+if [ "$COUNT" -lt 200 ]; then
+  curl -s -X POST http://127.0.0.1:5000/api/system/reinit
+  echo ""
+  curl -s -X POST http://127.0.0.1:5000/api/system/seed-large | head -c 300
+  echo ""
+fi
+python3 -c "import sqlite3;c=sqlite3.connect('/workspace/projects/data/edu.db');print('students:',c.execute('SELECT COUNT(*) FROM students').fetchone()[0]);print('classes:',c.execute('SELECT COUNT(*) FROM classes').fetchone()[0])"

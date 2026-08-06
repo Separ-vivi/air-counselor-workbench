@@ -34,7 +34,7 @@ const routes = [
   { path: '/projects',         name: 'projects',         component: () => import('@/views/Projects.vue'),          meta: { title: '项目追踪' } },
   { path: '/summary',          name: 'summary',          component: () => import('@/views/WeeklySummary.vue'),     meta: { title: '周汇总' } },
   // 系统设置
-  { path: '/knowledge',        name: 'knowledge',        component: () => import('@/views/KnowledgeBase.vue'),      meta: { title: '文档工具箱' } },
+  { path: '/knowledge',        name: 'knowledge',        component: () => import('@/views/KnowledgeBase.vue'),      meta: { title: '知识库 · AI 助手' } },
   { path: '/faqs',             name: 'faqs',             component: () => import('@/views/Faqs.vue'),               meta: { title: 'FAQ' } },
   { path: '/templates',        name: 'templates',        component: () => import('@/views/DocumentTemplates.vue'),  meta: { title: '文档模板' } },
 
@@ -54,7 +54,7 @@ const router = createRouter({
 })
 
 router.afterEach((to) => {
-  document.title = `${to.meta?.title || '辅导员工作平台'} · V6.16-hotfix`
+  document.title = `${to.meta?.title || '辅导员工作平台'} · V6.13`
 })
 
 export default router
