@@ -6,15 +6,15 @@
 
     <ChartSection ref="chartSectionRef" :dash="dash" :week-events="weekEvents" @go-warning="goWarning" />
 
-    <!-- V6.13: AI 智能预警 + 效率中心等宽并排 -->
-    <el-row :gutter="16" style="margin-bottom: 16px" class="ai-efficiency-row">
-      <el-col :span="12">
+    <!-- V6.14: AI 智能预警 + 效率中心等宽并排 (12:12)，无空白 -->
+    <div class="ai-efficiency-row">
+      <div class="ae-col">
         <AIWarningCard ref="aiWarningRef" />
-      </el-col>
-      <el-col :span="12">
+      </div>
+      <div class="ae-col">
         <EfficiencyCenter :prod-stats="prodStats" />
-      </el-col>
-    </el-row>
+      </div>
+    </div>
 
     <ShortcutsGrid />
   </div>
@@ -105,7 +105,23 @@ onMounted(async () => {
   background: transparent;
 }
 
-/* 卡片高度对齐 + el-row/el-col 弹性布局 */
+/* V6.14: AI预警 + 效率中心 等宽并排，不留空白 */
+.ai-efficiency-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.ai-efficiency-row .ae-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+.ai-efficiency-row .ae-col > * {
+  flex: 1;
+  width: 100%;
+}
+
+/* 卡片高度对齐 */
 .dashboard :deep(.el-row) { display: flex; flex-wrap: wrap; }
 .dashboard :deep(.el-col) { display: flex; }
 .dashboard :deep(.el-col > .el-card) {
@@ -132,5 +148,12 @@ onMounted(async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
+}
+
+/* 响应式：小屏变单列 */
+@media (max-width: 768px) {
+  .ai-efficiency-row {
+    flex-direction: column;
+  }
 }
 </style>

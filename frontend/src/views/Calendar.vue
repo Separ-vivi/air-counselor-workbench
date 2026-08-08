@@ -9,10 +9,11 @@
         </el-radio-group>
         <el-button type="primary" :icon="Plus" @click="onCreateCd">新建倒计时</el-button>
         <el-button :icon="MagicStick" @click="onSeedHolidays">灌入法定节假日</el-button>
+        <el-button type="success" :icon="Download" @click="showSyncDialog = true">从官网同步校历</el-button>
       </div>
     </div>
 
-    <!-- 图例（v3h-hotfix1: 颜色对齐后端 event.color） -->
+    <!-- 图例 -->
     <div class="legend-row">
       <span class="lg-tag lg-blue">校历倒计时</span>
       <span class="lg-tag lg-orange">待办截止</span>
@@ -21,9 +22,52 @@
       <span class="lg-tag lg-pink">活动</span>
       <span class="lg-tag lg-green">班会</span>
       <span class="lg-tag lg-cyan">家校沟通</span>
+      <span class="lg-tag lg-red">校历事件</span>
     </div>
 
-    <!-- 倒计时 chip 区（保留） -->
+    <!-- 校历事件快览条 -->
+    <div v-if="academicEvents.length > 0" class="academic-bar">
+      <div class="academic-bar-header">
+        <el-icon><Calendar /></el-icon>
+        <span>{{ currentSemesterLabel }} · 第{{ currentWeekNumber }}周</span>
+        <el-button link size="small" @click="showAcademicList = !showAcademicList">
+          {{ showAcademicList ? '收起' : '展开' }}校历 ({{ academicEvents.length }})
+        </el-button>
+      </div>
+      <div v-if="showAcademicList" class="academic-list">
+        <el-table :data="academicEvents" size="small" stripe max-height="300" style="width:100%">
+          <el-table-column prop="date" label="日期" width="120" />
+          <el-table-column prop="week_number" label="周次" width="70">
+            <template #default="{ row }">
+              {{ row.week_number > 0 ? `第${row.week_number}周` : '开学前' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="event_type" label="类型" width="100">
+            <template #default="{ row }">
+              <el-tag
+                :type="row.is_holiday ? 'danger' : row.event_type === '期末考试' || row.event_type === '考试' ? 'warning' : 'primary'"
+                size="small"
+                effect="plain"
+              >{{ row.event_type }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="event_description" label="事件" min-width="150" />
+        </el-table>
+      </div>
+      <!-- 近期校历事件 chip -->
+      <div v-if="!showAcademicList" class="academic-chips">
+        <span
+          v-for="ev in upcomingAcademicEvents"
+          :key="ev.id"
+          class="academic-chip"
+          :class="{ 'chip-holiday': ev.is_holiday, 'chip-exam': ev.event_type === '期末考试' || ev.event_type === '考试' }"
+        >
+          {{ ev.date.slice(5) }} {{ ev.event_description }}
+        </span>
+      </div>
+    </div>
+
+    <!-- 倒计时 chip 区 -->
     <div class="cd-section" v-loading="loadingCd">
       <el-empty v-if="!loadingCd && countdowns.length === 0" description="暂无倒计时，点右上「新建倒计时」" :image-size="60" />
       <div class="cd-grid" v-else>
@@ -182,6 +226,39 @@
         <el-button type="primary" @click="onSaveCd" :loading="savingCd">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 校历同步弹窗 -->
+    <el-dialog v-model="showSyncDialog" title="从官网同步校历" width="520px">
+      <div class="sync-dialog-content">
+        <p class="sync-tip">从福州大学教务处官网抓取校历表格，自动解析日期和事件类型，存入本地数据库。</p>
+        <el-form label-width="80px">
+          <el-form-item label="选择学期">
+            <el-select v-model="syncSemester" placeholder="选择学期" style="width: 100%">
+              <el-option
+                v-for="s in semesterOptions"
+                :key="s.code"
+                :label="s.label + (s.is_current ? ' (当前)' : '')"
+                :value="s.code"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <el-alert
+          v-if="syncResult"
+          :title="syncResult.message"
+          :type="syncResult.ok ? 'success' : 'error'"
+          show-icon
+          :closable="false"
+          style="margin-top: 12px"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="showSyncDialog = false">关闭</el-button>
+        <el-button type="primary" @click="onSyncCalendar" :loading="syncing" :disabled="!syncSemester">
+          开始同步
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -189,8 +266,9 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, Top, MagicStick } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Top, MagicStick, Download, Calendar } from '@element-plus/icons-vue'
 import { countdownsApi, eventsApi } from '@/api/productivity.js'
+import { calendarApi } from '@/api/calendar.js'
 import http from '@/api/index.js'
 
 const router = useRouter()
@@ -212,6 +290,16 @@ const cdForm = ref({
   id: null, title: '', target_date: '', category: 'general',
   color: 'blue', description: '', pinned: false,
 })
+
+// V6.16 校历同步
+const showSyncDialog = ref(false)
+const syncSemester = ref('')
+const syncing = ref(false)
+const syncResult = ref(null)
+const semesterOptions = ref([])
+const academicEvents = ref([])
+const showAcademicList = ref(false)
+const currentSemesterLabel = ref('')
 
 function pad(n) { return String(n).padStart(2, '0') }
 function fmtDate(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
@@ -254,6 +342,43 @@ async function loadEvents() {
   } finally { loadingEvents.value = false }
 }
 
+// V6.16: 加载学期列表 & 校历事件
+async function loadSemesters() {
+  try {
+    const data = await calendarApi.semesters()
+    semesterOptions.value = data.semesters || []
+    syncSemester.value = data.current_semester || ''
+  } catch {}
+}
+
+async function loadAcademicEvents() {
+  try {
+    const data = await calendarApi.events(syncSemester.value || '')
+    academicEvents.value = data.events || []
+    currentSemesterLabel.value = data.semester_label || ''
+  } catch {
+    academicEvents.value = []
+  }
+}
+
+// 当前周次计算
+const currentWeekNumber = computed(() => {
+  if (academicEvents.value.length === 0) return '-'
+  const today = fmtDate(new Date())
+  const todayEvents = academicEvents.value.filter(e => e.date <= today)
+  if (todayEvents.length === 0) return 0
+  return todayEvents[todayEvents.length - 1].week_number || 0
+})
+
+// 近期校历事件（未来7天内的非上课事件）
+const upcomingAcademicEvents = computed(() => {
+  const today = fmtDate(new Date())
+  const weekLater = fmtDate(addDays(new Date(), 30))
+  return academicEvents.value
+    .filter(e => e.date >= today && e.date <= weekLater && e.event_type !== '上课')
+    .slice(0, 8)
+})
+
 const eventsByDay = computed(() => {
   const map = {}
   for (const ev of events.value) {
@@ -289,17 +414,15 @@ function evBg(ev) {
   const map = {
     blue: '#5B92E5', orange: '#7BCFCB', yellow: '#4FC3B8',
     pink: '#8FA9E5', green: '#4FC3B8', cyan: '#5B92E5',
-    purple: '#8FA9E5', red: '#5B92E5',
+    purple: '#8FA9E5', red: '#E85D5D',
   }
   return map[ev.color] || map.blue
-}
-function evIcon(t) {
-  return ''
 }
 function typeLabel(t) {
   return ({
     countdown: '校历倒计时', todo: '待办截止', memo: '记事提醒',
     project: '项目节点', activity: '活动', meeting: '班会', family: '家校沟通',
+    academic: '校历事件',
   })[t] || t
 }
 function metaLabel(k) {
@@ -392,15 +515,42 @@ async function onSeedHolidays() {
   }
 }
 
+// V6.16: 校历同步
+async function onSyncCalendar() {
+  if (!syncSemester.value) {
+    ElMessage.warning('请先选择学期')
+    return
+  }
+  syncing.value = true
+  syncResult.value = null
+  try {
+    const data = await calendarApi.sync(syncSemester.value)
+    syncResult.value = data
+    ElMessage.success(data.message || '同步成功')
+    await loadAcademicEvents()
+    await loadEvents() // 刷新日历视图
+  } catch (e) {
+    syncResult.value = { ok: false, message: e?.response?.data?.detail || e.message || '同步失败' }
+  } finally {
+    syncing.value = false
+  }
+}
+
 watch(currentDate, () => { if (viewMode.value === 'month') loadEvents() })
-onMounted(() => { loadCd(); loadEvents() })
+watch(syncSemester, () => { loadAcademicEvents() })
+onMounted(() => {
+  loadCd()
+  loadEvents()
+  loadSemesters()
+  loadAcademicEvents()
+})
 </script>
 
 <style scoped>
 .calendar-page { padding: 20px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .page-header h2 { margin: 0; }
-.header-actions { display: flex; gap: 10px; align-items: center; }
+.header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
 .legend-row {
   display: flex; flex-wrap: wrap; gap: 8px;
@@ -417,6 +567,29 @@ onMounted(() => { loadCd(); loadEvents() })
 .lg-green  { background: var(--color-secondary); }
 .lg-cyan   { background: var(--color-primary); }
 .lg-purple { background: var(--color-accent); }
+.lg-red    { background: #E85D5D; }
+
+/* V6.16 校历事件条 */
+.academic-bar {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #F0F7FF 0%, #FFF5F5 100%);
+  border-radius: var(--radius-md);
+  border: 1px solid #E1E7EE;
+}
+.academic-bar-header {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; color: #3A3A3A; font-weight: 600;
+}
+.academic-bar-header .el-icon { color: var(--color-primary); }
+.academic-chips {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+}
+.academic-chip {
+  font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #E8F0FE; color: #3A3A3A;
+}
+.academic-chip.chip-holiday { background: #FFE8E8; color: #C45656; }
+.academic-chip.chip-exam { background: #FFF3E0; color: #E58B3E; }
+.academic-list { margin-top: 8px; }
 
 .cd-section { margin-bottom: 12px; min-height: 80px; }
 .cd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
@@ -489,4 +662,7 @@ onMounted(() => { loadCd(); loadEvents() })
 .day-item-desc { font-size: 13px; color: #5A5A5A; margin: 4px 0; }
 .day-item-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .day-item-link { margin-top: 6px; }
+
+/* V6.16 同步弹窗 */
+.sync-dialog-content .sync-tip { color: #7B7B7B; font-size: 13px; margin-bottom: 12px; }
 </style>

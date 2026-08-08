@@ -3,6 +3,23 @@
  */
 import http from './index.js'
 
+// ---------- 文档工具箱（V6.15 新增） ----------
+export const docboxApi = {
+  list:     (params = {}) => http.get('/docbox/list', { params }),
+  upload:   (form, onProgress) => http.post('/docbox/upload', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: onProgress,
+    timeout: 120000,
+  }),
+  addLink:  (data) => http.post('/docbox/link', data),
+  get:      (id) => http.get(`/docbox/${id}`),
+  preview:  (id) => `/api/docbox/${id}/preview`,
+  update:   (id, data) => http.put(`/docbox/${id}`, data),
+  remove:   (id) => http.delete(`/docbox/${id}`),
+  chat:     (question) => http.post('/docbox/chat', { question }, { timeout: 60000 }),
+  migrate:  () => http.post('/docbox/migrate'),
+}
+
 // ---------- 文档库（旧 CRUD 兼容 + 新增） ----------
 export const knowledgeApi = {
   list:   ()          => http.get('/knowledge/enhanced'),
@@ -40,7 +57,7 @@ export const faqsApi = {
 export const templatesApi = {
   list:   ()        => http.get('/document-templates'),
   create: (data)    => http.post('/document-templates', data),
-  update: (id, data)=> http.put(`/document-templates/${id}`, data),
+  update: (id, data) => http.put(`/document-templates/${id}`, data),
   remove: (id)      => http.delete(`/document-templates/${id}`),
 }
 

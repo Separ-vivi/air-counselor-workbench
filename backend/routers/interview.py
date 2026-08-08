@@ -190,6 +190,42 @@ def get_coverage(db: Session = Depends(get_db)):
     }
 
 
+
+
+# ===== V6.17: 查询已发起谈话的预警学生 =====
+
+@router.get('/warning-interview-status')
+def get_warning_interview_status(
+    student_ids: str = Query('', description='逗号分隔的学生ID'),
+    db: Session = Depends(get_db)
+):
+    """V6.17: 返回指定学生列表中哪些学生已有访谈记录
+    用于AI预警页面标记已发起谈话的学生。
+    student_ids: "1,2,3,45" 格式
+    """
+    if not student_ids:
+        return {'interviewed_student_ids': []}
+    
+    try:
+        ids = [int(x.strip()) for x in student_ids.split(',') if x.strip().isdigit()]
+    except (ValueError, TypeError):
+        return {'interviewed_student_ids': []}
+    
+    if not ids:
+        return {'interviewed_student_ids': []}
+    
+    # 查询这些学生中有访谈记录的
+    from sqlalchemy import select
+    result = db.execute(
+        select(StudentInterview.student_id)
+        .where(StudentInterview.student_id.in_(ids))
+        .distinct()
+    ).fetchall()
+    
+    interviewed_ids = [r[0] for r in result]
+    
+    return {'interviewed_student_ids': interviewed_ids}
+
 @router.get('/{interview_id}')
 def get_interview(interview_id: int, db: Session = Depends(get_db)):
     """获取单条访谈记录"""
@@ -434,14 +470,12 @@ def ai_analyze_text(data: AiAnalyzeRequest, db: Session = Depends(get_db)):
         # 清理 markdown 代码块标记
         cleaned = result_text.strip()
         if cleaned.startswith('```'):
-            lines = cleaned.split('
-')
+            lines = cleaned.split('\n')
             if lines[0].startswith('```'):
                 lines = lines[1:]
             if lines and lines[-1].strip() == '```':
                 lines = lines[:-1]
-            cleaned = '
-'.join(lines)
+            cleaned = '\n'.join(lines)
 
         parsed = _json.loads(cleaned)
         return {
@@ -466,3 +500,48 @@ def ai_analyze_text(data: AiAnalyzeRequest, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f'AI 分析未知错误: {e}')
         return {'error': True, 'message': f'AI 分析失败：{e}'}
+
+
+# ===== V6.14: 音频上传接口 =====
+
+import os
+import uuid
+from fastapi import UploadFile, File
+
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'interview_audio')
+
+@router.post('/upload-audio')
+async def upload_interview_audio(file: UploadFile = File(...)):
+    """V6.14: 上传访谈录音文件（支持 mp3/wav/m4a/ogg/webm）"""
+    allowed = {'.mp3', '.wav', '.m4a', '.ogg', '.webm', '.flac', '.aac', '.wma'}
+    ext = os.path.splitext(file.filename or '')[1].lower()
+    if ext not in allowed:
+        raise HTTPException(400, f'不支持的音频格式：{ext}，支持 {", ".join(allowed)}')
+    
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    safe_name = f"{uuid.uuid4().hex[:12]}{ext}"
+    save_path = os.path.join(UPLOAD_DIR, safe_name)
+    
+    content = await file.read()
+    if len(content) > 100 * 1024 * 1024:  # 100MB limit
+        raise HTTPException(400, '文件过大，最大支持 100MB')
+    
+    with open(save_path, 'wb') as f:
+        f.write(content)
+    
+    return {
+        'filename': safe_name,
+        'original_name': file.filename,
+        'size': len(content),
+        'url': f'/api/interview/audio/{safe_name}'
+    }
+
+@router.get('/audio/{filename}')
+def get_audio_file(filename: str):
+    """V6.14: 获取已上传的音频文件"""
+    from fastapi.responses import FileResponse
+    safe = os.path.basename(filename)
+    path = os.path.join(UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        raise HTTPException(404, '文件不存在')
+    return FileResponse(path)
