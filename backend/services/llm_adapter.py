@@ -22,6 +22,33 @@ def _load_settings() -> dict:
         return {}
 
 
+def save_ai_enabled(enabled: bool):
+    """V6.18: 保存AI功能开关状态"""
+    os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
+    full = {}
+    if os.path.isfile(SETTINGS_PATH):
+        try:
+            with open(SETTINGS_PATH, 'r', encoding='utf-8') as f:
+                full = json.load(f)
+        except Exception:
+            full = {}
+    full['ai_enabled'] = enabled
+    with open(SETTINGS_PATH, 'w', encoding='utf-8') as f:
+        json.dump(full, f, ensure_ascii=False, indent=2)
+
+
+def get_ai_enabled() -> bool:
+    """V6.18: 获取AI功能开关状态"""
+    if os.path.isfile(SETTINGS_PATH):
+        try:
+            with open(SETTINGS_PATH, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return data.get('ai_enabled', True)
+        except Exception:
+            pass
+    return True
+
+
 def save_llm_settings(api_key: str = '', base_url: str = '', model: str = '', model_name: str = '') -> dict:
     """保存 LLM 配置到 settings.json（合并写入）"""
     os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
@@ -78,6 +105,17 @@ class LLMAdapter:
         """是否有有效配置"""
         return bool(self._settings.get('api_key'))
 
+    def check_ai_enabled(self) -> bool:
+        """V6.18: 检查AI功能是否开启"""
+        full = {}
+        if os.path.isfile(SETTINGS_PATH):
+            try:
+                with open(SETTINGS_PATH, 'r', encoding='utf-8') as f:
+                    full = json.load(f)
+            except Exception:
+                pass
+        return full.get('ai_enabled', True)  # 默认开启
+
     def chat(self, messages: list[dict]) -> str:
         """
         调用 LLM chat 接口
@@ -85,6 +123,10 @@ class LLMAdapter:
         :return: 助手回复文本
         :raises: RuntimeError 如果未配置或调用失败
         """
+        # V6.18: 检查AI功能开关
+        if not self.check_ai_enabled():
+            raise RuntimeError('AI功能已关闭，请在系统设置中开启')
+        
         api_key = self._settings.get('api_key', '')
         if not api_key:
             raise RuntimeError('LLM 未配置：请在系统设置中填写 API Key')

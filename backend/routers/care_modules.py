@@ -157,7 +157,8 @@ def party_progress_overview(
     db: Session = Depends(get_db)
 ):
     """党团发展全景表 - 支持按 class_id 或 class_name 筛选（含'群众'状态）"""
-    stages = ['群众', '递交入党申请书', '团员', '积极分子', '发展对象', '中共预备党员', '中共党员']
+    # V6.18: 细化阶段定义，区分群众和共青团员
+    stages = ['群众', '共青团员', '入党积极分子', '递交入党申请书', '发展对象', '中共预备党员', '中共党员']
     q = db.query(Student)
     if class_id is not None:
         q = q.filter(Student.class_id == class_id)
@@ -178,11 +179,25 @@ def party_progress_overview(
         progress_list = db.query(PartyProgress).filter(
             PartyProgress.student_id == s.id
         ).order_by(PartyProgress.created_at.desc()).all()
-        # 默认阶段：政治面貌里含"党员/团员/群众"就用该值，否则未记录
+        # V6.18: 细化阶段判定逻辑
         if progress_list:
+            # 有党团发展记录，使用最新记录的阶段
             current_stage = progress_list[0].stage
         elif s.political_status:
-            current_stage = s.political_status
+            ps = s.political_status
+            if '中共党员' in ps or '预备党员' in ps:
+                current_stage = ps  # 中共预备党员 / 中共党员
+            elif ps == '共青团员':
+                # V6.18: 共青团员需要进一步判断是否有入党积极分子记录
+                has_activist = db.query(PartyProgress).filter(
+                    PartyProgress.student_id == s.id,
+                    PartyProgress.stage.like('%积极分子%')
+                ).count() > 0
+                current_stage = '入党积极分子' if has_activist else '共青团员'
+            elif ps == '群众':
+                current_stage = '群众'
+            else:
+                current_stage = '群众'
         else:
             current_stage = '群众'
         cls = class_map.get(s.class_id)

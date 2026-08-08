@@ -166,10 +166,19 @@ import * as echarts from 'echarts'
 
 const studentStore = useStudentStore()
 
+// V6.18: 细化阶段定义，区分群众和共青团员
 const stages = [
-  '递交入党申请书', '入党积极分子', '发展对象', '中共预备党员', '中共党员'
+  '群众', '共青团员', '入党积极分子', '递交入党申请书', '发展对象', '中共预备党员', '中共党员'
 ]
-const stageColor = { '递交入党申请书': '#909399', '入党积极分子': '#409EFF', '发展对象': '#E6A23C', '中共预备党员': '#F56C6C', '中共党员': '#67C23A' }
+const stageColor = { 
+  '群众': '#C0C4CC', 
+  '共青团员': '#87CEEB', 
+  '入党积极分子': '#409EFF', 
+  '递交入党申请书': '#909399', 
+  '发展对象': '#E6A23C', 
+  '中共预备党员': '#F56C6C', 
+  '中共党员': '#67C23A' 
+}
 
 const list = ref([])
 const loading = ref(false)

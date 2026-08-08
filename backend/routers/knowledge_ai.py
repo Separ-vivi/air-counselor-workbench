@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db
 from models import KnowledgeDoc, KnowledgeChunk, KnowledgeChat
-from services.llm_adapter import LLMAdapter, save_llm_settings, get_llm_settings_masked
+from services.llm_adapter import LLMAdapter, save_llm_settings, get_llm_settings_masked, save_ai_enabled, get_ai_enabled
 from services.file_parser import parse as parse_file
 from services.chunker import chunk_text
 from services.retriever import ensure_fts_index, insert_chunk_fts, delete_chunk_fts, search as fts_search, rebuild_fts_index
@@ -333,3 +333,17 @@ def update_llm_settings(data: dict):
         model_name=model_name,
     )
     return {'ok': True, 'message': 'LLM 配置已更新'}
+
+
+@router.get('/system/ai-enabled')
+def get_ai_enabled_status():
+    """V6.18: 获取AI功能开关状态"""
+    return {'ai_enabled': get_ai_enabled()}
+
+
+@router.post('/system/aienabled')
+def set_ai_enabled(data: dict):
+    """V6.18: 设置AI功能开关"""
+    enabled = data.get('ai_enabled', True)
+    save_ai_enabled(bool(enabled))
+    return {'ok': True, 'ai_enabled': bool(enabled)}

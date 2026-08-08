@@ -1,304 +1,136 @@
 <template>
   <div class="kb-page">
     <el-tabs v-model="activeTab" class="kb-tabs">
-      <!-- ========== Tab 1: 文档工具箱 ========== -->
-      <el-tab-pane label="文档工具箱" name="docbox">
+      <el-tab-pane label="AI 知识库" name="knowledge">
         <div class="page-header">
-          <h2>文档工具箱</h2>
+          <h2>知识库 · AI 助手</h2>
           <div class="header-actions">
-            <el-input
-              v-model="searchText"
-              placeholder="搜索文档名称…"
-              :prefix-icon="Search"
-              clearable
-              style="width: 200px"
-              @input="onSearch"
-            />
-            <el-button type="primary" :icon="Upload" @click="triggerUpload">上传文档</el-button>
-            <el-button :icon="Link" @click="showAddLink = true">添加链接</el-button>
+            <el-tag :type="llmConfigured ? 'success' : 'warning'" effect="plain" round>
+              <el-icon v-if="llmConfigured" style="vertical-align:-2px;margin-right:4px"><CircleCheck /></el-icon>
+              <el-icon v-else style="vertical-align:-2px;margin-right:4px"><Warning /></el-icon>
+              {{ llmConfigured ? 'AI 已接入' : '未配置 AI（仅上传不问答）' }}
+            </el-tag>
+            <el-button text type="primary" @click="showLlmTip = true">如何配置？</el-button>
           </div>
         </div>
 
-        <!-- 分类卡片区域 -->
-        <div v-loading="loading" class="categories-grid">
-          <div
-            v-for="(cat, catKey) in categoryOrder"
-            :key="catKey"
-            class="category-card"
-          >
-            <div class="cat-header">
-              <div class="cat-title-row">
-                <span class="cat-icon">{{ catIcons[catKey] }}</span>
-                <span class="cat-name">{{ catNames[catKey] }}</span>
-                <el-tag size="small" round type="info">{{ getCategoryCount(catKey) }}</el-tag>
+        <div class="kb-layout">
+          <!-- ============ 左栏：文档库 ============ -->
+          <div class="col-docs">
+            <div class="col-head">
+              <span class="col-title">文档库</span>
+              <el-button size="small" type="primary" :icon="Upload" @click="triggerUpload">上传</el-button>
+            </div>
+            <div v-if="docs.length === 0 && !docsLoading" class="col-empty">
+              暂无文档<br>
+              <span class="hint">点右上角「上传」开始</span>
+            </div>
+            <div v-loading="docsLoading" class="doc-list">
+              <div
+                v-for="d in docs"
+                :key="d.id"
+                class="doc-item"
+                :class="{ active: selectedDoc?.id === d.id }"
+                @click="onSelectDoc(d)"
+              >
+                <div class="doc-row1">
+                  <el-icon><Document /></el-icon>
+                  <span class="doc-title">{{ d.title }}</span>
+                </div>
+                <div class="doc-row2">
+                  <el-tag size="small" round effect="plain">{{ d.doc_type || '未分类' }}</el-tag>
+                  <span class="doc-chunks">{{ d.chunk_count }} chunks</span>
+                </div>
+                <div class="doc-row3">
+                  <span class="doc-time">{{ formatDate(d.created_at) }}</span>
+                  <el-button link type="danger" size="small" @click.stop="onDeleteDoc(d)">删除</el-button>
+                </div>
               </div>
             </div>
-            <div class="cat-body">
-              <div v-if="getCategoryDocs(catKey).length === 0" class="cat-empty">
-                暂无文档
+          </div>
+
+          <!-- ============ 中栏：AI 对话 ============ -->
+          <div class="col-chat">
+            <div class="col-head">
+              <span class="col-title">AI 助手</span>
+              <el-button size="small" text @click="chatList = []">清空</el-button>
+            </div>
+
+            <div v-loading="chatLoading" class="chat-area">
+              <div v-if="chatList.length === 0" class="chat-empty">
+                <div class="empty-icon" style="font-size:28px;color: var(--color-primary)">?</div>
+                <div>试试提问：</div>
+                <div class="empty-suggest" v-for="q in suggestions" :key="q" @click="onAsk(q)">"{{ q }}"</div>
               </div>
-              <div
-                v-for="doc in getCategoryDocs(catKey)"
-                :key="doc.id"
-                class="doc-item"
-                @click="onDocClick(doc)"
-              >
-                <div class="doc-icon-col">
-                  <el-icon :size="28" :color="docTypeColors[doc.doc_type] || '#909399'">
-                    <component :is="docTypeIcons[doc.doc_type] || Document" />
-                  </el-icon>
-                </div>
-                <div class="doc-info-col">
-                  <div class="doc-title">{{ doc.title }}</div>
-                  <div class="doc-meta">
-                    <span v-if="doc.page_count" class="meta-item">{{ doc.page_count }}页</span>
-                    <span v-if="doc.file_size_str" class="meta-item">{{ doc.file_size_str }}</span>
-                    <span class="meta-item">{{ doc.created_at }}</span>
+              <div v-for="(m, i) in chatList" :key="i" class="chat-msg" :class="m.role">
+                <div class="msg-role">{{ m.role === 'user' ? '你' : 'AI' }}</div>
+                <div class="msg-body">
+                  <div class="msg-text">{{ m.content }}</div>
+                  <div v-if="m.sources?.length" class="msg-sources">
+                    <div class="src-label">引用来源：</div>
+                    <div v-for="(s, si) in m.sources" :key="si" class="src-item" @click="jumpToChunk(s)">
+                      · {{ s.doc_title }} <span class="src-snippet">…{{ s.snippet?.slice(0, 60) }}…</span>
+                    </div>
                   </div>
                 </div>
-                <div class="doc-actions-col">
-                  <!-- V6.17: 删除按钮始终可见，下拉菜单保留其他操作 -->
-                  <el-button text size="small" type="danger" :icon="Delete" @click.stop="onDeleteDoc(doc)" title="删除" />
-                  <el-dropdown trigger="click" @command="(cmd) => onDocAction(cmd, doc)">
-                    <el-button text size="small" :icon="MoreFilled" @click.stop />
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item command="preview" :icon="View">预览/下载</el-dropdown-item>
-                        <el-dropdown-item command="move" :icon="FolderOpened">移动分类</el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
+              </div>
+              <div v-if="chatLoading" class="chat-msg assistant typing">
+                <div class="msg-role">AI</div>
+                <div class="msg-body"><span class="typing-dots">思考中...</span></div>
+              </div>
+            </div>
+
+            <div class="chat-input">
+              <el-input
+                v-model="question"
+                type="textarea"
+                :autosize="{ minRows: 1, maxRows: 4 }"
+                placeholder="基于文档库内容提问…（Enter 发送，Shift+Enter 换行）"
+                :disabled="chatLoading"
+                @keydown="onKey"
+              />
+              <el-button type="primary" :loading="chatLoading" :disabled="!question.trim() || chatLoading" @click="onSend">
+                发送
+              </el-button>
+            </div>
+          </div>
+
+          <!-- ============ 右栏：来源预览 ============ -->
+          <div class="col-chunks">
+            <div class="col-head">
+              <span class="col-title">来源预览</span>
+              <span v-if="chunks.length" class="chunk-count">{{ chunks.length }} 块</span>
+            </div>
+            <div v-if="!selectedDoc && !highlightChunk" class="col-empty">
+              点击左栏文档查看分块<br>
+              或点击聊天中引用的来源
+            </div>
+            <div v-else class="chunk-list">
+              <template v-if="highlightChunk">
+                <div class="chunk-item highlight">
+                  <div class="chunk-head">
+                    <el-tag size="small" type="warning" round>引用</el-tag>
+                    <span class="chunk-src">{{ highlightChunk.doc_title }}</span>
+                  </div>
+                  <div class="chunk-body">{{ highlightChunk.snippet }}</div>
                 </div>
+                <el-divider />
+                <div class="chunk-hint">该文档其他分块：</div>
+              </template>
+              <div v-for="c in chunks" :key="c.id" class="chunk-item" @click="toggleChunkExpand(c.id)">
+                <div class="chunk-head">
+                  <el-tag size="small" round>#{{ c.chunk_index + 1 }}</el-tag>
+                  <span class="chunk-chars">{{ c.content.length }}字</span>
+                  <el-icon class="expand-icon" :class="{ expanded: expandedChunks.has(c.id) }"><ArrowDown /></el-icon>
+                </div>
+                <div class="chunk-body" :class="{ collapsed: !expandedChunks.has(c.id) }">{{ c.content }}</div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- 隐藏文件 input -->
-        <input ref="fileInput" type="file" style="display:none"
-          accept=".pdf,.docx,.doc,.xlsx,.xls,.txt,.csv"
-          @change="onFileSelected"
-        >
-
-        <!-- 上传时选择分类弹窗 -->
-        <el-dialog v-model="showUploadDialog" title="上传文档" width="480px">
-          <el-form label-width="80px">
-            <el-form-item label="文件">
-              <el-input :model-value="uploadFileName" disabled />
-            </el-form-item>
-            <el-form-item label="分类">
-              <el-select v-model="uploadCategory" style="width: 100%">
-                <el-option v-for="(name, key) in catNames" :key="key" :label="name" :value="key" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="描述">
-              <el-input v-model="uploadDesc" type="textarea" :rows="2" placeholder="可选" />
-            </el-form-item>
-          </el-form>
-          <template #footer>
-            <el-button @click="showUploadDialog = false">取消</el-button>
-            <el-button type="primary" :loading="uploading" @click="doUpload">确认上传</el-button>
-          </template>
-        </el-dialog>
-
-        <!-- 添加链接弹窗 -->
-        <el-dialog v-model="showAddLink" title="添加链接" width="480px">
-          <el-form label-width="80px">
-            <el-form-item label="标题" required>
-              <el-input v-model="linkForm.title" placeholder="如：假期离校登记" />
-            </el-form-item>
-            <el-form-item label="链接" required>
-              <el-input v-model="linkForm.link_url" placeholder="https://..." />
-            </el-form-item>
-            <el-form-item label="分类">
-              <el-select v-model="linkForm.category" style="width: 100%">
-                <el-option v-for="(name, key) in catNames" :key="key" :label="name" :value="key" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="描述">
-              <el-input v-model="linkForm.description" type="textarea" :rows="2" placeholder="可选" />
-            </el-form-item>
-          </el-form>
-          <template #footer>
-            <el-button @click="showAddLink = false">取消</el-button>
-            <el-button type="primary" :loading="addingLink" @click="doAddLink">添加</el-button>
-          </template>
-        </el-dialog>
-
-        <!-- 移动分类弹窗 -->
-        <el-dialog v-model="showMoveDialog" title="移动分类" width="400px">
-          <el-form label-width="80px">
-            <el-form-item label="文档">
-              <el-input :model-value="moveDoc?.title" disabled />
-            </el-form-item>
-            <el-form-item label="新分类">
-              <el-select v-model="moveCategory" style="width: 100%">
-                <el-option v-for="(name, key) in catNames" :key="key" :label="name" :value="key" />
-              </el-select>
-            </el-form-item>
-          </el-form>
-          <template #footer>
-            <el-button @click="showMoveDialog = false">取消</el-button>
-            <el-button type="primary" @click="doMove">确认</el-button>
-          </template>
-        </el-dialog>
-
-        <!-- 文档详情/预览弹窗 -->
-        <el-dialog v-model="showPreview" :title="previewDoc?.title || '文档预览'" width="90%" top="3vh"
-          :close-on-click-modal="false" class="preview-dialog"
-        >
-          <div v-if="previewDoc" class="preview-container">
-            <div class="preview-meta">
-              <el-tag size="small" round>{{ catNames[previewDoc.category] }}</el-tag>
-              <el-tag v-if="previewDoc.doc_type" size="small" round type="info">{{ previewDoc.doc_type.toUpperCase() }}</el-tag>
-              <span v-if="previewDoc.page_count" class="meta-text">{{ previewDoc.page_count }}页</span>
-              <span v-if="previewDoc.file_size_str" class="meta-text">{{ previewDoc.file_size_str }}</span>
-              <span class="meta-text">{{ previewDoc.created_at }}</span>
-            </div>
-            <!-- PDF内嵌预览 -->
-            <div v-if="previewDoc.doc_type === 'pdf'" class="preview-iframe-wrap">
-              <iframe :src="docboxApi.preview(previewDoc.id)" class="preview-iframe" />
-            </div>
-            <!-- 链接类 -->
-            <div v-else-if="previewDoc.doc_type === 'link'" class="preview-link">
-              <el-link type="primary" :href="previewDoc.link_url" target="_blank" :icon="Link">
-                {{ previewDoc.link_url }}
-              </el-link>
-              <p class="link-hint">点击链接在新窗口打开</p>
-            </div>
-            <!-- 其他类型：显示全文 + 下载按钮 -->
-            <div v-else class="preview-text">
-              <el-scrollbar max-height="60vh">
-                <pre class="doc-full-text">{{ previewDoc.full_text || '（无法提取文本内容，请下载查看）' }}</pre>
-              </el-scrollbar>
-            </div>
-            <div class="preview-footer">
-              <el-button v-if="previewDoc.doc_type !== 'link'" type="primary" @click="downloadDoc(previewDoc)">
-                <el-icon><Download /></el-icon> 下载文件
-              </el-button>
-            </div>
-          </div>
-        </el-dialog>
-      </el-tab-pane>
-
-      <!-- ========== Tab 2: AI 文档助手 ========== -->
-      <el-tab-pane label="AI 文档助手" name="ai">
-        <div class="page-header">
-          <h2>AI 文档助手</h2>
-          <div class="header-actions">
-            <el-tag :type="llmConfigured ? 'success' : 'warning'" effect="plain" round>
-              <el-icon v-if="llmConfigured" style="vertical-align:-2px;margin-right:4px"><CircleCheck /></el-icon>
-              <el-icon v-else style="vertical-align:-2px;margin-right:4px"><Warning /></el-icon>
-              {{ llmConfigured ? 'AI 已接入' : '未配置 AI' }}
-            </el-tag>
-            <el-button text type="primary" @click="showLlmTip = true">如何配置？</el-button>
-          </div>
-        </div>
-
-        <div class="ai-layout">
-          <!-- 左侧：AI对话 -->
-          <div class="ai-chat-panel">
-            <div class="col-head">
-              <span class="col-title">AI 对话</span>
-              <div class="col-head-actions">
-                <el-tag v-if="aiChatList.length" size="small" round type="info">
-                  {{ aiChatList.filter(m => m.role === 'user').length }} 轮
-                </el-tag>
-                <el-button size="small" text @click="aiChatList = []">清空</el-button>
-              </div>
-            </div>
-
-            <div v-loading="aiChatLoading" class="chat-area" ref="chatAreaRef">
-              <div v-if="aiChatList.length === 0" class="chat-empty">
-                <div class="empty-icon-big">🤖</div>
-                <div class="empty-title">AI 文档助手</div>
-                <div class="empty-desc">基于完整文档回答，引用具体章节</div>
-                <div class="empty-suggests">
-                  <div class="empty-suggest" v-for="q in aiSuggestions" :key="q" @click="onAiAsk(q)">
-                    <span class="suggest-icon">💡</span>
-                    <span>{{ q }}</span>
-                  </div>
-                </div>
-              </div>
-              <div v-for="(m, i) in aiChatList" :key="i" class="chat-msg" :class="m.role">
-                <div class="msg-avatar">
-                  <span v-if="m.role === 'user'">👤</span>
-                  <span v-else>🤖</span>
-                </div>
-                <div class="msg-body">
-                  <div class="msg-text" v-html="formatMsg(m.content)"></div>
-                  <div v-if="m.sources?.length" class="msg-sources">
-                    <div class="src-label">📎 引用来源：</div>
-                    <div v-for="(s, si) in m.sources" :key="si" class="src-item" @click="onSourceClick(s)">
-                      <span class="src-icon">📄</span>
-                      <span class="src-title">{{ s.doc_title }}</span>
-                      <el-tag size="small" round type="info">{{ s.category_name }}</el-tag>
-                    </div>
-                  </div>
-                  <div class="msg-time">{{ m.time || '' }}</div>
-                </div>
-              </div>
-              <div v-if="aiChatLoading" class="chat-msg assistant typing">
-                <div class="msg-avatar"><span>🤖</span></div>
-                <div class="msg-body">
-                  <div class="typing-indicator">
-                    <span class="typing-dot"></span>
-                    <span class="typing-dot"></span>
-                    <span class="typing-dot"></span>
-                    <span class="typing-text">AI 思考中...</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="chat-input">
-              <el-input
-                v-model="aiQuestion"
-                type="textarea"
-                :autosize="{ minRows: 1, maxRows: 4 }"
-                placeholder="基于文档内容提问…（Enter 发送）"
-                :disabled="aiChatLoading"
-                @keydown="onAiKey"
-              />
-              <el-button type="primary" :loading="aiChatLoading" :disabled="!aiQuestion.trim() || aiChatLoading" @click="onAiSend">
-                发送
-              </el-button>
-            </div>
-          </div>
-
-          <!-- 右侧：文档列表速览 -->
-          <div class="ai-docs-panel">
-            <div class="col-head">
-              <span class="col-title">文档库</span>
-              <el-tag size="small" round type="info">{{ totalDocs }}</el-tag>
-            </div>
-            <div class="quick-doc-list">
-              <div
-                v-for="catKey in categoryOrder"
-                :key="catKey"
-                class="quick-cat"
-              >
-                <div class="quick-cat-title">
-                  {{ catIcons[catKey] }} {{ catNames[catKey] }}
-                </div>
-                <div
-                  v-for="doc in getCategoryDocs(catKey).slice(0, 5)"
-                  :key="doc.id"
-                  class="quick-doc-item"
-                  @click="onDocClick(doc)"
-                >
-                  <el-icon :size="16" :color="docTypeColors[doc.doc_type] || '#909399'">
-                    <component :is="docTypeIcons[doc.doc_type] || Document" />
-                  </el-icon>
-                  <span class="quick-doc-title">{{ doc.title }}</span>
-                </div>
-                <div v-if="getCategoryDocs(catKey).length > 5" class="quick-more">
-                  还有 {{ getCategoryDocs(catKey).length - 5 }} 个…
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <input ref="fileInput" type="file" style="display:none" accept=".docx,.doc,.pdf,.txt" @change="onFileSelected">
 
         <!-- LLM 配置提示弹窗 -->
         <el-dialog v-model="showLlmTip" title="AI 能力配置" width="520px">
@@ -313,36 +145,35 @@
               <el-button type="primary" @click="showLlmTip = false; $router.push('/system')">去配置</el-button>
             </div>
             <div class="tip-warn">
-              没配 AI 也能正常使用文档管理，只是「AI 问答」会提示未配置
+              没配 AI 也能正常使用文档上传/查看/分块，只是「问答」会提示未配置
             </div>
           </div>
         </el-dialog>
       </el-tab-pane>
 
-      <!-- ========== Tab 3: FAQ ========== -->
-      <el-tab-pane label="FAQ" name="faq">
+      <el-tab-pane label="FAQ 常见问题" name="faq">
         <div class="page-header">
-          <h2>FAQ 管理</h2>
+          <h2>FAQ 常见问题</h2>
           <div class="header-actions">
-            <el-select v-model="categoryFilter" placeholder="分类筛选" clearable style="width:120px">
+            <el-select v-model="categoryFilter" placeholder="全部分类" clearable style="width:180px">
               <el-option v-for="c in categoryOptions" :key="c" :label="c" :value="c" />
             </el-select>
-            <el-select v-model="publishFilter" style="width:100px">
-              <el-option label="全部" value="all" />
-              <el-option label="已发布" value="published" />
-              <el-option label="草稿" value="draft" />
-            </el-select>
-            <el-button type="primary" :icon="Plus" @click="onFaqCreate">新建</el-button>
-            <el-dropdown @command="onFaqExport">
-              <el-button :icon="Download">导出<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+            <el-radio-group v-model="publishFilter" size="small">
+              <el-radio-button label="all">全部</el-radio-button>
+              <el-radio-button label="published">已发布</el-radio-button>
+              <el-radio-button label="draft">草稿</el-radio-button>
+            </el-radio-group>
+            <el-button type="primary" :icon="Plus" @click="onFaqCreate">新建 FAQ</el-button>
+            <el-dropdown @command="onFaqExport" style="margin-left:8px">
+              <el-button :icon="Download">导出</el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="xlsx">Excel</el-dropdown-item>
-                  <el-dropdown-item command="json">JSON</el-dropdown-item>
-                  <el-dropdown-item command="csv">CSV</el-dropdown-item>
-                  <el-dropdown-item command="md">Markdown</el-dropdown-item>
-                  <el-dropdown-item command="docx">Word</el-dropdown-item>
-                  <el-dropdown-item command="pdf">PDF</el-dropdown-item>
+                  <el-dropdown-item command="excel">导出 Excel</el-dropdown-item>
+                  <el-dropdown-item command="csv">导出 CSV</el-dropdown-item>
+                  <el-dropdown-item command="json">导出 JSON</el-dropdown-item>
+                  <el-dropdown-item command="pdf">导出 PDF</el-dropdown-item>
+                  <el-dropdown-item command="docx">导出 Word</el-dropdown-item>
+                  <el-dropdown-item command="md">导出 Markdown</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -376,6 +207,7 @@
           </el-collapse-item>
         </el-collapse>
 
+        <!-- FAQ 新建/编辑对话框 -->
         <el-dialog v-model="faqDialogVisible" :title="faqForm.id ? '编辑 FAQ' : '新建 FAQ'" width="720px">
           <el-form :model="faqForm" label-width="80px">
             <el-form-item label="分类">
@@ -406,251 +238,53 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  Upload, Download, Document, CircleCheck, Warning, ArrowDown, Plus,
-  Search, Link, View, Delete, MoreFilled, FolderOpened,
-  Files, Notebook, Tickets, DataBoard, Memo
-} from '@element-plus/icons-vue'
-import { docboxApi, knowledgeApi, chatApi, llmApi, faqsApi } from '@/api/knowledge.js'
-import http from '@/api/index.js'
+import { Upload, Document, CircleCheck, Warning, ArrowDown, Plus, Download } from '@element-plus/icons-vue'
+import { knowledgeApi, chatApi, llmApi, faqsApi } from '@/api/knowledge.js'
 
-// ===== Tab =====
-const activeTab = ref('docbox')
+// ===== Tab 切换 =====
+const activeTab = ref('knowledge')
 
-// ===== 文档工具箱 =====
-const loading = ref(false)
-const categories = ref({})
-const totalDocs = ref(0)
-const searchText = ref('')
+// ===== AI 知识库 Tab =====
+const docs = ref([])
+const docsLoading = ref(false)
+const selectedDoc = ref(null)
+const chunks = ref([])
 const fileInput = ref(null)
 
-// 分类定义
-const categoryOrder = ['policy', 'form', 'student_collect', 'other']
-const catNames = {
-  policy: '政策文件',
-  form: '常用表格',
-  student_collect: '学生端收集',
-  other: '其他文档',
-}
-const catIcons = {
-  policy: '📋',
-  form: '📊',
-  student_collect: '📝',
-  other: '📁',
-}
-const docTypeIcons = {
-  pdf: 'Document',
-  docx: 'Notebook',
-  doc: 'Notebook',
-  xlsx: 'Tickets',
-  xls: 'Tickets',
-  txt: 'Memo',
-  link: 'Link',
-}
-const docTypeColors = {
-  pdf: '#E6A23C',
-  docx: '#409EFF',
-  doc: '#409EFF',
-  xlsx: '#67C23A',
-  xls: '#67C23A',
-  txt: '#909399',
-  link: '#9B59B6',
+const question = ref('')
+const chatList = ref([])
+const chatLoading = ref(false)
+const highlightChunk = ref(null)
+const expandedChunks = ref(new Set())
+
+function toggleChunkExpand(id) {
+  const s = new Set(expandedChunks.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  expandedChunks.value = s
 }
 
-// 上传
-const showUploadDialog = ref(false)
-const uploadFile = ref(null)
-const uploadFileName = ref('')
-const uploadCategory = ref('other')
-const uploadDesc = ref('')
-const uploading = ref(false)
-
-// 添加链接
-const showAddLink = ref(false)
-const linkForm = ref({ title: '', link_url: '', category: 'student_collect', description: '' })
-const addingLink = ref(false)
-
-// 移动分类
-const showMoveDialog = ref(false)
-const moveDoc = ref(null)
-const moveCategory = ref('other')
-
-// 预览
-const showPreview = ref(false)
-const previewDoc = ref(null)
-
-function getCategoryDocs(catKey) {
-  return categories.value[catKey]?.items || []
-}
-function getCategoryCount(catKey) {
-  return categories.value[catKey]?.count || 0
-}
-
-async function loadDocs() {
-  loading.value = true
-  try {
-    const res = await docboxApi.list({ search: searchText.value })
-    categories.value = res.categories || {}
-    totalDocs.value = res.total || 0
-  } catch (e) {
-    categories.value = {}
-    totalDocs.value = 0
-  } finally {
-    loading.value = false
-  }
-}
-
-function onSearch() {
-  loadDocs()
-}
-
-function triggerUpload() {
-  fileInput.value.value = ''
-  fileInput.value.click()
-}
-
-function onFileSelected(e) {
-  const file = e.target.files?.[0]
-  if (!file) return
-  uploadFile.value = file
-  uploadFileName.value = file.name
-  uploadCategory.value = 'other'
-  uploadDesc.value = ''
-  showUploadDialog.value = true
-}
-
-async function doUpload() {
-  if (!uploadFile.value) return
-  uploading.value = true
-  const fd = new FormData()
-  fd.append('file', uploadFile.value)
-  fd.append('category', uploadCategory.value)
-  fd.append('description', uploadDesc.value)
-  try {
-    const res = await docboxApi.upload(fd)
-    ElMessage.success(`${res.title} 上传成功`)
-    showUploadDialog.value = false
-    // V6.17: 重置表单并强制刷新列表
-    uploadFile.value = null
-    uploadFileName.value = ''
-    await loadDocs()
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.detail || '上传失败')
-  } finally {
-    uploading.value = false
-  }
-}
-
-async function doAddLink() {
-  if (!linkForm.value.title || !linkForm.value.link_url) {
-    ElMessage.warning('标题和链接不能为空')
-    return
-  }
-  addingLink.value = true
-  try {
-    await docboxApi.addLink(linkForm.value)
-    ElMessage.success('链接已添加')
-    showAddLink.value = false
-    linkForm.value = { title: '', link_url: '', category: 'student_collect', description: '' }
-    await loadDocs()
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.detail || '添加失败')
-  } finally {
-    addingLink.value = false
-  }
-}
-
-function onDocClick(doc) {
-  if (doc.doc_type === 'link') {
-    window.open(doc.link_url, '_blank')
-    return
-  }
-  openPreview(doc)
-}
-
-async function openPreview(doc) {
-  try {
-    const detail = await docboxApi.get(doc.id)
-    previewDoc.value = detail
-    showPreview.value = true
-  } catch (e) {
-    ElMessage.error('获取文档详情失败')
-  }
-}
-
-function downloadDoc(doc) {
-  const url = docboxApi.preview(doc.id)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = doc.title
-  a.target = '_blank'
-  a.click()
-}
-
-function onDocAction(cmd, doc) {
-  if (cmd === 'preview') {
-    if (doc.doc_type === 'link') {
-      window.open(doc.link_url, '_blank')
-    } else {
-      openPreview(doc)
-    }
-  } else if (cmd === 'move') {
-    moveDoc.value = doc
-    moveCategory.value = doc.category
-    showMoveDialog.value = true
-  } else if (cmd === 'delete') {
-    onDeleteDoc(doc)
-  }
-}
-
-async function doMove() {
-  if (!moveDoc.value) return
-  try {
-    await docboxApi.update(moveDoc.value.id, { category: moveCategory.value })
-    ElMessage.success('已移动分类')
-    showMoveDialog.value = false
-    await loadDocs()
-  } catch (e) {
-    ElMessage.error('移动失败')
-  }
-}
-
-// V6.17: 改进删除逻辑 - 更健壮的取消检测和错误处理
-async function onDeleteDoc(doc) {
-  try {
-    await ElMessageBox.confirm(`确认删除「${doc.title}」？`, '确认删除', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
-  } catch {
-    // 用户取消，不做任何处理
-    return
-  }
-  
-  try {
-    await docboxApi.remove(doc.id)
-    ElMessage.success('已删除')
-    await loadDocs()
-  } catch (e) {
-    ElMessage.error(e?.response?.data?.detail || '删除失败，请重试')
-  }
-}
-
-// ===== AI 文档助手 =====
-const aiQuestion = ref('')
-const aiChatList = ref([])
-const aiChatLoading = ref(false)
-const chatAreaRef = ref(null)
 const llmConfigured = ref(false)
 const showLlmTip = ref(false)
 
-const aiSuggestions = [
-  '奖学金评定有哪些政策要点？',
-  '学生请假审批流程是什么？',
-  '心理危机干预的流程和注意事项',
-  '考勤周汇总表怎么填？',
+const suggestions = [
+  '奖学金评定办法有哪些要点？',
+  '请假审批流程怎么走？',
+  '学生心理危机干预怎么做？',
 ]
+
+async function loadDocs() {
+  docsLoading.value = true
+  try {
+    const res = await knowledgeApi.list()
+    docs.value = Array.isArray(res) ? res : []
+  } catch (e) {
+    docs.value = []
+    ElMessage.error('加载文档失败')
+  } finally {
+    docsLoading.value = false
+  }
+}
 
 async function loadLlmStatus() {
   try {
@@ -661,55 +295,87 @@ async function loadLlmStatus() {
   }
 }
 
-function formatMsg(text) {
-  if (!text) return ''
-  let html = text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>')
-  return html
+function triggerUpload() {
+  fileInput.value.value = ''
+  fileInput.value.click()
 }
 
-function getTimeStr() {
-  const now = new Date()
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-}
-
-function onAiKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
-    onAiSend()
+async function onFileSelected(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('title', file.name.replace(/\.[^.]+$/, ''))
+  ElMessage.info(`正在上传 ${file.name}，解析中…`)
+  try {
+    const res = await knowledgeApi.upload(fd)
+    ElMessage.success(`✅ 已解析为 ${res.chunk_count} 个分块`)
+    await loadDocs()
+  } catch (e) {
+    const msg = e?.response?.data?.detail || e?.message || '上传失败'
+    ElMessage.error(msg)
   }
 }
 
-async function onAiAsk(q) {
-  aiQuestion.value = q
-  await onAiSend()
+async function onSelectDoc(d) {
+  selectedDoc.value = d
+  highlightChunk.value = null
+  expandedChunks.value = new Set()
+  try {
+    const res = await knowledgeApi.chunks(d.id)
+    chunks.value = Array.isArray(res) ? res : []
+  } catch {
+    chunks.value = []
+  }
 }
 
-async function onAiSend() {
-  const q = aiQuestion.value.trim()
-  if (!q) return
-  aiChatList.value.push({ role: 'user', content: q, time: getTimeStr() })
-  aiQuestion.value = ''
-  aiChatLoading.value = true
-  await nextTick()
-  scrollChatBottom()
+async function onDeleteDoc(d) {
   try {
-    const res = await docboxApi.chat(q)
-    aiChatList.value.push({
+    await ElMessageBox.confirm(`确认删除「${d.title}」？\n关联的分块和 AI 问答记录也会一并删除。`, '确认', { type: 'warning' })
+    await knowledgeApi.remove(d.id)
+    ElMessage.success('已删除')
+    if (selectedDoc.value?.id === d.id) {
+      selectedDoc.value = null
+      chunks.value = []
+    }
+    await loadDocs()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败')
+  }
+}
+
+function onKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    onSend()
+  }
+}
+
+async function onAsk(q) {
+  question.value = q
+  await onSend()
+}
+
+async function onSend() {
+  const q = question.value.trim()
+  if (!q) return
+  chatList.value.push({ role: 'user', content: q })
+  question.value = ''
+  chatLoading.value = true
+  try {
+    const res = await chatApi.ask(q)
+    chatList.value.push({
       role: 'assistant',
       content: res.answer || '(AI 未返回回答)',
       sources: res.sources || [],
-      time: getTimeStr(),
     })
+    await nextTick()
+    scrollChatBottom()
   } catch (e) {
     const msg = e?.response?.data?.detail || e?.message || '问答失败'
-    aiChatList.value.push({ role: 'assistant', content: `❌ ${msg}`, time: getTimeStr() })
+    chatList.value.push({ role: 'assistant', content: `❌ ${msg}` })
   } finally {
-    aiChatLoading.value = false
+    chatLoading.value = false
     await nextTick()
     scrollChatBottom()
   }
@@ -720,16 +386,20 @@ function scrollChatBottom() {
   if (area) area.scrollTop = area.scrollHeight
 }
 
-function onSourceClick(s) {
+function jumpToChunk(s) {
+  highlightChunk.value = s
   if (s.doc_id) {
-    const doc = {
-      id: s.doc_id,
-      title: s.doc_title,
-      category: s.category,
-      doc_type: s.doc_type,
+    const d = docs.value.find(x => x.id === s.doc_id)
+    if (d) {
+      selectedDoc.value = d
+      knowledgeApi.chunks(d.id).then(r => { chunks.value = Array.isArray(r) ? r : [] })
     }
-    openPreview(doc)
   }
+}
+
+function formatDate(s) {
+  if (!s) return ''
+  return String(s).slice(0, 10)
 }
 
 // ===== FAQ Tab =====
@@ -834,20 +504,10 @@ function onFaqExport(format) {
   }
 }
 
-// V6.17: 清理脏数据（上传失败但残留的记录）
-async function cleanupOrphans() {
-  try {
-    await http.post('/docbox/cleanup')
-  } catch {
-    // 静默失败
-  }
-}
-
 onMounted(() => {
   loadDocs()
   loadLlmStatus()
   loadFaqs()
-  cleanupOrphans()
 })
 </script>
 
@@ -856,83 +516,26 @@ onMounted(() => {
 .kb-tabs { height: 100%; }
 .kb-tabs :deep(.el-tabs__content) { overflow: visible; }
 .page-header {
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
 }
 .page-header h2 { margin: 0; color: #303133; }
 .header-actions { display: flex; gap: 8px; align-items: center; }
 
-/* ===== 文档工具箱 - 分类卡片 ===== */
-.categories-grid {
+/* 三栏布局 */
+.kb-layout {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-.category-card {
-  background: #fff;
-  border: 1px solid #E4E7ED;
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.2s;
-}
-.category-card:hover {
-  box-shadow: 0 4px 16px rgba(91, 146, 229, 0.1);
-  border-color: rgba(91, 146, 229, 0.3);
-}
-.cat-header {
-  padding: 14px 18px;
-  background: linear-gradient(135deg, #F0F7FF, #F6FBFF);
-  border-bottom: 1px solid #EBEEF5;
-}
-.cat-title-row {
-  display: flex; align-items: center; gap: 8px;
-}
-.cat-icon { font-size: 20px; }
-.cat-name { font-weight: 600; font-size: 15px; color: #2E5A7F; flex: 1; }
-.cat-body { padding: 8px; max-height: 320px; overflow-y: auto; }
-.cat-empty {
-  padding: 24px; text-align: center; color: #C0C4CC; font-size: 13px;
-}
-
-/* 文档项 */
-.doc-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px; cursor: pointer;
-  transition: all 0.18s;
-  margin-bottom: 4px;
-}
-.doc-item:hover {
-  background: linear-gradient(135deg, #F0F7FF, #F6F9FD);
-}
-.doc-icon-col { flex-shrink: 0; }
-.doc-info-col { flex: 1; min-width: 0; }
-.doc-title {
-  font-weight: 500; font-size: 13.5px; color: #303133;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.doc-meta {
-  display: flex; gap: 8px; margin-top: 3px; font-size: 11px; color: #909399;
-}
-.meta-item { white-space: nowrap; }
-.doc-actions-col { flex-shrink: 0; }
-
-/* ===== AI 布局 ===== */
-.ai-layout {
-  display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: 260px 1fr 300px;
   gap: 14px;
-  height: calc(100vh - 180px);
-  min-height: 480px;
+  height: calc(100vh - 200px);
+  min-height: 500px;
 }
-.ai-layout > div {
+.kb-layout > div {
   background: #fff;
   border: 1px solid #E4E7ED;
   border-radius: 10px;
   display: flex; flex-direction: column;
   overflow: hidden;
 }
-
-/* 通用列头 */
 .col-head {
   padding: 12px 14px;
   border-bottom: 1px solid #EBEEF5;
@@ -940,136 +543,139 @@ onMounted(() => {
   background: linear-gradient(135deg, #F6F9FD, #fff);
 }
 .col-title { font-weight: 600; color: #303133; font-size: 14px; }
-.col-head-actions { display: flex; align-items: center; gap: 6px; }
+.col-empty {
+  padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px; line-height: 1.8;
+}
+.col-empty .hint { font-size: 12px; color: #C0C4CC; }
 
-/* AI对话区 */
+/* 左：文档列表 */
+.doc-list { flex: 1; overflow-y: auto; padding: 8px; }
+.doc-item {
+  padding: 10px; margin-bottom: 6px;
+  border-radius: var(--radius-sm); cursor: pointer;
+  border: 1px solid transparent;
+  transition: all .18s;
+}
+.doc-item:hover { background: #F6F9FD; border-color: #E4E7ED; }
+.doc-item.active {
+  background: linear-gradient(135deg, #EEF4FD, #E8F7F3);
+  border-color: var(--color-primary);
+}
+.doc-row1 { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.doc-row1 .el-icon { color: var(--color-primary); }
+.doc-title { font-weight: 500; font-size: 13px; color: #303133;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-row2 { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.doc-chunks { font-size: 11px; color: var(--text-muted); }
+.doc-row3 { display: flex; justify-content: space-between; align-items: center; }
+.doc-time { font-size: 11px; color: #C0C4CC; }
+
+/* 中：对话 */
 .chat-area { flex: 1; overflow-y: auto; padding: 14px; background: #FAFBFC; }
-.chat-empty { text-align: center; padding: 30px 16px; color: var(--text-muted); }
-.empty-icon-big { font-size: 48px; margin-bottom: 10px; }
-.empty-title { font-size: 16px; font-weight: 700; color: #2E5A7F; margin-bottom: 4px; }
-.empty-desc { font-size: 12px; color: #95A5A6; margin-bottom: 16px; }
-.empty-suggests { display: flex; flex-direction: column; gap: 8px; }
+.chat-empty {
+  text-align: center; padding: 40px 20px; color: var(--text-muted);
+}
+.empty-icon { font-size: 40px; margin-bottom: 10px; }
 .empty-suggest {
-  padding: 10px 14px;
-  background: #fff; border: 1px solid #E4E7ED; border-radius: 10px;
+  margin-top: 8px; padding: 8px 12px;
+  background: #fff; border: 1px solid #E4E7ED; border-radius: var(--radius-sm);
   cursor: pointer; font-size: 13px;
   transition: all .18s;
-  display: flex; align-items: center; gap: 8px; text-align: left;
 }
 .empty-suggest:hover {
   border-color: var(--color-primary); color: var(--color-primary); background: #EEF4FD;
-  transform: translateY(-1px); box-shadow: 0 2px 8px rgba(91, 146, 229, 0.1);
 }
-.suggest-icon { flex-shrink: 0; }
-
-/* 对话消息 */
-.chat-msg { display: flex; gap: 10px; margin-bottom: 14px; animation: msgFadeIn 0.3s ease; }
-@keyframes msgFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+.chat-msg {
+  display: flex; gap: 10px; margin-bottom: 14px;
 }
 .chat-msg.user { flex-direction: row-reverse; }
-.msg-avatar {
-  flex-shrink: 0; width: 36px; height: 36px;
+.msg-role {
+  flex-shrink: 0; width: 32px; height: 32px;
   border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 18px; background: linear-gradient(135deg, #EEF4FD, #E8F7F3);
-  border: 1px solid rgba(91, 146, 229, 0.15);
+  font-size: 12px; font-weight: 600; color: #fff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-mint));
 }
-.chat-msg.user .msg-avatar { background: linear-gradient(135deg, #EEF4FD, #F0E8FD); }
+.chat-msg.user .msg-role { background: linear-gradient(135deg, var(--color-accent), var(--color-secondary)); }
 .msg-body {
-  max-width: 78%; padding: 10px 14px; border-radius: 12px;
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 10px;
   font-size: 14px; line-height: 1.7;
 }
 .chat-msg.user .msg-body {
   background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-  color: #fff; border-bottom-right-radius: 4px;
+  color: #fff;
 }
 .chat-msg.assistant .msg-body {
-  background: #fff; border: 1px solid #E4E7ED; color: #303133;
-  border-bottom-left-radius: 4px;
+  background: #fff;
+  border: 1px solid #E4E7ED;
+  color: #303133;
 }
 .msg-text { white-space: pre-wrap; word-break: break-word; }
-.msg-text :deep(code) { background: rgba(91, 146, 229, 0.08); padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', Menlo, monospace; }
-.msg-text :deep(strong) { color: #2E5A7F; }
-.msg-sources { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #E4E7ED; font-size: 12px; }
+.msg-sources {
+  margin-top: 8px; padding-top: 8px; border-top: 1px dashed #E4E7ED;
+  font-size: 12px;
+}
 .src-label { color: var(--text-muted); margin-bottom: 4px; }
 .src-item {
-  padding: 5px 10px; margin: 3px 0; background: #F6F9FD; border-radius: 6px;
+  padding: 4px 8px; margin: 3px 0;
+  background: #F6F9FD; border-radius: 4px;
   cursor: pointer; color: var(--color-primary);
-  display: flex; align-items: center; gap: 6px; transition: background .15s;
 }
 .src-item:hover { background: #EEF4FD; }
-.src-icon { flex-shrink: 0; font-size: 12px; }
-.src-title { font-weight: 500; white-space: nowrap; }
-.msg-time { font-size: 10px; color: #C0C4CC; margin-top: 4px; text-align: right; }
-.chat-msg.user .msg-time { color: rgba(255,255,255,0.6); }
-
-/* 打字动画 */
-.typing-indicator { display: flex; align-items: center; gap: 4px; }
-.typing-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--color-primary);
-  animation: typingBounce 1.2s infinite ease-in-out;
-}
-.typing-dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-dot:nth-child(3) { animation-delay: 0.4s; }
-@keyframes typingBounce {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-  40% { transform: scale(1); opacity: 1; }
-}
-.typing-text { margin-left: 6px; color: var(--text-muted); font-size: 12px; }
-
+.src-snippet { color: var(--text-muted); margin-left: 4px; }
+.typing-dots { color: var(--text-muted); font-style: italic; }
 .chat-input {
   padding: 10px; border-top: 1px solid #EBEEF5;
-  display: flex; gap: 8px; align-items: flex-end; background: #fff;
+  display: flex; gap: 8px; align-items: flex-end;
+  background: #fff;
 }
 .chat-input .el-textarea { flex: 1; }
 
-/* 右侧文档速览 */
-.quick-doc-list { flex: 1; overflow-y: auto; padding: 10px; }
-.quick-cat { margin-bottom: 12px; }
-.quick-cat-title {
-  font-size: 12px; font-weight: 600; color: #909399; padding: 4px 8px;
-  text-transform: uppercase; letter-spacing: 0.5px;
+/* 右：分块 */
+.chunk-list { flex: 1; overflow-y: auto; padding: 10px; background: #FAFBFC; }
+.chunk-count { font-size: 12px; color: var(--text-muted); }
+.chunk-hint { padding: 0 10px 8px; font-size: 12px; color: var(--text-muted); }
+.chunk-item {
+  background: #fff; border: 1px solid #E4E7ED; border-radius: var(--radius-sm);
+  padding: 10px; margin-bottom: 8px; cursor: pointer; transition: border-color .18s;
 }
-.quick-doc-item {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 10px; border-radius: 6px; cursor: pointer;
-  font-size: 13px; transition: all 0.15s;
+.chunk-item:hover { border-color: var(--color-primary); }
+.chunk-item.highlight {
+  border-color: #E6A23C; background: #FDF6EC; cursor: default;
 }
-.quick-doc-item:hover { background: #F0F7FF; }
-.quick-doc-title {
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  color: #303133;
+.chunk-head {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+  font-size: 12px;
 }
-.quick-more { padding: 4px 10px; font-size: 11px; color: #C0C4CC; }
-
-/* ===== 预览弹窗 ===== */
-.preview-container { }
-.preview-meta {
-  display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;
+.chunk-chars { color: #C0C4CC; font-size: 11px; }
+.expand-icon {
+  margin-left: auto; transition: transform .2s; color: #C0C4CC; font-size: 14px;
 }
-.meta-text { font-size: 12px; color: #909399; }
-.preview-iframe-wrap {
-  border: 1px solid #EBEEF5; border-radius: 8px; overflow: hidden;
-  height: 70vh;
+.expand-icon.expanded { transform: rotate(180deg); }
+.chunk-body {
+  font-size: 13px; line-height: 1.6; color: #303133;
+  white-space: pre-wrap; word-break: break-word;
 }
-.preview-iframe { width: 100%; height: 100%; border: none; }
-.preview-link { padding: 20px; text-align: center; }
-.link-hint { margin-top: 8px; color: #909399; font-size: 12px; }
-.preview-text { border: 1px solid #EBEEF5; border-radius: 8px; }
-.doc-full-text {
-  padding: 16px; font-size: 13px; line-height: 1.8; color: #303133;
-  white-space: pre-wrap; word-break: break-word; margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+.chunk-body.collapsed {
+  max-height: 72px; overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
 }
-.preview-footer { margin-top: 16px; display: flex; justify-content: flex-end; }
 
 /* LLM 提示 */
 .llm-tip { line-height: 1.9; font-size: 14px; }
-.tip-field { padding-left: 12px; color: var(--text-secondary); font-size: 13px; }
-.tip-field code { background: #F5F7FA; padding: 2px 6px; border-radius: 3px; font-family: Consolas, monospace; font-size: 12px; }
-.tip-warn { margin-top: 16px; padding: 10px; background: #FDF6EC; border-radius: 6px; font-size: 12px; color: #E6A23C; }
+.tip-field {
+  padding-left: 12px; color: var(--text-secondary); font-size: 13px;
+}
+.tip-field code {
+  background: #F5F7FA; padding: 2px 6px; border-radius: 3px;
+  font-family: Consolas, monospace; font-size: 12px;
+}
+.tip-warn {
+  margin-top: 16px; padding: 10px; background: #FDF6EC;
+  border-radius: 6px; font-size: 12px; color: #E6A23C;
+}
 
 /* FAQ 样式 */
 .hint-bar {

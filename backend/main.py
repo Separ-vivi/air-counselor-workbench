@@ -162,6 +162,57 @@ scheduler.add_job(
     replace_existing=True
 )
 
+# V6.18: 校历自动更新任务（每周一 8:00 检查官网是否有新校历）
+def auto_sync_calendar_job():
+    """V6.18: 每周一自动检查并同步校历"""
+    logger.info("定时任务触发: 自动同步校历")
+    try:
+        from routers.calendar_sync import _fetch_page, _extract_semesters_from_html, _parse_calendar_html, CALENDAR_BASE_URL
+        from models import AcademicCalendarEvent
+        from sqlalchemy import delete as sa_delete
+        db = SessionLocal()
+        try:
+            html = _fetch_page(CALENDAR_BASE_URL)
+            if not html:
+                logger.warning("校历自动同步: 无法获取官网页面")
+                return
+            current, available = _extract_semesters_from_html(html)
+            if not current:
+                logger.warning("校历自动同步: 无法获取当前学期")
+                return
+            # 检查是否已有当前学期的数据
+            existing = db.query(AcademicCalendarEvent).filter(
+                AcademicCalendarEvent.semester == current
+            ).count()
+            if existing > 0:
+                logger.info(f"校历自动同步: 学期 {current} 已有 {existing} 条记录，跳过")
+                return
+            # 解析并入库
+            events = _parse_calendar_html(html, current)
+            if events:
+                db.execute(sa_delete(AcademicCalendarEvent).where(
+                    AcademicCalendarEvent.semester == current
+                ))
+                db.flush()
+                for ev in events:
+                    db.add(AcademicCalendarEvent(**ev))
+                db.commit()
+                logger.info(f"校历自动同步完成: 学期={current}, 事件数={len(events)}")
+            else:
+                logger.warning(f"校历自动同步: 未解析到事件 (学期={current})")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"校历自动同步失败: {e}")
+
+scheduler.add_job(
+    auto_sync_calendar_job,
+    trigger=CronTrigger(day_of_week='mon', hour=8, minute=0),
+    id='auto_sync_calendar',
+    name='每周一自动同步校历',
+    replace_existing=True
+)
+
 # 项目根目录
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIST = os.path.join(BASE_DIR, 'frontend', 'dist')
@@ -218,6 +269,8 @@ from routers.comprehensive_assessment import router as comprehensive_router
 from routers.interview import router as interview_router
 from routers.attendance import router as attendance_router
 from routers.financial_aid import router as financial_aid_router
+from routers.documents import router as documents_router
+from routers.calendar_sync import router as calendar_sync_router
 
 app.include_router(students_router)
 app.include_router(tags_router)
@@ -243,6 +296,8 @@ app.include_router(interview_router)
 app.include_router(attendance_router)
 app.include_router(financial_aid_router)
 app.include_router(student_tag_router)
+app.include_router(documents_router)
+app.include_router(calendar_sync_router)
 
 
 @app.on_event('startup')
@@ -356,6 +411,22 @@ async def startup():
         logger.info("Migration: notes 已添加 remind_at 字段")
     except Exception as _e:
         logger.warning(f"Migration notes remind_at 失败(可忽略): {_e}")
+    # V6.18: 困难生建档字段迁移
+    try:
+        with SessionLocal() as _mdb:
+            for _sql in [
+                "ALTER TABLE student_hardship ADD COLUMN is_filed INTEGER DEFAULT 0",
+                "ALTER TABLE student_hardship ADD COLUMN filed_at VARCHAR(30) DEFAULT ''",
+            ]:
+                try:
+                    _mdb.execute(text(_sql))
+                    _mdb.commit()
+                except Exception:
+                    _mdb.rollback()
+        logger.info("Migration: student_hardship 已添加 is_filed/filed_at 字段")
+    except Exception as _e:
+        logger.warning(f"Migration student_hardship 失败(可忽略): {_e}")
+
     # 启动定时任务调度器
     scheduler.start()
     logger.info("定时任务调度器已启动")

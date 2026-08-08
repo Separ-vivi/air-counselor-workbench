@@ -11,7 +11,11 @@
       <template #header>
         <div class="card-header">
           <span>AI 配置（知识库问答）</span>
-          <el-tag v-if="llmSaved" type="success" size="small" round>已保存</el-tag>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:13px;color:#606266">AI功能</span>
+            <el-switch v-model="aiEnabled" @change="onAiToggle" :loading="aiToggling" />
+            <el-tag v-if="llmSaved" type="success" size="small" round>已保存</el-tag>
+          </div>
         </div>
       </template>
       <el-form :model="llmForm" label-width="90px">
@@ -240,6 +244,9 @@ import { system } from '@/api/modules'
 import http from '@/api/index.js'
 
 const health = ref(null)
+// V6.18: AI功能开关
+const aiEnabled = ref(true)
+const aiToggling = ref(false)
 const loadingHealth = ref(false)
 const llmForm = ref({ api_key: '', base_url: 'https://api.deepseek.com', model: 'deepseek-chat', model_name: 'DeepSeek V3' })
 const llmSaving = ref(false)
@@ -496,7 +503,27 @@ function formatSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
-onMounted(() => { loadHealth(); loadLlm(); loadBackupHistory() })
+async function loadAiEnabled() {
+  try {
+    const r = await http.get('/system/ai-enabled')
+    aiEnabled.value = r?.ai_enabled !== false
+  } catch (e) { console.warn('loadAiEnabled err', e) }
+}
+
+async function onAiToggle() {
+  aiToggling.value = true
+  try {
+    await http.post('/system/ai-enabled', { ai_enabled: aiEnabled.value })
+    ElMessage.success(aiEnabled.value ? 'AI功能已开启' : 'AI功能已关闭')
+  } catch (e) {
+    ElMessage.error('操作失败')
+    aiEnabled.value = !aiEnabled.value  // revert
+  } finally {
+    aiToggling.value = false
+  }
+}
+
+onMounted(() => { loadHealth(); loadLlm(); loadBackupHistory(); loadAiEnabled() })
 </script>
 
 <style scoped>

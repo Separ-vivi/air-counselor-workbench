@@ -2,7 +2,7 @@
   <div class="tab-summary">
     <div class="summary-header">
       <h3>💰 资助与荣誉概览</h3>
-      <el-button type="primary" @click="$router.push('/module/financial-aid')">
+      <el-button type="primary" @click="goToDetail">
         查看详情 <el-icon><ArrowRight /></el-icon>
       </el-button>
     </div>
@@ -20,10 +20,15 @@
 
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ArrowRight } from '@element-plus/icons-vue'
 import { s360 } from '@/api/student360.js'
 
-const props = defineProps({ sid: { type: Number, required: true } })
+const router = useRouter()
+const props = defineProps({ 
+  sid: { type: Number, required: true },
+  studentName: { type: String, default: '' }
+})
 const loading = ref(false)
 const hardship = ref([])
 const scholarships = ref([])
@@ -61,6 +66,13 @@ async function load() {
     honors.value = ho || []
     grants.value = g || []
   } finally { loading.value = false }
+}
+
+function goToDetail() {
+  router.push({
+    path: '/module/financial-aid',
+    query: { student_id: props.sid, student_name: props.studentName || '' }
+  })
 }
 
 watch(() => props.sid, load, { immediate: false })

@@ -1,5 +1,11 @@
 <template>
   <div class="financial-aid-page">
+    <!-- V6.18: 学生个人资助视图 -->
+    <div v-if="routeStudentId" class="student-filter-banner">
+      <el-icon><InfoFilled /></el-icon>
+      <span>正在查看 <b>{{ routeStudentName || `学生#${routeStudentId}` }}</b> 的个人资助与荣誉记录</span>
+      <el-button link type="primary" @click="clearStudentFilter">查看全部</el-button>
+    </div>
     <div class="page-header">
       <h2>奖助贷</h2>
       <div class="header-info">
@@ -95,6 +101,14 @@
               </template>
             </el-table-column>
             <el-table-column label="明细" prop="detail" min-width="140" show-overflow-tooltip />
+            <el-table-column label="建档状态" width="100" v-if="hasHardshipCol">
+              <template #default="{ row }">
+                <template v-if="row.aid_type === 'hardship'">
+                  <el-tag v-if="row.is_filed" type="success" size="small" effect="plain">已建档</el-tag>
+                  <el-tag v-else type="info" size="small" effect="plain">未建档</el-tag>
+                </template>
+              </template>
+            </el-table-column>
             <el-table-column label="金额" prop="amount" width="110" align="right">
               <template #default="{ row }">
                 <span v-if="row.amount > 0" style="color: var(--color-primary);font-weight:600">¥{{ row.amount.toLocaleString() }}</span>
@@ -145,14 +159,20 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import { financialAid as financialAidApi } from '@/api/modules'
 import {
-  WarningFilled, Coin, Trophy, CreditCard, Briefcase, Medal
+  WarningFilled, Coin, Trophy, CreditCard, Briefcase, Medal, InfoFilled
 } from '@element-plus/icons-vue'
 
 // ===== 状态 =====
+const route = useRoute()
+const routeStudentId = computed(() => route.query.student_id ? parseInt(route.query.student_id) : null)
+const routeStudentName = computed(() => route.query.student_name || '')
+
+const router = useRouter()
 const summary = ref({})
 const chartData = ref({})
 const listData = ref([])
@@ -176,6 +196,8 @@ const typeTagMap = {
   work_study: 'info',
   honor: 'success',
 }
+// V6.18: 是否显示建档列
+const hasHardshipCol = computed(() => !filterAidType.value || filterAidType.value === 'hardship')
 
 // 统计卡片配置
 const statCards = [
@@ -249,6 +271,8 @@ const loadList = async () => {
     if (filterAidType.value) params.aid_type = filterAidType.value
     if (filterYear.value) params.academic_year = filterYear.value
     if (filterSearch.value) params.search = filterSearch.value
+    // V6.18: 从路由参数获取学生ID进行筛选
+    if (routeStudentId.value) params.student_id = routeStudentId.value
     const res = await financialAidApi.list(params)
     listData.value = res.items || []
     listTotal.value = res.total || 0
@@ -380,6 +404,10 @@ const handleResize = () => {
 }
 
 // ===== 生命周期 =====
+function clearStudentFilter() {
+  router.push('/module/financial-aid')
+}
+
 onMounted(async () => {
   await Promise.all([loadSummary(), loadChartData(), loadSemesters()])
   loadList()
@@ -403,6 +431,13 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .financial-aid-page { padding: 20px; background: var(--bg-page); min-height: 100vh; }
+.student-filter-banner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; margin-bottom: 16px;
+  background: linear-gradient(135deg, #EEF4FD, #F0FAF7);
+  border: 1px solid rgba(91,146,229,0.2); border-radius: 8px;
+  font-size: 13px; color: #2E5A7F;
+}
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { margin: 0; color: var(--text-primary); font-size: 20px; }
 .coverage-badge {

@@ -94,3 +94,9 @@ logs/
 .codegraphcmd_*.txt
 *.tmp
 
+backend/Lib/
+backend/Scripts/
+backend/pyvenv.cfg
+python/
+packages/*.tar.gz
+packages/*.zip

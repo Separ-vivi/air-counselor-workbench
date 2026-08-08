@@ -172,6 +172,7 @@ def financial_aid_list(
     search: str = Query('', description='搜索学号/姓名'),
     aid_type: Optional[str] = Query(None, description='hardship/grant/scholarship/loan/work_study/honor'),
     academic_year: Optional[str] = Query(None),
+    student_id: Optional[int] = Query(None, description='V6.18: 按学生ID筛选'),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -186,10 +187,14 @@ def financial_aid_list(
             q = q.filter(
                 (Student.name.ilike(pattern)) | (Student.student_no.ilike(pattern))
             )
+        # V6.18: 按学生ID筛选
+        if student_id:
+            q = q.filter(Student.id == student_id)
         return q
 
     def _add_student_info(row_dict, student_id):
         stu = db.get(Student, student_id)
+        row_dict['student_id'] = student_id  # V6.18: 始终返回student_id
         if stu:
             row_dict['student_name'] = stu.name
             row_dict['student_no'] = stu.student_no
@@ -212,6 +217,10 @@ def financial_aid_list(
                     'id': row.id, 'aid_type': 'hardship', 'aid_type_label': '困难认定',
                     'detail': row.hardship_level or '',
                     'amount': 0, 'academic_year': row.academic_year or '',
+                    # V6.18: 建档状态
+                    'is_filed': bool(getattr(row, 'is_filed', False)),
+                    'filed_at': getattr(row, 'filed_at', '') or '',
+                    'student_id': row.student_id,
                 }
                 _add_student_info(d, row.student_id)
                 items.append(d)

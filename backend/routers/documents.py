@@ -146,6 +146,8 @@ async def upload_document(
     cat_dir = os.path.join(UPLOAD_DIR, category)
     os.makedirs(cat_dir, exist_ok=True)
     file_path = os.path.join(cat_dir, safe_name)
+    # V6.18: 使用相对路径存储，确保跨机器可移植
+    rel_file_path = os.path.relpath(file_path, os.path.dirname(os.path.dirname(__file__)))
     
     content_bytes = await file.read()
     file_size = len(content_bytes)
@@ -166,7 +168,7 @@ async def upload_document(
             category=category,
             description=description,
             doc_type=ext.lstrip('.'),
-            file_path=file_path,
+            file_path=rel_file_path,
             file_size=file_size,
             page_count=page_count,
             full_text=full_text,
@@ -271,7 +273,11 @@ def preview_document(doc_id: int, db: Session = Depends(get_db)):
     if doc.doc_type == 'link':
         raise HTTPException(400, '链接类文档无文件可预览')
     
-    if not doc.file_path or not os.path.isfile(doc.file_path):
+    # V6.18: 支持相对路径解析
+    file_path = doc.file_path
+    if file_path and not os.path.isabs(file_path):
+        file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), file_path)
+    if not file_path or not os.path.isfile(file_path):
         raise HTTPException(404, '文件不存在或已被删除')
     
     # 根据文件类型设置MIME
@@ -288,7 +294,7 @@ def preview_document(doc_id: int, db: Session = Depends(get_db)):
     media_type = mime_map.get(ext, 'application/octet-stream')
     
     return FileResponse(
-        doc.file_path,
+        file_path,
         media_type=media_type,
         filename=doc.title,
     )
@@ -333,8 +339,11 @@ def delete_document(doc_id: int, db: Session = Depends(get_db)):
     # 删除文件（多个可能的路径）
     if doc.file_path:
         try:
-            if os.path.isfile(doc.file_path):
-                os.remove(doc.file_path)
+            fp = doc.file_path
+            if not os.path.isabs(fp):
+                fp = os.path.join(os.path.dirname(os.path.dirname(__file__)), fp)
+            if os.path.isfile(fp):
+                os.remove(fp)
                 logger.info(f"已删除文件: {doc.file_path}")
         except Exception as e:
             logger.warning(f"删除文件失败: {e}")
