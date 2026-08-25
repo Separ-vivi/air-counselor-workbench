@@ -164,15 +164,18 @@ scheduler.add_job(
 
 # V6.18: 校历自动更新任务（每周一 8:00 检查官网是否有新校历）
 def auto_sync_calendar_job():
-    """V6.18: 每周一自动检查并同步校历"""
+    """V6.19: 每周一自动检查并同步校历（修复函数名引用：_fetch_page→_fetch_data_page）"""
     logger.info("定时任务触发: 自动同步校历")
     try:
-        from routers.calendar_sync import _fetch_page, _extract_semesters_from_html, _parse_calendar_html, CALENDAR_BASE_URL
+        from routers.calendar_sync import (
+            _fetch_data_page, _extract_semesters_from_html,
+            _parse_calendar_html,
+        )
         from models import AcademicCalendarEvent
         from sqlalchemy import delete as sa_delete
         db = SessionLocal()
         try:
-            html = _fetch_page(CALENDAR_BASE_URL)
+            html = _fetch_data_page()
             if not html:
                 logger.warning("校历自动同步: 无法获取官网页面")
                 return
@@ -203,7 +206,7 @@ def auto_sync_calendar_job():
         finally:
             db.close()
     except Exception as e:
-        logger.error(f"校历自动同步失败: {e}")
+        logger.error(f"校历自动同步失败: {e}", exc_info=True)
 
 scheduler.add_job(
     auto_sync_calendar_job,

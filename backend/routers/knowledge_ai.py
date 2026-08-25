@@ -341,9 +341,9 @@ def get_ai_enabled_status():
     return {'ai_enabled': get_ai_enabled()}
 
 
-@router.post('/system/aienabled')
+@router.post('/system/ai-enabled')
 def set_ai_enabled(data: dict):
-    """V6.18: 设置AI功能开关"""
+    """V6.19: 设置AI功能开关（修复路径 typo：aienabled→ai-enabled）"""
     enabled = data.get('ai_enabled', True)
     save_ai_enabled(bool(enabled))
     return {'ok': True, 'ai_enabled': bool(enabled)}

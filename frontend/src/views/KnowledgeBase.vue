@@ -143,6 +143,19 @@
           </template>
         </el-dialog>
 
+        <!-- V6.19: 重命名弹窗 -->
+        <el-dialog v-model="showRenameDialog" title="重命名" width="440px">
+          <el-form label-width="70px">
+            <el-form-item label="文件名">
+              <el-input v-model="renameValue" placeholder="输入新的文件名（不含扩展名）" @keyup.enter="doRename" />
+            </el-form-item>
+          </el-form>
+          <template #footer>
+            <el-button @click="showRenameDialog = false">取消</el-button>
+            <el-button type="primary" :loading="renaming" @click="doRename">确认</el-button>
+          </template>
+        </el-dialog>
+
         <!-- 文档详情/预览弹窗 -->
         <el-dialog v-model="showPreview" :title="previewDoc?.title || '文档预览'" width="90%" top="3vh"
           :close-on-click-modal="false" class="preview-dialog"
@@ -175,6 +188,15 @@
             <div class="preview-footer">
               <el-button v-if="previewDoc.doc_type !== 'link'" type="primary" @click="downloadDoc(previewDoc)">
                 <el-icon><Download /></el-icon> 下载文件
+              </el-button>
+              <el-button type="warning" @click="startRename(previewDoc)">
+                <el-icon><Edit /></el-icon> 重命名
+              </el-button>
+              <el-button @click="startMoveFromPreview">
+                <el-icon><FolderOpened /></el-icon> 移动分类
+              </el-button>
+              <el-button type="danger" @click="onDeleteFromPreview">
+                <el-icon><Delete /></el-icon> 删除
               </el-button>
             </div>
           </div>
@@ -475,6 +497,12 @@ const showMoveDialog = ref(false)
 const moveDoc = ref(null)
 const moveCategory = ref('other')
 
+// V6.19: 重命名
+const showRenameDialog = ref(false)
+const renameDoc = ref(null)
+const renameValue = ref('')
+const renaming = ref(false)
+
 // 预览
 const showPreview = ref(false)
 const previewDoc = ref(null)
@@ -631,9 +659,67 @@ async function onDeleteDoc(doc) {
   try {
     await docboxApi.remove(doc.id)
     ElMessage.success('已删除')
+    // V6.19: 关闭预览弹窗（若正在预览被删文档）
+    if (previewDoc.value && previewDoc.value.id === doc.id) {
+      showPreview.value = false
+      previewDoc.value = null
+    }
     await loadDocs()
   } catch (e) {
     ElMessage.error(e?.response?.data?.detail || '删除失败，请重试')
+  }
+}
+
+// V6.19: 从预览页触发删除
+function onDeleteFromPreview() {
+  if (!previewDoc.value) return
+  const doc = previewDoc.value
+  showPreview.value = false
+  onDeleteDoc(doc)
+}
+
+// V6.19: 从预览页触发移动分类
+function startMoveFromPreview() {
+  if (!previewDoc.value) return
+  moveDoc.value = previewDoc.value
+  moveCategory.value = previewDoc.value.category
+  showMoveDialog.value = true
+}
+
+// V6.19: 重命名
+function startRename(doc) {
+  renameDoc.value = doc
+  // 去掉扩展名作为初始值
+  const name = doc.title || ''
+  const dotIdx = name.lastIndexOf('.')
+  renameValue.value = dotIdx > 0 ? name.substring(0, dotIdx) : name
+  showRenameDialog.value = true
+}
+
+async function doRename() {
+  const newName = (renameValue.value || '').trim()
+  if (!newName || !renameDoc.value) return
+  // 恢复扩展名
+  const oldName = renameDoc.value.title || ''
+  const dotIdx = oldName.lastIndexOf('.')
+  const ext = dotIdx > 0 ? oldName.substring(dotIdx) : ''
+  const finalTitle = newName.endsWith(ext) ? newName : newName + ext
+
+  renaming.value = true
+  try {
+    await docboxApi.update(renameDoc.value.id, { title: finalTitle })
+    ElMessage.success('已重命名')
+    showRenameDialog.value = false
+    // 若正在预览该文档，刷新预览数据
+    if (previewDoc.value && previewDoc.value.id === renameDoc.value.id) {
+      const detail = await docboxApi.get(renameDoc.value.id)
+      previewDoc.value = detail
+    }
+    await loadDocs()
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.detail || '重命名失败')
+  } finally {
+    renaming.value = false
   }
 }
 

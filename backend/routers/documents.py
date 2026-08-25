@@ -178,10 +178,13 @@ async def upload_document(
         db.add(doc)
         db.commit()
         db.refresh(doc)
-        
-        # 更新FTS索引
-        _rebuild_docbox_fts(db)
-        
+
+        # V6.19: FTS索引重建放在commit之后，失败不影响主流程（历史bug：FTS失败导致回滚，文件已删但列表看不到）
+        try:
+            _rebuild_docbox_fts(db)
+        except Exception as fts_err:
+            logger.warning(f"FTS索引重建失败（不影响文档保存）: {fts_err}")
+
         return {
             'id': doc.id,
             'title': doc.title,
@@ -304,23 +307,61 @@ def preview_document(doc_id: int, db: Session = Depends(get_db)):
 
 @router.put('/docbox/{doc_id}')
 def update_document(doc_id: int, data: dict, db: Session = Depends(get_db)):
-    """更新文档信息（分类、描述等）"""
+    """V6.19: 更新文档信息（分类、标题、描述、链接）。标题修改时同步重命名磁盘文件。"""
     doc = db.query(DocumentFile).get(doc_id)
     if not doc:
         raise HTTPException(404, '文档不存在')
-    
+
     if 'category' in data and data['category'] in CATEGORIES:
-        doc.category = data['category']
-    if 'title' in data:
-        doc.title = data['title']
+        new_cat = data['category']
+        if new_cat != doc.category:
+            # 移动文件到新分类目录
+            try:
+                old_fp = doc.file_path
+                if old_fp and not os.path.isabs(old_fp):
+                    old_fp = os.path.join(os.path.dirname(os.path.dirname(__file__)), old_fp)
+                if old_fp and os.path.isfile(old_fp):
+                    new_cat_dir = os.path.join(UPLOAD_DIR, new_cat)
+                    os.makedirs(new_cat_dir, exist_ok=True)
+                    new_fp = os.path.join(new_cat_dir, os.path.basename(old_fp))
+                    os.rename(old_fp, new_fp)
+                    doc.file_path = os.path.relpath(new_fp, os.path.dirname(os.path.dirname(__file__)))
+            except Exception as e:
+                logger.warning(f"移动文件失败（继续更新数据库）: {e}")
+        doc.category = new_cat
+
+    if 'title' in data and data['title'].strip():
+        new_title = data['title'].strip()
+        if new_title != doc.title and doc.doc_type != 'link':
+            # 同步重命名磁盘文件，保持扩展名
+            try:
+                old_fp = doc.file_path
+                if old_fp and not os.path.isabs(old_fp):
+                    old_fp = os.path.join(os.path.dirname(os.path.dirname(__file__)), old_fp)
+                if old_fp and os.path.isfile(old_fp):
+                    ext = os.path.splitext(old_fp)[1]
+                    new_basename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{new_title}{ext}"
+                    new_fp = os.path.join(os.path.dirname(old_fp), new_basename)
+                    os.rename(old_fp, new_fp)
+                    doc.file_path = os.path.relpath(new_fp, os.path.dirname(os.path.dirname(__file__)))
+            except Exception as e:
+                logger.warning(f"重命名文件失败（继续更新数据库标题）: {e}")
+        doc.title = new_title
+
     if 'description' in data:
         doc.description = data['description']
     if 'link_url' in data:
         doc.link_url = data['link_url']
-    
+
     doc.updated_at = datetime.now()
     db.commit()
-    
+
+    # FTS 索引更新（失败不影响）
+    try:
+        _rebuild_docbox_fts(db)
+    except Exception as fts_err:
+        logger.warning(f"FTS索引重建失败（不影响更新）: {fts_err}")
+
     return {'ok': True}
 
 
