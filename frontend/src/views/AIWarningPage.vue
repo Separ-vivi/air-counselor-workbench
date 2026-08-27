@@ -83,8 +83,15 @@
       </span>
     </div>
 
+    <!-- V6.20: AI 功能已关闭 -->
+    <div v-if="aiDisabled" class="page-empty" style="padding:60px 0;">
+      <el-empty description="AI 智能预警已关闭，可在「系统设置」中开启">
+        <el-button type="primary" @click="$router.push('/settings')">前往系统设置</el-button>
+      </el-empty>
+    </div>
+
     <!-- Loading -->
-    <div v-if="loading && !warnings.length" class="page-loading">
+    <div v-else-if="loading && !warnings.length" class="page-loading">
       <div class="ai-loading-dots"><span></span><span></span><span></span></div>
       <span>AI 正在分析学生数据，请稍候...</span>
     </div>
@@ -205,6 +212,7 @@ import http from '@/api/index.js'
 
 const router = useRouter()
 const loading = ref(false)
+const aiDisabled = ref(false)  // V6.20: AI 开关关闭时为 true
 const error = ref('')
 const warnings = ref([])
 const highCount = ref(0)
@@ -364,11 +372,32 @@ const loadInterviewStatus = async (studentList) => {
   }
 }
 
+const checkAiEnabled = async () => {
+  try {
+    const r = await http.get('/system/ai-enabled')
+    aiDisabled.value = r?.ai_enabled === false
+  } catch (e) {
+    aiDisabled.value = false
+  }
+}
+
 const refreshWarnings = async (force = false) => {
+  // V6.20: AI 关闭时不请求预警
+  if (aiDisabled.value) {
+    warnings.value = []
+    highCount.value = mediumCount.value = lowCount.value = totalCount.value = 0
+    return
+  }
   loading.value = true
   error.value = ''
   try {
     const res = await aiWarnings(force)
+    if (res?.ai_enabled === false || res?.message === 'AI功能已关闭') {
+      aiDisabled.value = true
+      warnings.value = []
+      highCount.value = mediumCount.value = lowCount.value = totalCount.value = 0
+      return
+    }
     const data = res?.warnings && !Array.isArray(res.warnings) ? res.warnings : res
     const rawWarnings = Array.isArray(data?.warnings) ? data.warnings : []
     // V6.14: 为每行添加唯一key
@@ -434,7 +463,8 @@ const downloadCSV = (rows, headers, filename) => {
   URL.revokeObjectURL(url)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await checkAiEnabled()
   refreshWarnings(true)
 })
 </script>
