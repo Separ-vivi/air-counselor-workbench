@@ -18,8 +18,17 @@
       </div>
     </div>
 
+    <!-- V6.20: AI 功能已关闭 -->
+    <div v-if="aiDisabled" class="ai-empty">
+      <span class="empty-icon">🌙</span>
+      <div class="ai-empty-text">
+        <span>AI 智能预警已关闭</span>
+        <span class="ai-empty-hint">在「系统设置」中开启 AI 功能后恢复预警</span>
+      </div>
+    </div>
+
     <!-- Loading -->
-    <div v-if="loading && !totalCount" class="ai-loading">
+    <div v-else-if="loading && !totalCount" class="ai-loading">
       <div class="ai-loading-dots"><span></span><span></span><span></span></div>
       <span>AI 正在分析学生数据...</span>
     </div>
@@ -85,13 +94,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { aiWarnings } from '@/api/modules'
+import http from '@/api/index.js'
+import eventBus from '@/utils/eventBus.js'
 
 const router = useRouter()
 const loading = ref(false)
 const error = ref('')
+const aiDisabled = ref(false)  // V6.20: AI 开关关闭时为 true
 const warnings = ref([])
 const highCount = ref(0)
 const mediumCount = ref(0)
@@ -108,11 +120,34 @@ const goStudent = (sid) => {
   if (sid) router.push(`/students/${sid}`)
 }
 
+const checkAiEnabled = async () => {
+  try {
+    const r = await http.get('/system/ai-enabled')
+    aiDisabled.value = r?.ai_enabled === false
+  } catch (e) {
+    aiDisabled.value = false
+  }
+}
+
 const refreshWarnings = async (force = false) => {
+  // V6.20: AI 关闭时不请求预警
+  if (aiDisabled.value) {
+    warnings.value = []
+    highCount.value = mediumCount.value = lowCount.value = totalCount.value = 0
+    llmEnhanced.value = false
+    aiAdvice.value = ''
+    return
+  }
   loading.value = true
   error.value = ''
   try {
     const res = await aiWarnings(force)
+    if (res?.ai_enabled === false || res?.message === 'AI功能已关闭') {
+      aiDisabled.value = true
+      warnings.value = []
+      highCount.value = mediumCount.value = lowCount.value = totalCount.value = 0
+      return
+    }
     // V6.11hotfix: 兼容缓存和非缓存两种返回结构
     const data = res?.warnings && !Array.isArray(res.warnings) ? res.warnings : res
     warnings.value = Array.isArray(data?.warnings) ? data.warnings : []
@@ -130,8 +165,20 @@ const refreshWarnings = async (force = false) => {
   }
 }
 
-onMounted(() => {
+const onAiEnabledChanged = async (enabled) => {
+  aiDisabled.value = enabled === false
+  await checkAiEnabled()
+  refreshWarnings(true)
+}
+
+onMounted(async () => {
+  await checkAiEnabled()
   refreshWarnings(true)  // V6.11hotfix: 首次加载强制刷新
+  eventBus.on('ai-enabled-changed', onAiEnabledChanged)
+})
+
+onBeforeUnmount(() => {
+  eventBus.off('ai-enabled-changed', onAiEnabledChanged)
 })
 
 defineExpose({ refreshWarnings })
