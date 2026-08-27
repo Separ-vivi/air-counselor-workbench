@@ -296,10 +296,15 @@ def preview_document(doc_id: int, db: Session = Depends(get_db)):
     ext = os.path.splitext(doc.file_path)[1].lower()
     media_type = mime_map.get(ext, 'application/octet-stream')
     
+    # V6.20: filename 用磁盘真实文件名（保留扩展名），避免下载后无后缀
+    download_name = os.path.basename(doc.file_path) if doc.file_path else doc.title
+    stripped = re.sub(r'^\d{14}_', '', download_name)
+    if stripped:
+        download_name = stripped
     return FileResponse(
         file_path,
         media_type=media_type,
-        filename=doc.title,
+        filename=download_name,
     )
 
 
