@@ -242,6 +242,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Download } from '@element-plus/icons-vue'
 import { system } from '@/api/modules'
 import http from '@/api/index.js'
+import eventBus from '@/utils/eventBus.js'
 
 const health = ref(null)
 // V6.18: AI功能开关
@@ -515,6 +516,8 @@ async function onAiToggle() {
   try {
     await http.post('/system/ai-enabled', { ai_enabled: aiEnabled.value })
     ElMessage.success(aiEnabled.value ? 'AI功能已开启' : 'AI功能已关闭')
+    // V6.20: 通知 Dashboard 预警卡片刷新开关状态
+    eventBus.emit('ai-enabled-changed', aiEnabled.value)
   } catch (e) {
     ElMessage.error('操作失败')
     aiEnabled.value = !aiEnabled.value  // revert
