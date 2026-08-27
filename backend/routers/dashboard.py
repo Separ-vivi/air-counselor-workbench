@@ -176,13 +176,26 @@ def get_ai_warnings(
     force: Optional[bool] = Query(False, description='强制刷新，跳过缓存'),
     db: Session = Depends(get_db)
 ):
-    """V6.10: AI 智能预警 - 规则引擎 + LLM 增强分析"""
+    """V6.20: AI 智能预警 - 受 AI 功能开关控制（规则引擎+LLM增强）"""
+    # V6.20: AI 功能关闭时，整个预警（含规则引擎）不再返回，前端显示关闭状态
+    from services.llm_adapter import get_ai_enabled
+    if not get_ai_enabled():
+        _ai_warnings_cache['data'] = None
+        _ai_warnings_cache['ts'] = 0
+        return {
+            'ai_enabled': False,
+            'warnings': [], 'total': 0,
+            'high_count': 0, 'medium_count': 0, 'low_count': 0,
+            'llm_enhanced': False, 'ai_advice': '', 'top_priority': [],
+            'message': 'AI功能已关闭',
+        }
+
     import time
     now = time.time()
 
     # 检查缓存 — V6.11hotfix: 修复缓存返回结构（展开 result_data，与非缓存一致）
     if not force and _ai_warnings_cache['data'] and (now - _ai_warnings_cache['ts']) < _CACHE_TTL:
-        return {'cached': True, **_ai_warnings_cache['data']}
+        return {'cached': True, 'ai_enabled': True, **_ai_warnings_cache['data']}
 
     warnings = []
 
@@ -421,6 +434,7 @@ def get_ai_warnings(
 
     # 构造返回结果 — V6.11: 返回完整预警列表，不再截断
     result_data = {
+        'ai_enabled': True,
         'warnings': warnings,
         'total': len(warnings),
         'high_count': high_count,
@@ -435,4 +449,4 @@ def get_ai_warnings(
     _ai_warnings_cache['data'] = result_data
     _ai_warnings_cache['ts'] = now
 
-    return {'cached': False, **result_data}
+    return {'cached': False, 'ai_enabled': True, **result_data}
