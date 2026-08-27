@@ -6,6 +6,8 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'python/**'
+      - 'scripts/portable/**'
       - '.github/workflows/portable.yml'
   workflow_dispatch:
 
@@ -24,7 +26,7 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install & Build Frontend
+      - name: Install and Build Frontend
         working-directory: frontend
         run: |
           npm install --no-audit --no-fund --legacy-peer-deps
@@ -35,10 +37,9 @@ jobs:
         run: |
           SHA_SHORT=$(git rev-parse --short HEAD)
           COMMIT_MSG=$(git log -1 --pretty=%s)
-          # 从 commit message 抽版本号 (V5-a, V4-hotfix12, v3j-C 等), 找不到用 short-sha
-          VER=$(echo "$COMMIT_MSG" | grep -oE '^V[0-9][a-z0-9\-]*' | head -1 || true)
+          VER=$(echo "$COMMIT_MSG" | grep -oE '^V[0-9][a-z0-9-]*' | head -1 || true)
           if [ -z "$VER" ]; then
-            VER=$(echo "$COMMIT_MSG" | grep -oE '^v[0-9][a-zA-Z0-9\-]*' | head -1 || true)
+            VER=$(echo "$COMMIT_MSG" | grep -oE '^v[0-9][a-zA-Z0-9-]*' | head -1 || true)
           fi
           if [ -z "$VER" ]; then VER="build"; fi
           DATE=$(date +%Y%m%d-%H%M)
@@ -53,81 +54,51 @@ jobs:
         run: |
           set -e
           PKG_NAME="air-counselor-workbench-portable-${{ steps.meta.outputs.ver }}"
+          rm -rf "$PKG_NAME"
           mkdir -p "$PKG_NAME"
 
-          # 后端代码 (剔除 __pycache__/*.pyc)
+          # 后端代码（剔除缓存/数据库/日志）
           rsync -a --exclude='__pycache__' --exclude='*.pyc' --exclude='*.log' \
                 --exclude='data/*.db' --exclude='data/*.db-journal' \
                 backend "$PKG_NAME/"
 
-          # 前端 build 产物
+          # 前端构建产物
           mkdir -p "$PKG_NAME/frontend"
           cp -r frontend/dist "$PKG_NAME/frontend/dist"
 
-          # requirements.txt 提到根目录方便用户运行 pip install
+          # V6.20: 嵌入式 Python 运行时
+          if [ -d "python" ] && [ -f "python/python.exe" ]; then
+            echo "使用仓库内 python/ 运行时"
+            cp -r python "$PKG_NAME/python"
+          else
+            echo "仓库未携带 python/，下载官方嵌入式 Python 3.11"
+            mkdir -p "$PKG_NAME/python"
+            curl -sL "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip" -o /tmp/pyembed.zip
+            unzip -q /tmp/pyembed.zip -d "$PKG_NAME/python"
+          fi
+
+          # 覆盖 _pth 指向 backend 和 site-packages
+          cp scripts/portable/python311._pth "$PKG_NAME/python/python311._pth"
+
+          # 启动脚本和修复脚本（从仓库复制，避免 YAML heredoc 问题）
+          cp scripts/portable/启动.bat "$PKG_NAME/启动.bat"
+          cp scripts/portable/修复依赖.bat "$PKG_NAME/修复依赖.bat"
+
+          # requirements.txt
           cp backend/requirements.txt "$PKG_NAME/requirements.txt"
 
-          # 启动脚本 · Windows
-          cat > "$PKG_NAME/启动.bat" <<'BAT'
-          @echo off
-          chcp 65001 > nul
-          title 辅导员工作平台
-          echo ===============================================
-          echo   辅导员工作平台 · 便携版
-          echo   端口 http://127.0.0.1:8000
-          echo ===============================================
-          echo.
-          cd /d "%~dp0backend"
-          python main.py
-          if errorlevel 1 (
-            echo.
-            echo [错误] 启动失败, 请先安装依赖:
-            echo   pip install -r ..\requirements.txt
-            pause
-          )
-          BAT
-
-          # 首次安装脚本 · Windows
-          cat > "$PKG_NAME/首次安装_依赖.bat" <<'BAT'
-          @echo off
-          chcp 65001 > nul
-          title 首次安装 Python 依赖
-          echo 正在安装依赖 (需要 Python 3.10+ 与 pip)...
-          cd /d "%~dp0"
-          python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-          echo.
-          echo 安装完成, 请双击 启动.bat 使用软件
-          pause
-          BAT
-
           # README
-          cat > "$PKG_NAME/README-便携版.md" <<EOF
-          # 辅导员工作平台 · 便携版
+          cp scripts/portable/README-便携版.md "$PKG_NAME/README-便携版.md" || true
 
-          - 版本: **${{ steps.meta.outputs.ver }}**
-          - Commit: \`${{ steps.meta.outputs.sha_short }}\`
-          - 打包时间: ${{ steps.meta.outputs.date }}
+          # 自检
+          echo "=== 包内关键文件自检 ==="
+          test -f "$PKG_NAME/python/python.exe" && echo "[OK] python/python.exe" || echo "[FAIL] python/python.exe"
+          test -f "$PKG_NAME/backend/main.py" && echo "[OK] backend/main.py" || echo "[FAIL] main.py"
+          test -f "$PKG_NAME/frontend/dist/index.html" && echo "[OK] frontend/dist/index.html" || echo "[FAIL] index.html"
+          test -d "$PKG_NAME/backend/Lib/site-packages/fastapi" && echo "[OK] fastapi 依赖" || echo "[FAIL] fastapi"
+          grep -q "DEPLOY_RUN_PORT=8000" "$PKG_NAME/启动.bat" && echo "[OK] 端口 8000" || echo "[FAIL] 端口"
+          grep -q 'python.exe' "$PKG_NAME/启动.bat" && echo "[OK] 使用内置 Python" || echo "[FAIL] Python"
 
-          ## 快速开始
-
-          ### 首次使用
-          1. 确保本机已装 Python 3.10+ (下载 https://www.python.org , 勾选 Add to PATH)
-          2. 双击 \`首次安装_依赖.bat\` 安装 Python 库
-          3. 双击 \`启动.bat\` 打开软件
-          4. 浏览器访问 http://127.0.0.1:8000
-
-          ### 后续更新
-          从 [Releases](https://github.com/Separ-vivi/air-counselor-workbench/releases) 下载最新 zip, 用 \`backend\` 和 \`frontend\` 覆盖当前目录即可 (数据库 backend/data/*.db 会保留不受影响)
-
-          ## 端口
-          单进程架构, 只占一个端口 8000
-
-          ## 数据位置
-          - SQLite: \`backend/data/\`
-          - 上传附件: \`backend/uploads/\` (如启用)
-          EOF
-
-          # 打 zip (保留中文文件名)
           zip -rq "${PKG_NAME}.zip" "$PKG_NAME"
           ls -lh *.zip
           echo "PKG_FILE=${PKG_NAME}.zip" >> $GITHUB_ENV
@@ -146,18 +117,23 @@ jobs:
 
             ---
 
-            ## 首次使用
-            1. 下载下方 zip, 解压
-            2. 装 Python 3.10+ (若已有跳过)
-            3. 双击 `首次安装_依赖.bat`
-            4. 双击 `启动.bat`, 浏览器打开 http://127.0.0.1:8000
+            ## V6.20 修复内容
 
-            ## 已有便携版更新
-            用本包的 `backend` 和 `frontend` 目录覆盖当前便携版即可, `backend/data/*.db` 数据自动保留。
+            - 📦 **便携包真正开箱即用**：内置 Python 运行时 + 全部依赖，无需单独安装 Python，双击启动.bat 即可运行
+            - 🔌 **端口统一为 8000**：修复历史版本启动脚本引导 8000、程序实际监听 5000 导致打不开的问题
+            - 🤖 **AI 开关真正生效**：关闭 AI 功能后，Dashboard 预警卡片和 AI 预警页面同步停止，不再"关了还在跑"
+            - 📅 **校历同步增强**：使用 Session 保持会话，秋季/春季学期切换均已实测通过
+            - 📄 **文档工具箱**：预览/下载/重命名/移动分类/删除完整可用，下载文件名保留正确扩展名
 
-            ---
+            ## 使用方法
 
-            由 GitHub Actions 自动构建, 不消耗任何扣子积分。
+            1. 下载下方 zip，**完整解压**到任意目录
+            2. 双击 `启动.bat`
+            3. 浏览器自动打开 http://127.0.0.1:8000
+
+            > 已内置 Python 3.11 + 全部依赖，无需安装任何环境。Windows 10/11 64 位。
+
+            由 GitHub Actions 自动构建。
           files: ${{ env.PKG_FILE }}
           draft: false
           prerelease: false
