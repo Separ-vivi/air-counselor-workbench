@@ -485,5 +485,5 @@ async def serve_index():
 
 
 if __name__ == '__main__':
-    port = int(os.environ.get('DEPLOY_RUN_PORT', '5000'))
+    port = int(os.environ.get('DEPLOY_RUN_PORT', '8000'))
     uvicorn.run(app, host='0.0.0.0', port=port)
