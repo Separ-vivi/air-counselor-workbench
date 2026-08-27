@@ -86,20 +86,27 @@ def _fetch_data_page(semester_code: str = '') -> str:
         'Referer': CALENDAR_PAGE_URL,
     }
 
+    # V6.20: 使用 Session 保持 cookie，POST 切换学期更健壮
+    sess = requests.Session()
+    sess.headers.update(headers)
     for attempt in range(3):
         try:
             if semester_code:
-                resp_init = requests.get(url, timeout=20, headers=headers, verify=False)
+                resp_init = sess.get(url, timeout=20, verify=False)
                 resp_init.encoding = 'gb2312'
                 option_map = _extract_option_map(resp_init.text)
                 option_value = option_map.get(semester_code, '')
 
                 if option_value:
-                    resp = requests.post(url, data={'xq': option_value}, timeout=20, headers=headers, verify=False)
+                    resp = sess.post(url, data={'xq': option_value}, timeout=20, verify=False)
+                    # V6.20: POST 残缺页回退到 GET 默认页
+                    if resp.status_code != 200 or len(resp.text) < 5000:
+                        logger.warning(f'POST返回残缺(len={len(resp.text)}), 回退GET默认页')
+                        resp = resp_init
                 else:
                     resp = resp_init
             else:
-                resp = requests.get(url, timeout=20, headers=headers, verify=False)
+                resp = sess.get(url, timeout=20, verify=False)
 
             resp.encoding = 'gb2312'
 
