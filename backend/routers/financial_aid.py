@@ -172,6 +172,7 @@ def financial_aid_list(
     search: str = Query('', description='搜索学号/姓名'),
     aid_type: Optional[str] = Query(None, description='hardship/grant/scholarship/loan/work_study/honor'),
     academic_year: Optional[str] = Query(None),
+    class_id: Optional[int] = Query(None, description='按班级筛选'),
     student_id: Optional[int] = Query(None, description='V6.18: 按学生ID筛选'),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=200),
@@ -182,6 +183,8 @@ def financial_aid_list(
     items = []
 
     def _base_student_filter(q):
+        if class_id:
+            q = q.filter(Student.class_id == class_id)
         if search:
             pattern = f'%{search.strip()}%'
             q = q.filter(
