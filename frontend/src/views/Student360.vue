@@ -339,7 +339,7 @@ function inlineGoBack() {
   if (window.history.length > 1) _routerInline.back()
   else _routerInline.push('/dashboard')
 }
-import { ref, computed, onMounted, nextTick, watch, nextTick, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
