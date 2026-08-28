@@ -521,6 +521,7 @@ async function loadDocs() {
     categories.value = res.categories || {}
     totalDocs.value = res.total || 0
   } catch (e) {
+    console.error('加载文档列表失败:', e)
     categories.value = {}
     totalDocs.value = 0
   } finally {
