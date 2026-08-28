@@ -83,13 +83,28 @@
         </div>
       </div>
 
-      <!-- 成长轨迹雷达图 -->
-      <div class="radar-card">
-        <div class="radar-title">成长轨迹雷达图</div>
-        <div ref="radarChartRef" class="radar-body"></div>
+      <!-- V7: 雷达图 + 维度卡片 并列 -->
+      <div class="s360-overview-row">
+        <div class="radar-card">
+          <div class="radar-title">成长轨迹雷达图</div>
+          <div ref="radarChartRef" class="radar-body"></div>
+        </div>
+        <div class="s360-card-grid">
+          <DimensionCard
+            v-for="card in cardList"
+            :key="card.key"
+            :icon="card.icon"
+            :title="card.label"
+            :stats="card.stats"
+            :badge="card.badge"
+            :badge-class="card.badgeClass"
+            :accent="card.accent"
+            @click="selectDetail(card.key)"
+          />
+        </div>
       </div>
 
-      <!-- V6.21: 内联详情面板（Tab切换，替代弹窗） -->
+      <!-- V7: 内联详情面板（Tab切换，保留在雷达/卡片区域下方） -->
       <div class="s360-detail-panel">
         <div class="detail-tabs-bar">
           <span
@@ -99,7 +114,7 @@
             :class="{ active: activeDetail === card.key }"
             @click="activeDetail = card.key"
           >
-            <span class="dt-icon">{{ card.icon }}</span>
+            <el-icon class="dt-icon"><component :is="card.icon" /></el-icon>
             <span class="dt-label">{{ card.label }}</span>
           </span>
         </div>
@@ -114,21 +129,6 @@
             />
           </KeepAlive>
         </div>
-      </div>
-
-      <!-- 卡片网格（保留作为快速概览，点击可切换到对应Tab） -->
-      <div class="s360-card-grid">
-        <DimensionCard
-          v-for="card in cardList"
-          :key="card.key"
-          :icon="card.icon"
-          :title="card.label"
-          :stats="card.stats"
-          :badge="card.badge"
-          :badge-class="card.badgeClass"
-          :accent="card.accent"
-          @click="selectDetail(card.key)"
-        />
       </div>
 
       <!-- 弹窗详情 -->
@@ -334,6 +334,12 @@
 import { ArrowLeft as _InlineArrowLeft } from '@element-plus/icons-vue'
 import { useRouter as _useRouterInline } from 'vue-router'
 import { Edit } from '@element-plus/icons-vue'
+import {
+  Edit as IconEdit, TrendCharts as IconTrendCharts, Flag as IconFlag,
+  HeartFilled as IconHeartFilled, PhoneFilled as IconPhoneFilled,
+  Medal as IconMedal, Basketball as IconBasketball, Briefcase as IconBriefcase,
+  Coin as IconCoin, Tickets as IconTickets, Tools as IconTools, Calendar as IconCalendar
+} from '@element-plus/icons-vue'
 const _routerInline = _useRouterInline()
 function inlineGoBack() {
   if (window.history.length > 1) _routerInline.back()
@@ -431,18 +437,18 @@ function onDoPrint() {
 }
 
 const tabs = [
-  { key: 'basic',      label: '基础信息 · 学籍异动', icon: '📝', comp: TabBasic },
-  { key: 'grades',     label: '学业情况',           icon: '📊', comp: TabGrades },
-  { key: 'party',      label: '党团发展',           icon: '🚩', comp: TabParty },
-  { key: 'psychology', label: '心理档案',           icon: '💚', comp: TabPsychology },
-  { key: 'family',     label: '家庭联络',           icon: '👨‍👩‍👧', comp: TabFamily },
-  { key: 'cadres',     label: '学生工作',           icon: '🏅', comp: TabCadres },
-  { key: 'activities', label: '活动参与',           icon: '🏃', comp: TabActivities },
-  { key: 'employment', label: '就业信息',           icon: '💼', comp: TabEmployment },
-  { key: 'funding',    label: '资助与荣誉',         icon: '💰', comp: TabFundingHonor },
-  { key: 'daily',      label: '日常管理',           icon: '📋', comp: TabDaily },
-  { key: 'projects',   label: '专项工作',           icon: '🔧', comp: TabProjects },
-  { key: 'timeline',   label: '时间线',             icon: '📅', comp: TabTimeline }
+  { key: 'basic',      label: '基础信息 · 学籍异动', icon: IconEdit,        comp: TabBasic },
+  { key: 'grades',     label: '学业情况',           icon: IconTrendCharts, comp: TabGrades },
+  { key: 'party',      label: '党团发展',           icon: IconFlag,        comp: TabParty },
+  { key: 'psychology', label: '心理档案',           icon: IconHeartFilled, comp: TabPsychology },
+  { key: 'family',     label: '家庭联络',           icon: IconPhoneFilled, comp: TabFamily },
+  { key: 'cadres',     label: '学生工作',           icon: IconMedal,       comp: TabCadres },
+  { key: 'activities', label: '活动参与',           icon: IconBasketball,  comp: TabActivities },
+  { key: 'employment', label: '就业信息',           icon: IconBriefcase,   comp: TabEmployment },
+  { key: 'funding',    label: '资助与荣誉',         icon: IconCoin,        comp: TabFundingHonor },
+  { key: 'daily',      label: '日常管理',           icon: IconTickets,     comp: TabDaily },
+  { key: 'projects',   label: '专项工作',           icon: IconTools,       comp: TabProjects },
+  { key: 'timeline',   label: '时间线',             icon: IconCalendar,    comp: TabTimeline }
 ]
 
 // Card list with summary data
@@ -452,7 +458,7 @@ const cardList = computed(() => {
   const partyStage = s?.stats?.party_stage || student.value?.political_status || '—'
   return [
     {
-      key: 'basic', label: '基础信息', icon: '📝',
+      key: 'basic', label: '基础信息', icon: IconEdit,
       accent: '#5B92E5',
       stats: [
         { label: '学号', value: student.value?.student_no || '无' },
@@ -460,7 +466,7 @@ const cardList = computed(() => {
       ]
     },
     {
-      key: 'grades', label: '学业情况', icon: '📊',
+      key: 'grades', label: '学业情况', icon: IconTrendCharts,
       accent: '#5B92E5',
       badge: warningClass.value === 'red' ? '红灯' : (warningClass.value === 'yellow' ? '黄灯' : ''),
       badgeClass: warningClass.value === 'red' ? 'badge-red' : (warningClass.value === 'yellow' ? 'badge-yellow' : ''),
@@ -470,14 +476,14 @@ const cardList = computed(() => {
       ]
     },
     {
-      key: 'party', label: '党团发展', icon: '🚩',
+      key: 'party', label: '党团发展', icon: IconFlag,
       accent: '#e06c75',
       stats: [
         { label: '阶段', value: partyStage }
       ]
     },
     {
-      key: 'psychology', label: '心理档案', icon: '💚',
+      key: 'psychology', label: '心理档案', icon: IconHeartFilled,
       accent: '#4FC3B8',
       badge: s?.psych_status === 'attention' ? '需关注' : '',
       badgeClass: s?.psych_status === 'attention' ? 'badge-yellow' : '',
@@ -486,7 +492,7 @@ const cardList = computed(() => {
       ]
     },
     {
-      key: 'family', label: '家庭联络', icon: '👨‍👩‍👧',
+      key: 'family', label: '家庭联络', icon: IconPhoneFilled,
       accent: '#8FA9E5',
       stats: [
         { label: '家长电话', value: student.value?.parent_phone || '无' },
@@ -494,14 +500,14 @@ const cardList = computed(() => {
       ]
     },
     {
-      key: 'cadres', label: '学生工作', icon: '🏅',
+      key: 'cadres', label: '学生工作', icon: IconMedal,
       accent: '#e6a23c',
       stats: [
         { label: '职务', value: s?.stats?.cadre_title || '无' }
       ]
     },
     {
-      key: 'activities', label: '活动参与', icon: '🏃',
+      key: 'activities', label: '活动参与', icon: IconBasketball,
       accent: '#5B92E5',
       stats: [
         { label: '活动数', value: s?.stats?.activity_count ?? 0 },
@@ -509,14 +515,14 @@ const cardList = computed(() => {
       ]
     },
     {
-      key: 'employment', label: '就业信息', icon: '💼',
+      key: 'employment', label: '就业信息', icon: IconBriefcase,
       accent: '#4FC3B8',
       stats: [
         { label: '状态', value: s?.stats?.employment_status || '未登记' }
       ]
     },
     {
-      key: 'funding', label: '资助与荣誉', icon: '💰',
+      key: 'funding', label: '资助与荣誉', icon: IconCoin,
       accent: '#e6a23c',
       badge: hardshipClass.value === 'red' ? '特殊' : '',
       badgeClass: hardshipClass.value === 'red' ? 'badge-red' : '',
@@ -526,7 +532,7 @@ const cardList = computed(() => {
       ]
     },
     {
-      key: 'daily', label: '日常管理', icon: '📋',
+      key: 'daily', label: '日常管理', icon: IconTickets,
       accent: '#8FA9E5',
       stats: [
         { label: '缺勤', value: `${s?.stats?.absence_count ?? 0}次` },
@@ -534,14 +540,14 @@ const cardList = computed(() => {
       ]
     },
     {
-      key: 'projects', label: '专项工作', icon: '🔧',
+      key: 'projects', label: '专项工作', icon: IconTools,
       accent: '#5B92E5',
       stats: [
         { label: '项目数', value: s?.stats?.project_count ?? 0 }
       ]
     },
     {
-      key: 'timeline', label: '时间线', icon: '📅',
+      key: 'timeline', label: '时间线', icon: IconCalendar,
       accent: '#4FC3B8',
       stats: [
         { label: '事件数', value: s?.stats?.timeline_count ?? 0 }
@@ -807,11 +813,26 @@ async function saveBasic() {
   padding: 20px;
   min-height: 200px;
 }
-.s360-card-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+/* V7: 雷达 + 卡片并列 */
+.s360-overview-row {
+  display: flex;
   gap: 16px;
-  margin-top: 8px;
+  margin-bottom: 16px;
+  align-items: stretch;
+}
+.s360-overview-row .radar-card {
+  flex: 0 0 38%;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+.s360-overview-row .radar-body { height: 280px; flex: 1; }
+.s360-card-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  align-content: start;
 }
 @media (max-width: 1400px) {
   /* V6.21: 内联详情面板 */
@@ -984,7 +1005,7 @@ async function saveBasic() {
 }
 .radar-body {
   width: 100%;
-  height: 300px;
+  height: 260px;
 }
 </style>
 
@@ -1012,4 +1033,14 @@ async function saveBasic() {
   #s360-print-area .print-footer { position: fixed; bottom: 10mm; left: 18mm; right: 18mm; text-align: center; color: #999; font-size: 10px; }
   @page { size: A4; margin: 0; }
 }
+
+@media (max-width: 1400px) {
+  .s360-card-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 1100px) {
+  .s360-overview-row { flex-direction: column; }
+  .s360-overview-row .radar-card { flex: none; }
+  .s360-card-grid { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
+
