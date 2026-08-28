@@ -79,6 +79,11 @@
                   </el-select>
                 </el-form-item>
                 <el-form-item>
+                  <el-select v-model="filterClass" placeholder="班级" clearable filterable style="width: 180px" @change="loadList">
+                    <el-option v-for="c in classList" :key="c.id" :label="c.name" :value="c.id" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item>
                   <el-input v-model="filterSearch" placeholder="学号/姓名" clearable style="width: 180px" @clear="loadList" @keyup.enter="loadList" />
                 </el-form-item>
                 <el-form-item>
@@ -163,6 +168,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import { financialAid as financialAidApi } from '@/api/modules'
+import { useOrgStore } from '@/stores/org.js'
 import {
   WarningFilled, Coin, Trophy, CreditCard, Briefcase, Medal, InfoFilled
 } from '@element-plus/icons-vue'
@@ -186,6 +192,9 @@ const topRecipients = ref([])
 const filterAidType = ref('')
 const filterYear = ref('')
 const filterSearch = ref('')
+const filterClass = ref(null)
+const classList = ref([])
+const orgStore = useOrgStore()
 
 // 类型标签颜色
 const typeTagMap = {
@@ -271,6 +280,7 @@ const loadList = async () => {
     if (filterAidType.value) params.aid_type = filterAidType.value
     if (filterYear.value) params.academic_year = filterYear.value
     if (filterSearch.value) params.search = filterSearch.value
+    if (filterClass.value) params.class_id = filterClass.value
     // V6.18: 从路由参数获取学生ID进行筛选
     if (routeStudentId.value) params.student_id = routeStudentId.value
     const res = await financialAidApi.list(params)
@@ -409,6 +419,8 @@ function clearStudentFilter() {
 }
 
 onMounted(async () => {
+  if (!orgStore.orgTree.length) await orgStore.loadTree()
+  classList.value = orgStore.allClasses.map(c => ({ id: c.id, name: `${c.name} · ${c.major_name || ''}` }))
   await Promise.all([loadSummary(), loadChartData(), loadSemesters()])
   loadList()
   await nextTick()
