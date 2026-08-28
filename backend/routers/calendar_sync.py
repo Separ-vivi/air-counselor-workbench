@@ -347,7 +347,7 @@ def _parse_calendar_html(html: str, semester: str) -> list:
 
 @router.get('/sync')
 def sync_calendar(semester: str = '', db: Session = Depends(get_db)):
-    """从教务处官网同步校历"""
+    """从教务处官网同步校历（V7: 全面加固，网络失败时返回缓存数据）"""
     if not semester:
         local_semester = _get_current_semester_code()
         try:
@@ -360,41 +360,102 @@ def sync_calendar(semester: str = '', db: Session = Depends(get_db)):
                     website_current, _ = _extract_semesters_from_html(data_html)
                     semester = website_current or local_semester
                     logger.info(f'从官网获取到当前学期: {semester}')
+            else:
+                semester = local_semester
         except Exception as e:
             logger.warning(f'获取官网学期失败: {e}')
             semester = local_semester
 
-    html = _fetch_data_page(semester)
+    # 检查是否有缓存的校历数据
+    cached_count = db.query(AcademicCalendarEvent).filter(
+        AcademicCalendarEvent.semester == semester
+    ).count()
+
+    html = ''
+    fetch_error = ''
+    try:
+        html = _fetch_data_page(semester)
+    except Exception as e:
+        fetch_error = str(e)
+        logger.warning(f'获取校历页面异常: {e}')
+
     if not html:
-        raise HTTPException(502, f'无法获取校历页面，学期 {semester} 可能尚未发布或URL不可用')
+        # 网络不可达，如果有缓存则返回缓存，否则报错
+        if cached_count > 0:
+            logger.info(f'校历页面不可达，但已有 {cached_count} 条缓存数据，返回缓存')
+            return {
+                'ok': True,
+                'semester': semester,
+                'semester_label': _parse_semester_label(semester),
+                'count': cached_count,
+                'message': f'官网暂时无法访问，已显示本地缓存的 {cached_count} 条校历事件',
+                'cached': True,
+            }
+        raise HTTPException(502, f'无法获取校历页面（{fetch_error or "网络不可达"}），'
+                                f'且本地无缓存。请检查网络连接或稍后重试。')
 
     try:
         events = _parse_calendar_html(html, semester)
     except Exception as e:
         logger.error(f'校历解析异常: {e}', exc_info=True)
+        if cached_count > 0:
+            return {
+                'ok': True,
+                'semester': semester,
+                'semester_label': _parse_semester_label(semester),
+                'count': cached_count,
+                'message': f'校历页面解析失败，已显示本地缓存的 {cached_count} 条事件',
+                'cached': True,
+            }
         raise HTTPException(500, f'校历解析失败: {str(e)}')
 
     if not events:
+        if cached_count > 0:
+            return {
+                'ok': True,
+                'semester': semester,
+                'semester_label': _parse_semester_label(semester),
+                'count': cached_count,
+                'message': f'页面未解析到新事件，保留本地缓存的 {cached_count} 条事件',
+                'cached': True,
+            }
         raise HTTPException(422, f'未能从页面解析到校历事件，学期 {semester} 可能尚未发布')
 
-    db.execute(sa_delete(AcademicCalendarEvent).where(
-        AcademicCalendarEvent.semester == semester
-    ))
-    db.flush()
-
+    # 过滤无效事件，确保日期合法
+    valid_events = []
     for ev in events:
-        db.add(AcademicCalendarEvent(**ev))
+        try:
+            from datetime import datetime as _dt
+            _dt.strptime(ev.get('date', ''), '%Y-%m-%d')
+            valid_events.append(ev)
+        except (ValueError, TypeError):
+            logger.warning(f'跳过无效日期事件: {ev}')
+            continue
 
-    db.commit()
+    if not valid_events:
+        raise HTTPException(500, '解析到的事件日期均无效，请联系开发者')
 
-    logger.info(f'校历同步完成: 学期={semester}, 事件数={len(events)}')
+    try:
+        db.execute(sa_delete(AcademicCalendarEvent).where(
+            AcademicCalendarEvent.semester == semester
+        ))
+        db.flush()
+        for ev in valid_events:
+            db.add(AcademicCalendarEvent(**ev))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f'校历数据写入失败: {e}', exc_info=True)
+        raise HTTPException(500, f'校历数据保存失败: {str(e)}')
+
+    logger.info(f'校历同步完成: 学期={semester}, 事件数={len(valid_events)}')
 
     return {
         'ok': True,
         'semester': semester,
         'semester_label': _parse_semester_label(semester),
-        'count': len(events),
-        'message': f'已同步 {_parse_semester_label(semester)} 校历，共 {len(events)} 条事件',
+        'count': len(valid_events),
+        'message': f'已同步 {_parse_semester_label(semester)} 校历，共 {len(valid_events)} 条事件',
     }
 
 
