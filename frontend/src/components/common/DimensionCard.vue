@@ -2,7 +2,8 @@
   <div class="dimension-card" :style="cardStyle" @click="$emit('click')">
     <div class="card-icon-area">
       <div class="card-icon" :style="iconStyle">
-        <span class="card-emoji">{{ icon }}</span>
+        <el-icon v-if="iconComp" :size="22" class="card-ep-icon"><component :is="iconComp" /></el-icon>
+        <span v-else class="card-emoji">{{ icon }}</span>
       </div>
       <div class="card-badge" v-if="badge">
         <span :class="badgeClass">{{ badge }}</span>
@@ -32,7 +33,7 @@
 import { computed } from 'vue'
 
 const props = defineProps({
-  icon: { type: String, default: '📊' },
+  icon: { type: [String, Object], default: '' },
   title: { type: String, required: true },
   stats: { type: Array, default: () => [] },
   badge: { type: String, default: '' },
@@ -42,13 +43,17 @@ const props = defineProps({
 
 defineEmits(['click'])
 
+const isComponent = (v) => v && typeof v === 'object'
+const iconComp = computed(() => isComponent(props.icon) ? props.icon : null)
+
 const cardStyle = computed(() => ({
   '--card-accent': props.accent
 }))
 
 const iconStyle = computed(() => ({
-  background: `linear-gradient(135deg, ${props.accent}18, ${props.accent}08)`,
-  border: `1px solid ${props.accent}22`
+  background: `linear-gradient(135deg, ${props.accent}22, ${props.accent}0a)`,
+  color: props.accent,
+  border: `1px solid ${props.accent}30`
 }))
 </script>
 
@@ -57,12 +62,12 @@ const iconStyle = computed(() => ({
   background: var(--bg-card, #fff);
   border-radius: var(--radius-md, 12px);
   border: 1px solid rgba(91, 146, 229, 0.1);
-  padding: 16px 18px;
+  padding: 12px 14px;
   cursor: pointer;
-  transition: all var(--transition-normal, 0.3s ease);
+  transition: all var(--transition-normal, 0.25s ease);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   position: relative;
   overflow: hidden;
   box-shadow: var(--shadow-sm, 0 2px 8px rgba(91,146,229,0.06));
@@ -78,37 +83,24 @@ const iconStyle = computed(() => ({
 }
 .dimension-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-hover, 0 6px 20px rgba(91,146,229,0.15));
+  box-shadow: 0 6px 20px rgba(91,146,229,0.15);
   border-color: var(--card-accent, #5B92E5);
 }
-.dimension-card:hover::before {
-  opacity: 1;
-}
-.dimension-card:active {
-  transform: translateY(0);
-}
+.dimension-card:hover::before { opacity: 1; }
+.dimension-card:active { transform: translateY(0); }
 
-.card-icon-area {
-  position: relative;
-  flex-shrink: 0;
-}
+.card-icon-area { position: relative; flex-shrink: 0; }
 .card-icon {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.card-emoji {
-  font-size: 22px;
-  line-height: 1;
-}
-.card-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-}
+.card-ep-icon { display: flex; align-items: center; justify-content: center; }
+.card-emoji { font-size: 20px; line-height: 1; }
+.card-badge { position: absolute; top: -4px; right: -4px; }
 .card-badge span {
   font-size: 10px;
   padding: 1px 5px;
@@ -117,42 +109,29 @@ const iconStyle = computed(() => ({
   white-space: nowrap;
 }
 .badge-default { background: rgba(91,146,229,0.12); color: #5B92E5; }
-.badge-red { background: rgba(245,108,108,0.12); color: #f56c6c; }
-.badge-yellow { background: rgba(230,162,60,0.12); color: #e6a23c; }
-.badge-green { background: rgba(103,194,58,0.12); color: #67c23a; }
+.badge-red { background: rgba(245,108,108,0.15); color: #f56c6c; }
+.badge-yellow { background: rgba(230,162,60,0.15); color: #e6a23c; }
+.badge-green { background: rgba(103,194,58,0.15); color: #67c23a; }
 
-.card-content {
-  flex: 1;
-  min-width: 0;
-}
+.card-content { flex: 1; min-width: 0; }
 .card-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary, #2c3e50);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.card-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-}
-.stat-item {
-  display: flex;
-  align-items: baseline;
-  gap: 3px;
-}
+.card-stats { display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.stat-item { display: flex; align-items: baseline; gap: 3px; }
 .stat-value {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--card-accent, #5B92E5);
 }
-.stat-value.stat-highlight {
-  color: #f56c6c;
-}
-.stat-label {
-  font-size: 11px;
-  color: var(--text-muted, #909399);
-}
+.stat-value.stat-highlight { color: #f56c6c; }
+.stat-label { font-size: 11px; color: var(--text-muted, #909399); }
 
 .card-arrow {
   flex-shrink: 0;
