@@ -89,7 +89,34 @@
         <div ref="radarChartRef" class="radar-body"></div>
       </div>
 
-      <!-- 卡片网格 -->
+      <!-- V6.21: 内联详情面板（Tab切换，替代弹窗） -->
+      <div class="s360-detail-panel">
+        <div class="detail-tabs-bar">
+          <span
+            v-for="card in cardList"
+            :key="card.key"
+            class="detail-tab"
+            :class="{ active: activeDetail === card.key }"
+            @click="activeDetail = card.key"
+          >
+            <span class="dt-icon">{{ card.icon }}</span>
+            <span class="dt-label">{{ card.label }}</span>
+          </span>
+        </div>
+        <div class="detail-content">
+          <KeepAlive>
+            <component
+              :is="currentDetailComponent"
+              :sid="sid"
+              :student="student"
+              :summary="summary"
+              @refresh-header="loadHeader"
+            />
+          </KeepAlive>
+        </div>
+      </div>
+
+      <!-- 卡片网格（保留作为快速概览，点击可切换到对应Tab） -->
       <div class="s360-card-grid">
         <DimensionCard
           v-for="card in cardList"
@@ -100,7 +127,7 @@
           :badge="card.badge"
           :badge-class="card.badgeClass"
           :accent="card.accent"
-          @click="openDialog(card.key)"
+          @click="selectDetail(card.key)"
         />
       </div>
 
@@ -312,7 +339,7 @@ function inlineGoBack() {
   if (window.history.length > 1) _routerInline.back()
   else _routerInline.push('/dashboard')
 }
-import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, nextTick, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -352,6 +379,19 @@ const dialogVisible = ref(false)
 const dialogKey = ref('')
 const dialogTitle = computed(() => tabs.find(t => t.key === dialogKey.value)?.label || '详情')
 const currentDialogComponent = computed(() => tabs.find(t => t.key === dialogKey.value)?.comp || null)
+
+// V6.21: 内联详情面板
+const activeDetail = ref('grades')
+const currentDetailComponent = computed(() => tabs.find(t => t.key === activeDetail.value)?.comp || null)
+
+function selectDetail(key) {
+  activeDetail.value = key
+  // Scroll to detail panel
+  nextTick(() => {
+    const el = document.querySelector('.s360-detail-panel')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+}
 
 function openDialog(key) {
   dialogKey.value = key
@@ -722,6 +762,51 @@ async function saveBasic() {
 .s360-wrap { }
 
 /* 卡片网格 */
+/* V6.21: 内联详情面板 */
+.s360-detail-panel {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(91,146,229,0.08);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.detail-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid #EBEEF5;
+  background: linear-gradient(180deg, rgba(91,146,229,0.03), transparent);
+}
+.detail-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-radius: 10px 10px 0 0;
+  font-size: 13px;
+  color: #6B7B8D;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.detail-tab:hover {
+  color: #5B92E5;
+  background: rgba(91,146,229,0.05);
+}
+.detail-tab.active {
+  color: #5B92E5;
+  font-weight: 600;
+  border-bottom-color: #5B92E5;
+  background: #fff;
+}
+.dt-icon { font-size: 15px; }
+.detail-content {
+  padding: 20px;
+  min-height: 200px;
+}
 .s360-card-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -729,10 +814,100 @@ async function saveBasic() {
   margin-top: 8px;
 }
 @media (max-width: 1400px) {
-  .s360-card-grid { grid-template-columns: repeat(3, 1fr); }
+  /* V6.21: 内联详情面板 */
+.s360-detail-panel {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(91,146,229,0.08);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.detail-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid #EBEEF5;
+  background: linear-gradient(180deg, rgba(91,146,229,0.03), transparent);
+}
+.detail-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-radius: 10px 10px 0 0;
+  font-size: 13px;
+  color: #6B7B8D;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.detail-tab:hover {
+  color: #5B92E5;
+  background: rgba(91,146,229,0.05);
+}
+.detail-tab.active {
+  color: #5B92E5;
+  font-weight: 600;
+  border-bottom-color: #5B92E5;
+  background: #fff;
+}
+.dt-icon { font-size: 15px; }
+.detail-content {
+  padding: 20px;
+  min-height: 200px;
+}
+.s360-card-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 1100px) {
-  .s360-card-grid { grid-template-columns: repeat(2, 1fr); }
+  /* V6.21: 内联详情面板 */
+.s360-detail-panel {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(91,146,229,0.08);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.detail-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid #EBEEF5;
+  background: linear-gradient(180deg, rgba(91,146,229,0.03), transparent);
+}
+.detail-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-radius: 10px 10px 0 0;
+  font-size: 13px;
+  color: #6B7B8D;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.detail-tab:hover {
+  color: #5B92E5;
+  background: rgba(91,146,229,0.05);
+}
+.detail-tab.active {
+  color: #5B92E5;
+  font-weight: 600;
+  border-bottom-color: #5B92E5;
+  background: #fff;
+}
+.dt-icon { font-size: 15px; }
+.detail-content {
+  padding: 20px;
+  min-height: 200px;
+}
+.s360-card-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* 弹窗内容 */
