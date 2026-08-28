@@ -336,7 +336,7 @@ import { useRouter as _useRouterInline } from 'vue-router'
 import { Edit } from '@element-plus/icons-vue'
 import {
   Edit as IconEdit, TrendCharts as IconTrendCharts, Flag as IconFlag,
-  HeartFilled as IconHeartFilled, PhoneFilled as IconPhoneFilled,
+  FirstAidKit as IconHeartFilled, PhoneFilled as IconPhoneFilled,
   Medal as IconMedal, Basketball as IconBasketball, Briefcase as IconBriefcase,
   Coin as IconCoin, Tickets as IconTickets, Tools as IconTools, Calendar as IconCalendar
 } from '@element-plus/icons-vue'
