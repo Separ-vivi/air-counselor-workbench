@@ -34,7 +34,7 @@ def _calculate_warnings(db: Session, student_id: int, semester: str, settings: d
     if not grades:
         return warnings
 
-    student = db.query(Student).get(student_id)
+    student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         return warnings
 
@@ -53,8 +53,10 @@ def _calculate_warnings(db: Session, student_id: int, semester: str, settings: d
     prev_semesters = db.query(GradeRecord.semester).filter(
         GradeRecord.student_id == student_id, GradeRecord.semester < semester
     ).distinct().order_by(GradeRecord.semester.desc()).all()
+    if not prev_semesters:
+        return warnings
 
-    if prev_semesters:
+    if True:
         prev_sem = prev_semesters[0][0]
         prev_grades = db.query(GradeRecord).filter(
             GradeRecord.student_id == student_id, GradeRecord.semester == prev_sem
