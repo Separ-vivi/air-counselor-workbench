@@ -6,11 +6,12 @@
 AI：基于完整文档回答问题，引用具体章节/页码
 """
 import os
+import re
 import json
 import logging
 import tempfile
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -131,8 +132,8 @@ def list_documents(
 @router.post('/docbox/upload')
 async def upload_document(
     file: UploadFile = File(...),
-    category: str = 'other',
-    description: str = '',
+    category: str = Form('other'),
+    description: str = Form(''),
     db: Session = Depends(get_db)
 ):
     """上传文档到文档工具箱 - 保留完整文件，提取全文作为索引"""
@@ -162,14 +163,19 @@ async def upload_document(
     with open(file_path, 'wb') as f:
         f.write(content_bytes)
     
+    # 提取全文（失败不影响文件保存）
+    full_text = ''
+    page_count = 0
     try:
-        # 提取全文（不做切片，保留完整文本）
         full_text = _extract_text(file_path)
-        
-        # 获取PDF页数
+    except Exception as te:
+        logger.warning(f"文本提取失败（不影响保存）: {te}")
+    try:
         page_count = _get_page_count(file_path, ext)
-        
-        # 创建文档记录
+    except Exception as pe:
+        logger.warning(f"页数获取失败: {pe}")
+
+    try:
         doc = DocumentFile(
             title=file.filename,
             category=category,
@@ -185,30 +191,28 @@ async def upload_document(
         db.add(doc)
         db.commit()
         db.refresh(doc)
-
-        # V6.19: FTS索引重建放在commit之后，失败不影响主流程（历史bug：FTS失败导致回滚，文件已删但列表看不到）
-        try:
-            _rebuild_docbox_fts(db)
-        except Exception as fts_err:
-            logger.warning(f"FTS索引重建失败（不影响文档保存）: {fts_err}")
-
-        return {
-            'id': doc.id,
-            'title': doc.title,
-            'category': doc.category,
-            'doc_type': doc.doc_type,
-            'file_size': file_size,
-            'page_count': page_count,
-        }
-    
-    except HTTPException:
-        raise
     except Exception as e:
         db.rollback()
-        logger.error(f"上传处理失败: {e}")
+        logger.error(f"文档记录保存失败: {e}", exc_info=True)
         if os.path.isfile(file_path):
-            os.remove(file_path)
-        raise HTTPException(500, f'文件处理失败: {str(e)}')
+            try: os.remove(file_path)
+            except: pass
+        raise HTTPException(500, f'文档保存失败: {str(e)}')
+
+    # FTS索引重建放在commit之后，失败不影响主流程
+    try:
+        _rebuild_docbox_fts(db)
+    except Exception as fts_err:
+        logger.warning(f"FTS索引重建失败（不影响文档保存）: {fts_err}")
+
+    return {
+        'id': doc.id,
+        'title': doc.title,
+        'category': doc.category,
+        'doc_type': doc.doc_type,
+        'file_size': file_size,
+        'page_count': page_count,
+    }
 
 
 # ===== 添加链接类文档（学生端收集） =====
@@ -249,7 +253,7 @@ def add_link_document(data: dict, db: Session = Depends(get_db)):
 @router.get('/docbox/{doc_id}')
 def get_document(doc_id: int, db: Session = Depends(get_db)):
     """获取文档详情（含全文）"""
-    doc = db.query(DocumentFile).get(doc_id)
+    doc = db.query(DocumentFile).filter(DocumentFile.id == doc_id).first()
     if not doc:
         raise HTTPException(404, '文档不存在')
     
@@ -276,7 +280,7 @@ def get_document(doc_id: int, db: Session = Depends(get_db)):
 @router.get('/docbox/{doc_id}/preview')
 def preview_document(doc_id: int, db: Session = Depends(get_db)):
     """下载/预览文档原始文件"""
-    doc = db.query(DocumentFile).get(doc_id)
+    doc = db.query(DocumentFile).filter(DocumentFile.id == doc_id).first()
     if not doc:
         raise HTTPException(404, '文档不存在')
     
@@ -318,7 +322,7 @@ def preview_document(doc_id: int, db: Session = Depends(get_db)):
 @router.put('/docbox/{doc_id}')
 def update_document(doc_id: int, data: dict, db: Session = Depends(get_db)):
     """V6.19: 更新文档信息（分类、标题、描述、链接）。标题修改时同步重命名磁盘文件。"""
-    doc = db.query(DocumentFile).get(doc_id)
+    doc = db.query(DocumentFile).filter(DocumentFile.id == doc_id).first()
     if not doc:
         raise HTTPException(404, '文档不存在')
 
@@ -376,7 +380,7 @@ def update_document(doc_id: int, data: dict, db: Session = Depends(get_db)):
 @router.delete('/docbox/{doc_id}')
 def delete_document(doc_id: int, db: Session = Depends(get_db)):
     """V6.17: 删除文档及关联文件（增强容错）"""
-    doc = db.query(DocumentFile).get(doc_id)
+    doc = db.query(DocumentFile).filter(DocumentFile.id == doc_id).first()
     if not doc:
         # V6.17: 即使记录不存在也返回成功（幂等删除）
         return {'ok': True, 'message': '文档不存在或已被删除'}
@@ -402,7 +406,7 @@ def delete_document(doc_id: int, db: Session = Depends(get_db)):
         db.rollback()
         # 重试一次
         try:
-            doc = db.query(DocumentFile).get(doc_id)
+            doc = db.query(DocumentFile).filter(DocumentFile.id == doc_id).first()
             if doc:
                 db.delete(doc)
                 db.commit()
@@ -457,33 +461,42 @@ def cleanup_orphaned_docs(db: Session = Depends(get_db)):
 # ===== FTS5 索引管理 =====
 
 def _ensure_docbox_fts(db: Session):
-    """确保文档工具箱FTS5虚拟表存在（V6.16-hotfix: 修复外部内容表列名不匹配）"""
-    # 检查现有表是否使用了错误的外部内容表配置（V6.15的bug）
+    """确保文档工具箱FTS5虚拟表存在（V7: 加固，FTS5不可用时静默跳过）"""
     try:
-        # 尝试DELETE来检测表是否损坏
-        db.execute(text("DELETE FROM docbox_fts WHERE rowid = -1"))
-    except Exception:
-        # 表损坏或不存在，先删除旧的有问题的表再重建
+        # 检查现有表是否使用了错误的外部内容表配置
         try:
-            db.execute(text("DROP TABLE IF EXISTS docbox_fts"))
+            db.execute(text("DELETE FROM docbox_fts WHERE rowid = -1"))
         except Exception:
-            pass
-    
-    db.execute(text("""
-        CREATE VIRTUAL TABLE IF NOT EXISTS docbox_fts USING fts5(
-            title,
-            content,
-            description
-        )
-    """))
-    db.commit()
+            try:
+                db.execute(text("DROP TABLE IF EXISTS docbox_fts"))
+            except Exception:
+                pass
+        db.execute(text("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS docbox_fts USING fts5(
+                title,
+                content,
+                description
+            )
+        """))
+        db.commit()
+    except Exception as e:
+        # FTS5 不可用（某些 SQLite 编译版本不含 FTS5），静默跳过
+        logger.warning(f"FTS5 不可用，全文检索将使用 LIKE 兜底: {e}")
+        try: db.rollback()
+        except: pass
 
 
 def _rebuild_docbox_fts(db: Session):
-    """重建文档工具箱FTS5索引"""
-    _ensure_docbox_fts(db)
-    db.execute(text("DELETE FROM docbox_fts"))
-    
+    """重建文档工具箱FTS5索引（FTS5不可用时静默跳过）"""
+    try:
+        _ensure_docbox_fts(db)
+        db.execute(text("DELETE FROM docbox_fts"))
+    except Exception as e:
+        logger.warning(f"FTS5初始化失败，跳过索引重建: {e}")
+        try: db.rollback()
+        except: pass
+        return
+
     docs = db.query(DocumentFile).all()
     for d in docs:
         # 使用2-gram分词
@@ -532,7 +545,7 @@ def docbox_chat(data: dict, db: Session = Depends(get_db)):
             """), {'q': fts_query}).fetchall()
             
             for r in results:
-                doc = db.query(DocumentFile).get(r.id)
+                doc = db.query(DocumentFile).filter(DocumentFile.id == r.id).first()
                 if doc:
                     matched_docs.append(doc)
         except Exception as e:
@@ -649,3 +662,4 @@ def migrate_from_knowledge(db: Session = Depends(get_db)):
         _rebuild_docbox_fts(db)
     
     return {'migrated': migrated, 'total_old': len(old_docs)}
+
