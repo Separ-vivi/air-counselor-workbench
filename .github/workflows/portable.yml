@@ -66,21 +66,23 @@ jobs:
           mkdir -p "$PKG_NAME/frontend"
           cp -r frontend/dist "$PKG_NAME/frontend/dist"
 
-          # V6.20: 嵌入式 Python 运行时
-          if [ -d "python" ] && [ -f "python/python.exe" ]; then
-            echo "使用仓库内 python/ 运行时"
-            cp -r python "$PKG_NAME/python"
-          else
-            echo "仓库未携带 python/，下载官方嵌入式 Python 3.11"
-            mkdir -p "$PKG_NAME/python"
-            curl -sL "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip" -o /tmp/pyembed.zip
-            unzip -q /tmp/pyembed.zip -d "$PKG_NAME/python"
+          # 嵌入式 Python 运行时 - 始终下载官方完整版以确保 python311.zip 存在
+          echo "下载官方嵌入式 Python 3.11.9..."
+          mkdir -p "$PKG_NAME/python"
+          curl -sL "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip" -o /tmp/pyembed.zip
+          unzip -q -o /tmp/pyembed.zip -d "$PKG_NAME/python"
+          rm -f /tmp/pyembed.zip
+
+          # 如果仓库有额外的 .pyd 文件，覆盖进去
+          if [ -d "python" ]; then
+            echo "合并仓库额外的 .pyd 文件..."
+            find python -name "*.pyd" -exec cp {} "$PKG_NAME/python/" \; 2>/dev/null || true
           fi
 
           # 覆盖 _pth 指向 backend 和 site-packages
           cp scripts/portable/python311._pth "$PKG_NAME/python/python311._pth"
 
-          # 启动脚本和修复脚本（从仓库复制，避免 YAML heredoc 问题）
+          # 启动脚本和修复脚本
           cp scripts/portable/启动.bat "$PKG_NAME/启动.bat"
           cp scripts/portable/修复依赖.bat "$PKG_NAME/修复依赖.bat"
 
@@ -93,11 +95,12 @@ jobs:
           # 自检
           echo "=== 包内关键文件自检 ==="
           test -f "$PKG_NAME/python/python.exe" && echo "[OK] python/python.exe" || echo "[FAIL] python/python.exe"
+          test -f "$PKG_NAME/python/python311.zip" && echo "[OK] python311.zip (标准库)" || echo "[FAIL] python311.zip 缺失！"
           test -f "$PKG_NAME/backend/main.py" && echo "[OK] backend/main.py" || echo "[FAIL] main.py"
           test -f "$PKG_NAME/frontend/dist/index.html" && echo "[OK] frontend/dist/index.html" || echo "[FAIL] index.html"
           test -d "$PKG_NAME/backend/Lib/site-packages/fastapi" && echo "[OK] fastapi 依赖" || echo "[FAIL] fastapi"
-          grep -q "DEPLOY_RUN_PORT=8000" "$PKG_NAME/启动.bat" && echo "[OK] 端口 8000" || echo "[FAIL] 端口"
-          grep -q 'python.exe' "$PKG_NAME/启动.bat" && echo "[OK] 使用内置 Python" || echo "[FAIL] Python"
+          grep -q "DEPLOY_RUN_PORT=5000" "$PKG_NAME/启动.bat" && echo "[OK] 端口 5000" || echo "[FAIL] 端口配置"
+          grep -q 'python.exe' "$PKG_NAME/启动.bat" && echo "[OK] 使用内置 Python" || echo "[FAIL] Python 启动"
 
           zip -rq "${PKG_NAME}.zip" "$PKG_NAME"
           ls -lh *.zip
@@ -119,17 +122,16 @@ jobs:
 
             ## V6.20 修复内容
 
-            - 📦 **便携包真正开箱即用**：内置 Python 运行时 + 全部依赖，无需单独安装 Python，双击启动.bat 即可运行
-            - 🔌 **端口统一为 8000**：修复历史版本启动脚本引导 8000、程序实际监听 5000 导致打不开的问题
-            - 🤖 **AI 开关真正生效**：关闭 AI 功能后，Dashboard 预警卡片和 AI 预警页面同步停止，不再"关了还在跑"
-            - 📅 **校历同步增强**：使用 Session 保持会话，秋季/春季学期切换均已实测通过
-            - 📄 **文档工具箱**：预览/下载/重命名/移动分类/删除完整可用，下载文件名保留正确扩展名
+            - 📦 **便携包真正开箱即用**：内置完整 Python 3.11 运行时（含标准库）+ 全部依赖，双击启动.bat 即可运行
+            - 🤖 **AI 开关真正生效**：关闭 AI 功能后，Dashboard 预警卡片和 AI 预警页面同步停止
+            - 📅 **校历同步增强**：使用 Session 保持会话，学期切换更稳定
+            - 📄 **文档工具箱**：预览/下载文件名保留正确扩展名
 
             ## 使用方法
 
             1. 下载下方 zip，**完整解压**到任意目录
             2. 双击 `启动.bat`
-            3. 浏览器自动打开 http://127.0.0.1:8000
+            3. 浏览器自动打开 http://127.0.0.1:5000
 
             > 已内置 Python 3.11 + 全部依赖，无需安装任何环境。Windows 10/11 64 位。
 
