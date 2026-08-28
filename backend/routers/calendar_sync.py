@@ -72,7 +72,7 @@ def _parse_semester_label(semester: str) -> str:
     if part == 1:
         return f'{year}-{year + 1}学年第一学期'
     elif part == 2:
-        return f'{year - 1}-{year}学年第二学期'
+        return f'{year}-{year + 1}学年第二学期'
     return semester
 
 
@@ -144,8 +144,10 @@ def _get_current_semester_code() -> str:
     now = datetime.now()
     year = now.year
     month = now.month
-    if month >= 9:
+    if month >= 8:
         return f'{year}01'
+    elif month == 1:
+        return f'{year - 1}01'
     else:
         return f'{year - 1}02'
 
@@ -347,19 +349,20 @@ def _parse_calendar_html(html: str, semester: str) -> list:
 def sync_calendar(semester: str = '', db: Session = Depends(get_db)):
     """从教务处官网同步校历"""
     if not semester:
+        local_semester = _get_current_semester_code()
         try:
             data_html = _fetch_data_page()
             if data_html:
-                website_current, _ = _extract_semesters_from_html(data_html)
-                if website_current:
-                    semester = website_current
+                _, available_codes = _extract_semesters_from_html(data_html)
+                if local_semester in available_codes:
+                    semester = local_semester
+                else:
+                    website_current, _ = _extract_semesters_from_html(data_html)
+                    semester = website_current or local_semester
                     logger.info(f'从官网获取到当前学期: {semester}')
         except Exception as e:
-            logger.warning(f'获取官网当前学期失败: {e}')
-
-        if not semester:
-            semester = _get_current_semester_code()
-            logger.info(f'使用本地推断学期: {semester}')
+            logger.warning(f'获取官网学期失败: {e}')
+            semester = local_semester
 
     html = _fetch_data_page(semester)
     if not html:
@@ -434,24 +437,25 @@ def list_semesters():
             website_current, available_codes = _extract_semesters_from_html(html)
             if available_codes:
                 current_code = _get_current_semester_code()
-                # V6.19：保留当前学期及下一学期（允许提前同步下学期校历）
-                max_code = str(int(current_code) + 100)
-                filtered_codes = [c for c in available_codes if c <= max_code]
+                effective_current = current_code if current_code in available_codes else (website_current or current_code)
+                max_code = str(int(effective_current) + 100)
+                min_code = str(int(effective_current) - 500)
+                filtered_codes = [c for c in available_codes if min_code <= c <= max_code]
 
                 if not filtered_codes:
-                    filtered_codes = available_codes[:3]
+                    filtered_codes = available_codes[:6]
 
                 semesters = []
                 for code in filtered_codes:
                     semesters.append({
                         'code': code,
                         'label': _parse_semester_label(code),
-                        'is_current': code == website_current,
+                        'is_current': code == effective_current,
                     })
                 semesters.sort(key=lambda x: x['code'], reverse=True)
                 return {
-                    'current_semester': website_current or current_code,
-                    'semesters': semesters[:8],
+                    'current_semester': effective_current,
+                    'semesters': semesters[:10],
                 }
     except Exception as e:
         logger.warning(f'从官网获取学期列表失败: {e}')
