@@ -6,33 +6,24 @@
         <el-select v-model="filterSemester" placeholder="选择学期" clearable @change="loadData" style="width: 160px; margin-right: 10px;">
           <el-option v-for="sem in semesters" :key="sem" :label="sem" :value="sem" />
         </el-select>
+        <el-select v-model="filterClass" placeholder="选择班级" clearable filterable @change="loadData" style="width: 180px; margin-right: 10px;">
+          <el-option v-for="c in classList" :key="c.id" :label="c.name" :value="c.id" />
+        </el-select>
+        <el-button type="success" @click="exportData" :icon="Download">导出</el-button>
         <el-button type="primary" @click="showAddDialog">新增记录</el-button>
       </div>
     </div>
 
-    <!-- 统计卡片 -->
     <div class="stats-cards">
-      <div class="stat-card">
-        <div class="stat-label">记录总数</div>
-        <div class="stat-value">{{ stats.count }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">平均总分</div>
-        <div class="stat-value">{{ stats.avg_total }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">最高分</div>
-        <div class="stat-value highlight">{{ stats.top_score }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">最低分</div>
-        <div class="stat-value">{{ stats.min_score }}</div>
-      </div>
+      <div class="stat-card"><div class="stat-label">记录总数</div><div class="stat-value">{{ stats.count }}</div></div>
+      <div class="stat-card"><div class="stat-label">平均总分</div><div class="stat-value">{{ stats.avg_total }}</div></div>
+      <div class="stat-card"><div class="stat-label">最高分</div><div class="stat-value highlight">{{ stats.top_score }}</div></div>
+      <div class="stat-card"><div class="stat-label">最低分</div><div class="stat-value">{{ stats.min_score }}</div></div>
     </div>
 
-    <!-- 数据表格 -->
     <div class="table-container">
-      <el-table :data="tableData" style="width: 100%" v-loading="loading">
+      <el-table :data="tableData" style="width: 100%" v-loading="loading" @selection-change="onSelectionChange" border stripe>
+        <el-table-column type="selection" width="50" />
         <el-table-column prop="student_no" label="学号" width="120" />
         <el-table-column prop="student_name" label="姓名" width="100" />
         <el-table-column prop="class_name" label="班级" width="150" />
@@ -43,9 +34,7 @@
         <el-table-column prop="aesthetic_score" label="美育" width="80" />
         <el-table-column prop="labor_score" label="劳育" width="80" />
         <el-table-column prop="total_score" label="总分" width="80">
-          <template #default="{ row }">
-            <span class="total-score">{{ row.total_score }}</span>
-          </template>
+          <template #default="{ row }"><span class="total-score">{{ row.total_score }}</span></template>
         </el-table-column>
         <el-table-column prop="class_rank" label="排名" width="70" />
         <el-table-column label="操作" width="150" fixed="right">
@@ -55,20 +44,15 @@
           </template>
         </el-table-column>
       </el-table>
-      
       <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 50]"
+        v-model:current-page="currentPage" v-model:page-size="pageSize"
+        :total="total" :page-sizes="[10, 20, 50]"
         layout="total, sizes, prev, pager, next"
-        @size-change="loadData"
-        @current-change="loadData"
+        @size-change="loadData" @current-change="loadData"
         style="margin-top: 16px; justify-content: flex-end;"
       />
     </div>
 
-    <!-- 新增/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑记录' : '新增记录'" width="600px">
       <el-form :model="form" label-width="80px">
         <el-form-item label="学生" required>
@@ -77,26 +61,18 @@
           </el-select>
         </el-form-item>
         <el-form-item label="学期" required>
-          <el-input v-model="form.semester" placeholder="如 2025-2026-1" />
+          <el-select v-model="form.semester" filterable allow-create placeholder="选择或输入学期" style="width:100%">
+            <el-option v-for="s in semesters" :key="s" :label="s" :value="s" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="德育">
-          <el-input-number v-model="form.moral_score" :min="0" :max="100" />
-        </el-form-item>
-        <el-form-item label="智育">
-          <el-input-number v-model="form.academic_score" :min="0" :max="100" />
-        </el-form-item>
-        <el-form-item label="体育">
-          <el-input-number v-model="form.physical_score" :min="0" :max="100" />
-        </el-form-item>
-        <el-form-item label="美育">
-          <el-input-number v-model="form.aesthetic_score" :min="0" :max="100" />
-        </el-form-item>
-        <el-form-item label="劳育">
-          <el-input-number v-model="form.labor_score" :min="0" :max="100" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="form.notes" type="textarea" :rows="3" />
-        </el-form-item>
+        <el-row :gutter="12">
+          <el-col :span="12"><el-form-item label="德育"><el-input-number v-model="form.moral_score" :min="0" :max="100" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="智育"><el-input-number v-model="form.academic_score" :min="0" :max="100" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="体育"><el-input-number v-model="form.physical_score" :min="0" :max="100" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="美育"><el-input-number v-model="form.aesthetic_score" :min="0" :max="100" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="劳育"><el-input-number v-model="form.labor_score" :min="0" :max="100" /></el-form-item></el-col>
+        </el-row>
+        <el-form-item label="备注"><el-input v-model="form.notes" type="textarea" :rows="2" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -109,8 +85,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Download } from '@element-plus/icons-vue'
 import { comprehensive as comprehensiveApi, students as studentsApi } from '@/api/modules'
+import { useOrgStore } from '@/stores/org.js'
 
+const orgStore = useOrgStore()
+const classList = ref([])
+const selectedRows = ref([])
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -119,221 +100,129 @@ const semesters = ref([])
 const students = ref([])
 const stats = ref({})
 const filterSemester = ref('')
+const filterClass = ref(null)
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editId = ref(null)
-const form = ref({
-  student_id: null,
-  semester: '',
-  moral_score: 80,
-  academic_score: 80,
-  physical_score: 80,
-  aesthetic_score: 80,
-  labor_score: 80,
-  notes: ''
-})
+const form = ref({ student_id: null, semester: '', moral_score: 80, academic_score: 80, physical_score: 80, aesthetic_score: 80, labor_score: 80, notes: '' })
+
+function onSelectionChange(rows) { selectedRows.value = rows }
 
 const loadData = async () => {
   loading.value = true
   try {
-    const params = {
-      page: currentPage.value,
-      size: pageSize.value
-    }
+    const params = { page: currentPage.value, size: pageSize.value }
     if (filterSemester.value) params.semester = filterSemester.value
-    
+    if (filterClass.value) params.class_id = filterClass.value
     const res = await comprehensiveApi.list(params)
     tableData.value = res.items || []
     total.value = res.total || 0
   } catch (error) {
     console.error('加载数据失败:', error)
     ElMessage.error('加载数据失败')
-  } finally {
-    loading.value = false
-  }
+  } finally { loading.value = false }
 }
 
 const loadSemesters = async () => {
-  try {
-    const res = await comprehensiveApi.semesters()
-    semesters.value = res || []
-  } catch (error) {
-    console.error('加载学期列表失败:', error)
-  }
+  try { semesters.value = await comprehensiveApi.semesters() || [] } catch (e) { console.error(e) }
 }
-
 const loadStats = async () => {
   try {
     const params = {}
     if (filterSemester.value) params.semester = filterSemester.value
-    const res = await comprehensiveApi.statistics(params)
-    stats.value = res || {}
-  } catch (error) {
-    console.error('加载统计失败:', error)
-  }
+    if (filterClass.value) params.class_id = filterClass.value
+    stats.value = await comprehensiveApi.statistics(params) || {}
+  } catch (e) { console.error(e) }
 }
-
 const loadStudents = async () => {
   try {
     const res = await studentsApi.simple()
     students.value = Array.isArray(res) ? res : (res || [])
-  } catch (error) {
-    console.error('加载学生列表失败:', error)
-  }
+  } catch (e) { console.error(e) }
 }
 
 const showAddDialog = () => {
-  isEdit.value = false
-  editId.value = null
-  form.value = {
-    student_id: null,
-    semester: filterSemester.value || '',
-    moral_score: 80,
-    academic_score: 80,
-    physical_score: 80,
-    aesthetic_score: 80,
-    labor_score: 80,
-    notes: ''
-  }
+  isEdit.value = false; editId.value = null
+  form.value = { student_id: null, semester: filterSemester.value || '', moral_score: 80, academic_score: 80, physical_score: 80, aesthetic_score: 80, labor_score: 80, notes: '' }
   dialogVisible.value = true
 }
-
 const showEditDialog = (row) => {
-  isEdit.value = true
-  editId.value = row.id
-  form.value = {
-    student_id: row.student_id,
-    semester: row.semester,
-    moral_score: row.moral_score,
-    academic_score: row.academic_score,
-    physical_score: row.physical_score,
-    aesthetic_score: row.aesthetic_score,
-    labor_score: row.labor_score,
-    notes: row.notes || ''
-  }
+  isEdit.value = true; editId.value = row.id
+  form.value = { student_id: row.student_id, semester: row.semester, moral_score: row.moral_score, academic_score: row.academic_score, physical_score: row.physical_score, aesthetic_score: row.aesthetic_score, labor_score: row.labor_score, notes: row.notes || '' }
   dialogVisible.value = true
 }
 
 const handleSubmit = async () => {
-  if (!form.value.student_id) {
-    ElMessage.warning('请选择学生')
-    return
-  }
-  if (!form.value.semester) {
-    ElMessage.warning('请填写学期')
-    return
-  }
-  
+  if (!form.value.student_id) { ElMessage.warning('请选择学生'); return }
+  if (!form.value.semester) { ElMessage.warning('请填写学期'); return }
   submitting.value = true
   try {
-    if (isEdit.value) {
-      await comprehensiveApi.update(editId.value, form.value)
-      ElMessage.success('更新成功')
-    } else {
-      await comprehensiveApi.create(form.value)
-      ElMessage.success('创建成功')
-    }
-    dialogVisible.value = false
-    loadData()
-    loadStats()
-  } catch (error) {
-    console.error('提交失败:', error)
-    ElMessage.error('操作失败')
-  } finally {
-    submitting.value = false
-  }
+    if (isEdit.value) { await comprehensiveApi.update(editId.value, form.value); ElMessage.success('更新成功') }
+    else { await comprehensiveApi.create(form.value); ElMessage.success('创建成功') }
+    dialogVisible.value = false; loadData(); loadStats()
+  } catch (e) { ElMessage.error('操作失败') }
+  finally { submitting.value = false }
 }
 
 const handleDelete = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定删除 ${row.student_name} 的综测记录吗？`, '提示', {
-      type: 'warning'
-    })
-    await comprehensiveApi.remove(row.id)
-    ElMessage.success('删除成功')
-    loadData()
-    loadStats()
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('删除失败:', error)
-      ElMessage.error('删除失败')
-    }
-  }
+    await ElMessageBox.confirm(`确定删除 ${row.student_name} 的综测记录吗？`, '提示', { type: 'warning' })
+    await comprehensiveApi.remove(row.id); ElMessage.success('删除成功'); loadData(); loadStats()
+  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败') }
 }
 
-onMounted(() => {
-  loadData()
-  loadSemesters()
-  loadStats()
-  loadStudents()
+const exportData = async () => {
+  try {
+    const params = {}
+    if (filterSemester.value) params.semester = filterSemester.value
+    if (filterClass.value) params.class_id = filterClass.value
+    const res = await comprehensiveApi.list({ ...params, size: 10000, page: 1 })
+    const items = res.items || []
+    if (!items.length) { ElMessage.warning('没有可导出的数据'); return }
+    import('xlsx').then(XLSX => {
+      const exportData = items.map(r => ({
+        '学号': r.student_no, '姓名': r.student_name, '班级': r.class_name, '学期': r.semester,
+        '德育': r.moral_score, '智育': r.academic_score, '体育': r.physical_score,
+        '美育': r.aesthetic_score, '劳育': r.labor_score, '总分': r.total_score, '排名': r.class_rank
+      }))
+      const ws = XLSX.utils.json_to_sheet(exportData)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, '综测成绩')
+      XLSX.writeFile(wb, `综测成绩_${new Date().toISOString().slice(0,10)}.xlsx`)
+      ElMessage.success(`已导出 ${items.length} 条记录`)
+    }).catch(() => {
+      const csv = ['学号,姓名,班级,学期,德育,智育,体育,美育,劳育,总分,排名']
+      items.forEach(r => csv.push(`${r.student_no},${r.student_name},${r.class_name},${r.semester},${r.moral_score},${r.academic_score},${r.physical_score},${r.aesthetic_score},${r.labor_score},${r.total_score},${r.class_rank}`))
+      const blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `综测成绩_${new Date().toISOString().slice(0,10)}.csv`
+      a.click()
+      ElMessage.success('已导出CSV')
+    })
+  } catch (e) { ElMessage.error('导出失败') }
+}
+
+onMounted(async () => {
+  if (!orgStore.orgTree.length) await orgStore.loadTree()
+  classList.value = orgStore.allClasses.map(c => ({ id: c.id, name: `${c.name} · ${c.major_name || ''}` }))
+  loadData(); loadSemesters(); loadStats(); loadStudents()
 })
 </script>
 
 <style scoped>
-.comprehensive-page {
-  padding: 20px;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.page-header h2 {
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.page-actions {
-  display: flex;
-  align-items: center;
-}
-
-.stats-cards {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  background: #fff;
-  border-radius: var(--radius-md);
-  padding: 20px;
-  text-align: center;
-  box-shadow: var(--shadow-sm);
-}
-
-.stat-label {
-  font-size: 13px;
-  color: #7F8C8D;
-  margin-bottom: 8px;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.stat-value.highlight {
-  color: var(--color-primary);
-}
-
-.table-container {
-  background: #fff;
-  border-radius: var(--radius-md);
-  padding: 20px;
-  box-shadow: var(--shadow-sm);
-}
-
-.total-score {
-  font-weight: 600;
-  color: var(--color-primary);
-}
+.comprehensive-page { padding: 20px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.page-header h2 { margin: 0; color: var(--text-primary); }
+.page-actions { display: flex; align-items: center; }
+.stats-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.stat-card { background: #fff; border-radius: var(--radius-md); padding: 20px; text-align: center; box-shadow: var(--shadow-sm); }
+.stat-label { font-size: 13px; color: #7F8C8D; margin-bottom: 8px; }
+.stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+.stat-value.highlight { color: var(--color-primary); }
+.table-container { background: #fff; border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm); }
+.total-score { font-weight: 600; color: var(--color-primary); }
 </style>
