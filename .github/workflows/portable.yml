@@ -57,50 +57,57 @@ jobs:
           rm -rf "$PKG_NAME"
           mkdir -p "$PKG_NAME"
 
-          # 后端代码（剔除缓存/数据库/日志）
+          # Backend (exclude caches/db/logs)
           rsync -a --exclude='__pycache__' --exclude='*.pyc' --exclude='*.log' \
                 --exclude='data/*.db' --exclude='data/*.db-journal' \
                 backend "$PKG_NAME/"
 
-          # 前端构建产物
+          # Frontend build
           mkdir -p "$PKG_NAME/frontend"
           cp -r frontend/dist "$PKG_NAME/frontend/dist"
 
-          # 嵌入式 Python 运行时 - 始终下载官方完整版以确保 python311.zip 存在
-          echo "下载官方嵌入式 Python 3.11.9..."
+          # Embedded Python runtime - always download full official version
+          echo "Downloading official embedded Python 3.11.9..."
           mkdir -p "$PKG_NAME/python"
           curl -sL "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip" -o /tmp/pyembed.zip
           unzip -q -o /tmp/pyembed.zip -d "$PKG_NAME/python"
           rm -f /tmp/pyembed.zip
 
-          # 如果仓库有额外的 .pyd 文件，覆盖进去
+          # Merge extra .pyd files from repo if present
           if [ -d "python" ]; then
-            echo "合并仓库额外的 .pyd 文件..."
+            echo "Merging extra .pyd files from repo..."
             find python -name "*.pyd" -exec cp {} "$PKG_NAME/python/" \; 2>/dev/null || true
           fi
 
-          # 覆盖 _pth 指向 backend 和 site-packages
+          # Override _pth to point at backend and site-packages
           cp scripts/portable/python311._pth "$PKG_NAME/python/python311._pth"
 
-          # 启动脚本和修复脚本
-          cp scripts/portable/启动.bat "$PKG_NAME/启动.bat"
-          cp scripts/portable/修复依赖.bat "$PKG_NAME/修复依赖.bat"
+          # Launcher scripts (English filenames, pure ASCII to avoid encoding issues)
+          cp scripts/portable/start.bat "$PKG_NAME/start.bat"
+          cp scripts/portable/fix-deps.bat "$PKG_NAME/fix-deps.bat"
 
           # requirements.txt
           cp backend/requirements.txt "$PKG_NAME/requirements.txt"
 
           # README
-          cp scripts/portable/README-便携版.md "$PKG_NAME/README-便携版.md" || true
+          cp scripts/portable/README.txt "$PKG_NAME/README.txt" 2>/dev/null || true
 
-          # 自检
-          echo "=== 包内关键文件自检 ==="
+          # Self-check
+          echo "=== Package self-check ==="
           test -f "$PKG_NAME/python/python.exe" && echo "[OK] python/python.exe" || echo "[FAIL] python/python.exe"
-          test -f "$PKG_NAME/python/python311.zip" && echo "[OK] python311.zip (标准库)" || echo "[FAIL] python311.zip 缺失！"
+          test -f "$PKG_NAME/python/python311.zip" && echo "[OK] python311.zip (stdlib)" || echo "[FAIL] python311.zip missing!"
           test -f "$PKG_NAME/backend/main.py" && echo "[OK] backend/main.py" || echo "[FAIL] main.py"
           test -f "$PKG_NAME/frontend/dist/index.html" && echo "[OK] frontend/dist/index.html" || echo "[FAIL] index.html"
-          test -d "$PKG_NAME/backend/Lib/site-packages/fastapi" && echo "[OK] fastapi 依赖" || echo "[FAIL] fastapi"
-          grep -q "DEPLOY_RUN_PORT=5000" "$PKG_NAME/启动.bat" && echo "[OK] 端口 5000" || echo "[FAIL] 端口配置"
-          grep -q 'python.exe' "$PKG_NAME/启动.bat" && echo "[OK] 使用内置 Python" || echo "[FAIL] Python 启动"
+          test -d "$PKG_NAME/backend/Lib/site-packages/fastapi" && echo "[OK] fastapi deps" || echo "[FAIL] fastapi"
+          test -f "$PKG_NAME/start.bat" && echo "[OK] start.bat" || echo "[FAIL] start.bat"
+          # Verify start.bat is pure ASCII
+          if LC_ALL=C grep -qP '[^\x00-\x7F]' "$PKG_NAME/start.bat"; then
+            echo "[FAIL] start.bat contains non-ASCII characters!"
+            exit 1
+          else
+            echo "[OK] start.bat is pure ASCII (no encoding issues)"
+          fi
+          grep -q "DEPLOY_RUN_PORT=5000" "$PKG_NAME/start.bat" && echo "[OK] port 5000" || echo "[FAIL] port config"
 
           zip -rq "${PKG_NAME}.zip" "$PKG_NAME"
           ls -lh *.zip
@@ -110,32 +117,35 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
-          name: "便携版 · ${{ steps.meta.outputs.ver }} · ${{ steps.meta.outputs.sha_short }}"
+          name: "Portable V6.20 - ${{ steps.meta.outputs.sha_short }}"
           body: |
-            ## 辅导员工作平台便携版 · ${{ steps.meta.outputs.ver }}
+            ## Counselor Workbench Portable - V6.20
 
-            **本波 commit**: `${{ steps.meta.outputs.sha_short }}` — ${{ steps.meta.outputs.commit_msg }}
+            **Commit**: `${{ steps.meta.outputs.sha_short }}` - ${{ steps.meta.outputs.commit_msg }}
 
-            **构建时间**: ${{ steps.meta.outputs.date }} (北京)
+            **Build time**: ${{ steps.meta.outputs.date }} (Beijing)
 
             ---
 
-            ## V6.20 修复内容
+            ### Fixes in this release
 
-            - 📦 **便携包真正开箱即用**：内置完整 Python 3.11 运行时（含标准库）+ 全部依赖，双击启动.bat 即可运行
-            - 🤖 **AI 开关真正生效**：关闭 AI 功能后，Dashboard 预警卡片和 AI 预警页面同步停止
-            - 📅 **校历同步增强**：使用 Session 保持会话，学期切换更稳定
-            - 📄 **文档工具箱**：预览/下载文件名保留正确扩展名
+            - Fixed: app would not start due to port mismatch (restored to **5000**)
+            - Fixed: embedded Python was missing `python311.zip` (standard library), causing immediate crash
+            - Fixed: `start.bat` encoding crash on Chinese Windows (now pure ASCII English)
+            - Fixed: AI toggle not actually disabling AI features
+            - Fixed: calendar sync session handling
+            - Fixed: document toolbox preview filename extension
 
-            ## 使用方法
+            ### How to use
 
-            1. 下载下方 zip，**完整解压**到任意目录
-            2. 双击 `启动.bat`
-            3. 浏览器自动打开 http://127.0.0.1:5000
+            1. Download the zip below and **fully extract** it
+            2. Double-click **`start.bat`**
+            3. Browser opens automatically at http://127.0.0.1:5000
 
-            > 已内置 Python 3.11 + 全部依赖，无需安装任何环境。Windows 10/11 64 位。
+            > Includes Python 3.11 + all dependencies. No installation needed. Windows 10/11 64-bit.
+            > If startup fails, run `fix-deps.bat` to repair dependencies.
 
-            由 GitHub Actions 自动构建。
+            Built by GitHub Actions.
           files: ${{ env.PKG_FILE }}
           draft: false
           prerelease: false
