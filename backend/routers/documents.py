@@ -37,6 +37,13 @@ CATEGORIES = {
 ALLOWED_EXTENSIONS = {'.pdf', '.docx', '.doc', '.xlsx', '.xls', '.txt', '.csv'}
 
 
+# ===== Path resolution helper (V6.20-fix) =====
+_BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
+def _resolve_doc_path(fp):
+    if not fp: return ''
+    if os.path.isabs(fp): return fp
+    return os.path.normpath(os.path.join(_BACKEND_DIR, fp))
+
 def _format_file_size(size_bytes: int) -> str:
     """格式化文件大小"""
     if size_bytes < 1024:
@@ -147,7 +154,7 @@ async def upload_document(
     os.makedirs(cat_dir, exist_ok=True)
     file_path = os.path.join(cat_dir, safe_name)
     # V6.18: 使用相对路径存储，确保跨机器可移植
-    rel_file_path = os.path.relpath(file_path, os.path.dirname(os.path.dirname(__file__)))
+    rel_file_path = os.path.relpath(file_path, _BACKEND_DIR)
     
     content_bytes = await file.read()
     file_size = len(content_bytes)
@@ -277,9 +284,7 @@ def preview_document(doc_id: int, db: Session = Depends(get_db)):
         raise HTTPException(400, '链接类文档无文件可预览')
     
     # V6.18: 支持相对路径解析
-    file_path = doc.file_path
-    if file_path and not os.path.isabs(file_path):
-        file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), file_path)
+    file_path = _resolve_doc_path(doc.file_path)
     if not file_path or not os.path.isfile(file_path):
         raise HTTPException(404, '文件不存在或已被删除')
     
@@ -322,15 +327,13 @@ def update_document(doc_id: int, data: dict, db: Session = Depends(get_db)):
         if new_cat != doc.category:
             # 移动文件到新分类目录
             try:
-                old_fp = doc.file_path
-                if old_fp and not os.path.isabs(old_fp):
-                    old_fp = os.path.join(os.path.dirname(os.path.dirname(__file__)), old_fp)
+                old_fp = _resolve_doc_path(doc.file_path)
                 if old_fp and os.path.isfile(old_fp):
                     new_cat_dir = os.path.join(UPLOAD_DIR, new_cat)
                     os.makedirs(new_cat_dir, exist_ok=True)
                     new_fp = os.path.join(new_cat_dir, os.path.basename(old_fp))
                     os.rename(old_fp, new_fp)
-                    doc.file_path = os.path.relpath(new_fp, os.path.dirname(os.path.dirname(__file__)))
+                    doc.file_path = os.path.relpath(new_fp, _BACKEND_DIR)
             except Exception as e:
                 logger.warning(f"移动文件失败（继续更新数据库）: {e}")
         doc.category = new_cat
@@ -340,15 +343,13 @@ def update_document(doc_id: int, data: dict, db: Session = Depends(get_db)):
         if new_title != doc.title and doc.doc_type != 'link':
             # 同步重命名磁盘文件，保持扩展名
             try:
-                old_fp = doc.file_path
-                if old_fp and not os.path.isabs(old_fp):
-                    old_fp = os.path.join(os.path.dirname(os.path.dirname(__file__)), old_fp)
+                old_fp = _resolve_doc_path(doc.file_path)
                 if old_fp and os.path.isfile(old_fp):
                     ext = os.path.splitext(old_fp)[1]
                     new_basename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{new_title}{ext}"
                     new_fp = os.path.join(os.path.dirname(old_fp), new_basename)
                     os.rename(old_fp, new_fp)
-                    doc.file_path = os.path.relpath(new_fp, os.path.dirname(os.path.dirname(__file__)))
+                    doc.file_path = os.path.relpath(new_fp, _BACKEND_DIR)
             except Exception as e:
                 logger.warning(f"重命名文件失败（继续更新数据库标题）: {e}")
         doc.title = new_title
@@ -385,9 +386,7 @@ def delete_document(doc_id: int, db: Session = Depends(get_db)):
     # 删除文件（多个可能的路径）
     if doc.file_path:
         try:
-            fp = doc.file_path
-            if not os.path.isabs(fp):
-                fp = os.path.join(os.path.dirname(os.path.dirname(__file__)), fp)
+            fp = _resolve_doc_path(doc.file_path)
             if os.path.isfile(fp):
                 os.remove(fp)
                 logger.info(f"已删除文件: {doc.file_path}")
@@ -433,7 +432,7 @@ def cleanup_orphaned_docs(db: Session = Depends(get_db)):
         should_delete = False
         
         # 检查1: 非链接类但文件不存在
-        if doc.doc_type != 'link' and doc.file_path and not os.path.isfile(doc.file_path):
+        if doc.doc_type != 'link' and doc.file_path and not os.path.isfile(_resolve_doc_path(doc.file_path)):
             should_delete = True
         
         # 检查2: 文件大小为0且没有全文
@@ -626,8 +625,8 @@ def migrate_from_knowledge(db: Session = Depends(get_db)):
         
         # 获取文件大小
         file_size = 0
-        if old.file_path and os.path.isfile(old.file_path):
-            file_size = os.path.getsize(old.file_path)
+        if old.file_path and os.path.isfile(_resolve_doc_path(old.file_path)):
+            file_size = os.path.getsize(_resolve_doc_path(old.file_path))
         
         doc = DocumentFile(
             title=old.title,
