@@ -533,8 +533,13 @@ async def confirm_import(req: ConfirmRequest):
                         created += 1
 
             # 导入成绩后重新计算预警
-            from routers.grades import recalculate_warnings
-            recalculate_warnings(db)
+            try:
+                from routers.grades import recalculate_warnings
+                recalculate_warnings(db)
+            except Exception as we:
+                import logging
+                logging.getLogger(__name__).warning(f'预警重算失败（不影响导入）: {we}')
+                db.rollback()
 
         elif data_type == 'party':
             for _, row in df.iterrows():
