@@ -81,7 +81,7 @@
         >
 
         <!-- 上传时选择分类弹窗 -->
-        <el-dialog v-model="showUploadDialog" title="上传文档" width="480px">
+        <el-dialog v-model="showUploadDialog" title="上传文档" width="480px" append-to-body>
           <el-form label-width="80px">
             <el-form-item label="文件">
               <el-input :model-value="uploadFileName" disabled />
@@ -102,7 +102,7 @@
         </el-dialog>
 
         <!-- 添加链接弹窗 -->
-        <el-dialog v-model="showAddLink" title="添加链接" width="480px">
+        <el-dialog v-model="showAddLink" title="添加链接" width="480px" append-to-body>
           <el-form label-width="80px">
             <el-form-item label="标题" required>
               <el-input v-model="linkForm.title" placeholder="如：假期离校登记" />
@@ -126,7 +126,7 @@
         </el-dialog>
 
         <!-- 移动分类弹窗 -->
-        <el-dialog v-model="showMoveDialog" title="移动分类" width="400px">
+        <el-dialog v-model="showMoveDialog" title="移动分类" width="400px" append-to-body>
           <el-form label-width="80px">
             <el-form-item label="文档">
               <el-input :model-value="moveDoc?.title" disabled />
@@ -144,7 +144,7 @@
         </el-dialog>
 
         <!-- V6.19: 重命名弹窗 -->
-        <el-dialog v-model="showRenameDialog" title="重命名" width="440px">
+        <el-dialog v-model="showRenameDialog" title="重命名" width="440px" append-to-body>
           <el-form label-width="70px">
             <el-form-item label="文件名">
               <el-input v-model="renameValue" placeholder="输入新的文件名（不含扩展名）" @keyup.enter="doRename" />
@@ -158,7 +158,7 @@
 
         <!-- 文档详情/预览弹窗 -->
         <el-dialog v-model="showPreview" :title="previewDoc?.title || '文档预览'" width="90%" top="3vh"
-          :close-on-click-modal="false" class="preview-dialog"
+          :close-on-click-modal="false" class="preview-dialog" append-to-body
         >
           <div v-if="previewDoc" class="preview-container">
             <div class="preview-meta">
@@ -808,13 +808,7 @@ function scrollChatBottom() {
 
 function onSourceClick(s) {
   if (s.doc_id) {
-    const doc = {
-      id: s.doc_id,
-      title: s.doc_title,
-      category: s.category,
-      doc_type: s.doc_type,
-    }
-    openPreview(doc)
+    openPreview({ id: s.doc_id, title: s.doc_title, category: s.category, doc_type: s.doc_type })
   }
 }
 
@@ -920,10 +914,14 @@ function onFaqExport(format) {
   }
 }
 
-// V6.17: 清理脏数据（上传失败但残留的记录）
+// V6.21: 清理脏数据改为手动触发，避免页面加载时与上传产生竞态
 async function cleanupOrphans() {
   try {
-    await http.post('/docbox/cleanup')
+    const res = await http.post('/docbox/cleanup')
+    if (res?.cleaned > 0) {
+      ElMessage.info(`已清理 ${res.cleaned} 条无效记录`)
+      await loadDocs()
+    }
   } catch {
     // 静默失败
   }
@@ -933,7 +931,6 @@ onMounted(() => {
   loadDocs()
   loadLlmStatus()
   loadFaqs()
-  cleanupOrphans()
 })
 </script>
 
