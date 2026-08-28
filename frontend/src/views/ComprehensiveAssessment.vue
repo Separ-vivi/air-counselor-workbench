@@ -182,28 +182,17 @@ const exportData = async () => {
     const res = await comprehensiveApi.list({ ...params, size: 10000, page: 1 })
     const items = res.items || []
     if (!items.length) { ElMessage.warning('没有可导出的数据'); return }
-    import('xlsx').then(XLSX => {
-      const exportData = items.map(r => ({
-        '学号': r.student_no, '姓名': r.student_name, '班级': r.class_name, '学期': r.semester,
-        '德育': r.moral_score, '智育': r.academic_score, '体育': r.physical_score,
-        '美育': r.aesthetic_score, '劳育': r.labor_score, '总分': r.total_score, '排名': r.class_rank
-      }))
-      const ws = XLSX.utils.json_to_sheet(exportData)
-      const wb = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(wb, ws, '综测成绩')
-      XLSX.writeFile(wb, `综测成绩_${new Date().toISOString().slice(0,10)}.xlsx`)
-      ElMessage.success(`已导出 ${items.length} 条记录`)
-    }).catch(() => {
-      const csv = ['学号,姓名,班级,学期,德育,智育,体育,美育,劳育,总分,排名']
-      items.forEach(r => csv.push(`${r.student_no},${r.student_name},${r.class_name},${r.semester},${r.moral_score},${r.academic_score},${r.physical_score},${r.aesthetic_score},${r.labor_score},${r.total_score},${r.class_rank}`))
-      const blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8' })
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = `综测成绩_${new Date().toISOString().slice(0,10)}.csv`
-      a.click()
-      ElMessage.success('已导出CSV')
-    })
-  } catch (e) { ElMessage.error('导出失败') }
+    const headers = ['学号', '姓名', '班级', '学期', '德育', '智育', '体育', '美育', '劳育', '总分', '排名']
+    const rows = items.map(r => [r.student_no, r.student_name, r.class_name, r.semester, r.moral_score, r.academic_score, r.physical_score, r.aesthetic_score, r.labor_score, r.total_score, r.class_rank])
+    const csv = [headers, ...rows].map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n')
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `综测成绩_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    URL.revokeObjectURL(a.href)
+    ElMessage.success(`已导出 ${items.length} 条记录（CSV格式，可用Excel直接打开）`)
+  } catch (e) { console.error(e); ElMessage.error('导出失败') }
 }
 
 onMounted(async () => {
