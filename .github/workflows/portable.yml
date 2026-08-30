@@ -117,9 +117,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
-          name: "Portable V6.20 - ${{ steps.meta.outputs.sha_short }}"
+          name: "Portable V8 - ${{ steps.meta.outputs.sha_short }}"
           body: |
-            ## Counselor Workbench Portable - V6.20
+            ## Counselor Workbench Portable - V8
 
             **Commit**: `${{ steps.meta.outputs.sha_short }}` - ${{ steps.meta.outputs.commit_msg }}
 
@@ -127,14 +127,11 @@ jobs:
 
             ---
 
-            ### Fixes in this release
+            ### Fixes in this release (V8)
 
-            - Fixed: app would not start due to port mismatch (restored to **5000**)
-            - Fixed: embedded Python was missing `python311.zip` (standard library), causing immediate crash
-            - Fixed: `start.bat` encoding crash on Chinese Windows (now pure ASCII English)
-            - Fixed: AI toggle not actually disabling AI features
-            - Fixed: calendar sync session handling
-            - Fixed: document toolbox preview filename extension
+            - **校历同步修复**：便携版嵌入式 Python 缺少 `requests` 库导致"无法获取校历页面（No module named 'requests'）"；校历抓取全面改用 Python 标准库（urllib + cookiejar），零第三方依赖，cookie 会话 / POST 切换学期 / 重试 / 残缺页回退逻辑保持等价
+            - **党团发展阶段修复**：共青团员（无党团发展记录时）不再被错误归一化显示为"群众"；班级 360 党团进度、学生 360 状态灯、学生列表导出党团列统一回退学生政治面貌字段；学生 360 党团 Tab 阶段选项补齐"共青团员"及下一步路径
+            - 版本号升级为 V8（侧边栏 + 页面标题）
 
             ### How to use
 

@@ -63,14 +63,15 @@ const props = defineProps({ sid: { type: Number, required: true } })
 const rows = ref([])
 const showAdd = ref(false)
 const colors = ['#5B92E5', '#4FC3B8', '#8FA9E5']
-const stageOptions = ['入党申请人', '积极分子', '发展对象', '中共预备党员', '中共党员']
+// V8: 补共青团员阶段（与党团发展模块7阶段口径一致）
+const stageOptions = ['共青团员', '入党申请人', '积极分子', '发展对象', '中共预备党员', '中共党员']
 const form = ref({ stage: '入党申请人', stage_date: '', contact_person: '', notes: '' })
 
 const sortedRows = computed(() =>
   [...rows.value].sort((a,b) => (b.stage_date||'').localeCompare(a.stage_date||''))
 )
 
-const nextStageMap = { '入党申请人':'积极分子','积极分子':'发展对象','发展对象':'中共预备党员','中共预备党员':'中共党员','中共党员':null }
+const nextStageMap = { '共青团员':'入党申请人','入党申请人':'积极分子','积极分子':'发展对象','发展对象':'中共预备党员','中共预备党员':'中共党员','中共党员':null, '群众':null }
 
 const stats = computed(() => {
   if (!rows.value.length) return [
@@ -86,7 +87,7 @@ const stats = computed(() => {
 })
 
 function stageColor(stage) {
-  const map = { '入党申请人':'#909399','积极分子':'#E6A23C','发展对象':'#5B92E5','中共预备党员':'#67C23A','中共党员':'#F56C6C' }
+  const map = { '群众':'#C0C4CC','共青团员':'#87CEEB','入党申请人':'#909399','积极分子':'#E6A23C','发展对象':'#5B92E5','中共预备党员':'#67C23A','中共党员':'#F56C6C' }
   return map[stage] || '#5B92E5'
 }
 

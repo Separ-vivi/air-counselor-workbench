@@ -31,18 +31,18 @@ const colors = ['#5B92E5', '#4FC3B8', '#8FA9E5']
 const stats = computed(() => {
   const d = data.value
   if (!d) return [
-    { label: '党员数', value: '—' },
-    { label: '积极分子', value: '—' },
-    { label: '发展对象', value: '—' }
+    { label: '党员数', value: 0 },
+    { label: '积极分子', value: 0 },
+    { label: '发展对象', value: 0 }
   ]
   const list = Array.isArray(d) ? d : (d?.items || d?.records || [])
   const partyMembers = list.filter(r => (r.stage || '').includes('党员')).length
   const activists = list.filter(r => (r.stage || '').includes('积极分子')).length
   const devTargets = list.filter(r => (r.stage || '').includes('发展对象')).length
   return [
-    { label: '党员数', value: partyMembers || '—' },
-    { label: '积极分子', value: activists || '—' },
-    { label: '发展对象', value: devTargets || '—' }
+    { label: '党员数', value: partyMembers || 0 },
+    { label: '积极分子', value: activists || 0 },
+    { label: '发展对象', value: devTargets || 0 }
   ]
 })
 

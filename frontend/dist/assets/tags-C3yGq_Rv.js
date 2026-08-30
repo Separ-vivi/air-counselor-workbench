@@ -1,1 +1,0 @@
-import{h as e}from"./index-BafRp_Co.js";const g={list:()=>e.get("/tags"),create:t=>e.post("/tags",t),remove:t=>e.delete(`/tags/${t}`),getStudentTags:t=>e.get(`/students/${t}/tags`),addStudentTag:(t,s)=>e.post(`/students/${t}/tags`,{tag_id:s}),removeStudentTag:(t,s)=>e.delete(`/students/${t}/tags/${s}`)};export{g as t};

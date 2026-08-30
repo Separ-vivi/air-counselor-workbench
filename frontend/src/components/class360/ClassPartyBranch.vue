@@ -31,17 +31,17 @@ const colors = ['#5B92E5', '#4FC3B8', '#8FA9E5']
 const stats = computed(() => {
   const d = data.value
   if (!d) return [
-    { label: '团员数', value: '—' },
-    { label: '党员/预备党员', value: '—' },
-    { label: '积极分子', value: '—' }
+    { label: '团员数', value: 0 },
+    { label: '党员/预备党员', value: 0 },
+    { label: '积极分子', value: 0 }
   ]
   const leagueCount = (d.league_members || []).length
   const partyCount = (d.party_members || []).length + (d.reserved_members || []).length
   const activistCount = (d.activists || []).length
   return [
-    { label: '团员数', value: leagueCount || '—' },
-    { label: '党员/预备党员', value: partyCount || '—' },
-    { label: '积极分子', value: activistCount || '—' }
+    { label: '团员数', value: leagueCount || 0 },
+    { label: '党员/预备党员', value: partyCount || 0 },
+    { label: '积极分子', value: activistCount || 0 }
   ]
 })
 

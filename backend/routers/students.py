@@ -442,7 +442,8 @@ def export_students_full(
         party = db.query(PartyProgress).filter(
             PartyProgress.student_id == stu.id
         ).order_by(PartyProgress.stage_date.desc()).first()
-        party_stage = party.stage if party else '群众'
+        # V8: 无党团记录时回退政治面貌，共青团员不再显示为群众
+        party_stage = party.stage if party else (stu.political_status or '群众')
         party_date = party.stage_date if party else ''
 
         # 就业

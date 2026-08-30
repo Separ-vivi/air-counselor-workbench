@@ -5,10 +5,16 @@ V6.19修复:
 - 修复跨月fallback逻辑：根据学期代码和首个月份标题推断起始年月，
   秋季学期从8月开始，春季学期从2月开始，不再写死2月导致8月日期拼成无效日期
 - 修复定时任务引用的函数名与实际不一致（_fetch_page→_fetch_data_page等）
-- requirements.txt 补充 requests 依赖
+
+V8修复:
+- 便携版嵌入式Python无requests第三方库导致校历同步报错
+  (No module named 'requests')；_fetch_data_page 全面改用标准库
+  urllib.request + http.cookiejar 实现，零第三方依赖，cookie会话/
+  POST切学期/3次重试/残缺页回退GET逻辑与原requests版本等价
 """
 import re
 import logging
+import urllib.request
 from datetime import datetime
 from typing import Optional, List
 from html.parser import HTMLParser
@@ -76,44 +82,75 @@ def _parse_semester_label(semester: str) -> str:
     return semester
 
 
-def _fetch_data_page(semester_code: str = '') -> str:
-    """获取校历数据页面HTML，编码为 gb2312"""
-    import requests
+def _build_opener():
+    """构建带cookie会话的urllib opener（等价requests.Session）。
+    教务处证书链不完整，使用不校验证书的SSL上下文（等价verify=False）。"""
+    import ssl
+    from urllib.request import HTTPCookieProcessor, build_opener
+    from http.cookiejar import CookieJar
 
-    url = CALENDAR_DATA_URL
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    https_handler = urllib.request.HTTPSHandler(context=ctx)
+    return build_opener(HTTPCookieProcessor(CookieJar()), https_handler)
+
+
+def _http_request(opener, url, data=None, timeout=20):
+    """发起GET/POST请求，返回(status_code, 解码后的文本)。页面编码gb2312。"""
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                      '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': CALENDAR_PAGE_URL,
     }
+    body = None
+    if data is not None:
+        from urllib.parse import urlencode
+        body = urlencode(data).encode('ascii')
+        headers['Content-Type'] = 'application/x-www-form-urlencoded'
+    req = urllib.request.Request(url, data=body, headers=headers, method='POST' if data is not None else 'GET')
+    resp = opener.open(req, timeout=timeout)
+    raw = resp.read()
+    return resp.getcode(), raw.decode('gb2312', errors='replace')
 
-    # V6.20: 使用 Session 保持 cookie，POST 切换学期更健壮
-    sess = requests.Session()
-    sess.headers.update(headers)
+
+def _fetch_data_page(semester_code: str = '') -> str:
+    """获取校历数据页面HTML，编码为 gb2312
+
+    V8: 纯标准库实现（urllib.request + http.cookiejar），不依赖requests，
+    便携版嵌入式Python可直接运行。"""
+    import urllib.request
+
+    url = CALENDAR_DATA_URL
+    opener = _build_opener()
     for attempt in range(3):
         try:
             if semester_code:
-                resp_init = sess.get(url, timeout=20, verify=False)
-                resp_init.encoding = 'gb2312'
-                option_map = _extract_option_map(resp_init.text)
+                status_init, text_init = _http_request(opener, url)
+                option_map = _extract_option_map(text_init)
                 option_value = option_map.get(semester_code, '')
 
                 if option_value:
-                    resp = sess.post(url, data={'xq': option_value}, timeout=20, verify=False)
+                    try:
+                        status_post, text_post = _http_request(opener, url, data={'xq': option_value})
+                    except Exception as e:
+                        logger.warning(f'POST请求异常，回退GET默认页: {e}')
+                        status_post, text_post = 0, ''
                     # V6.20: POST 残缺页回退到 GET 默认页
-                    if resp.status_code != 200 or len(resp.text) < 5000:
-                        logger.warning(f'POST返回残缺(len={len(resp.text)}), 回退GET默认页')
-                        resp = resp_init
+                    if status_post != 200 or len(text_post) < 5000:
+                        logger.warning(f'POST返回残缺(len={len(text_post)}), 回退GET默认页')
+                        status_code, text = status_init, text_init
+                    else:
+                        status_code, text = status_post, text_post
                 else:
-                    resp = resp_init
+                    status_code, text = status_init, text_init
             else:
-                resp = sess.get(url, timeout=20, verify=False)
+                status_code, text = _http_request(opener, url)
 
-            resp.encoding = 'gb2312'
+            if status_code == 200 and len(text) > 500:
+                return text
 
-            if resp.status_code == 200 and len(resp.text) > 500:
-                return resp.text
-
-            logger.warning(f'页面返回异常: status={resp.status_code}, len={len(resp.text)}')
+            logger.warning(f'页面返回异常: status={status_code}, len={len(text)}')
         except Exception as e:
             logger.warning(f'请求失败(第{attempt+1}次): {e}')
 

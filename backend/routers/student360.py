@@ -277,9 +277,11 @@ def get_student_summary(student_id: int, db: Session = Depends(get_db)):
             warning_status = 'yellow'
 
     # 党团进度
+    # V8: 无党团发展记录时回退学生政治面貌字段（共青团员应显示共青团员，
+    # 不再硬编码为群众）
     party = db.query(PartyProgress).filter(PartyProgress.student_id == student_id)\
         .order_by(desc(PartyProgress.id)).first()
-    party_stage = party.stage if party else '群众'
+    party_stage = party.stage if party else (student.political_status or '群众')
 
     # 心理关注
     psych_count = db.query(PsychologyRecord).filter(PsychologyRecord.student_id == student_id).count()
